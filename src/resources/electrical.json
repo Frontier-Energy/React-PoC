@@ -1,0 +1,51 @@
+{
+  "formName": "Electrical Inspection",
+  "sections": [
+    {
+      "title": "Panel Information",
+      "fields": [
+        {
+          "id": "panelLocation",
+          "label": "Panel Location",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "panelModel",
+          "label": "Panel Model",
+          "type": "text",
+          "required": false
+        },
+        {
+          "id": "amperage",
+          "label": "Amperage",
+          "type": "number",
+          "required": true
+        }
+      ]
+    },
+    {
+      "title": "Inspection Details",
+      "fields": [
+        {
+          "id": "breakersChecked",
+          "label": "All Breakers Checked",
+          "type": "checkbox",
+          "required": true
+        },
+        {
+          "id": "groundingChecked",
+          "label": "Grounding Verified",
+          "type": "checkbox",
+          "required": true
+        },
+        {
+          "id": "notes",
+          "label": "Inspection Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

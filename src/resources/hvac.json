@@ -1,0 +1,52 @@
+{
+  "formName": "HVAC Inspection",
+  "sections": [
+    {
+      "title": "Equipment Information",
+      "fields": [
+        {
+          "id": "unitLocation",
+          "label": "Unit Location",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "unitModel",
+          "label": "Unit Model",
+          "type": "text",
+          "required": false
+        },
+        {
+          "id": "tonnage",
+          "label": "Tonnage",
+          "type": "number",
+          "required": true
+        }
+      ]
+    },
+    {
+      "title": "Inspection Details",
+      "fields": [
+        {
+          "id": "filterCondition",
+          "label": "Filter Condition",
+          "type": "select",
+          "options": ["Good", "Fair", "Poor"],
+          "required": true
+        },
+        {
+          "id": "refrigerantPressure",
+          "label": "Refrigerant Pressure",
+          "type": "text",
+          "required": true
+        },
+        {
+          "id": "notes",
+          "label": "Inspection Notes",
+          "type": "textarea",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
