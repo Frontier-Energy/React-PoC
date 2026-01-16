@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, SelectProps } from '@cloudscape-design/components';
+import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, SelectProps, Link } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { InspectionSession, FormTypeLabels, UploadStatus, FormType } from '../types';
 
@@ -147,7 +147,7 @@ export function MyInspections() {
         <Container>
           <Box textAlign="center" color="text-body-secondary">
             {inspections.length === 0 ? (
-              <>No inspections found. <a href="#/new-inspection">Create a new inspection</a> to get started.</>
+              <>No inspections found. <Link onFollow={() => navigate('/new-inspection')}>Create a new inspection</Link> to get started.</>
             ) : (
               <>No inspections match the selected filters.</>
             )}
