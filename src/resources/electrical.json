@@ -10,7 +10,14 @@
           "type": "text",
           "required": true,
           "externalID": "electrical.panelLocation",
-          "placeholder": "Enter panel location"
+          "placeholder": "Enter panel location",
+          "validationRules": [
+            {
+              "type": "minLength",
+              "value": 3,
+              "message": "Panel location must be at least 3 characters"
+            }
+          ]
         },
         {
           "id": "panelModel",
@@ -26,7 +33,19 @@
           "type": "number",
           "required": true,
           "externalID": "electrical.amperage",
-          "placeholder": "e.g., 200"
+          "placeholder": "e.g., 200",
+          "validationRules": [
+            {
+              "type": "min",
+              "value": 15,
+              "message": "Amperage must be at least 15"
+            },
+            {
+              "type": "max",
+              "value": 400,
+              "message": "Amperage cannot exceed 400"
+            }
+          ]
         }
       ]
     },
@@ -75,6 +94,21 @@
           ]
         },
         {
+          "id": "issueDetails",
+          "label": "Issue Details",
+          "type": "textarea",
+          "required": false,
+          "externalID": "electrical.issueDetails",
+          "placeholder": "Describe the issues found",
+          "visibleWhen": [
+            {
+              "fieldId": "issues",
+              "value": "loose_connections",
+              "operator": "contains"
+            }
+          ]
+        },
+        {
           "id": "notes",
           "label": "Inspection Notes",
           "type": "textarea",
@@ -86,3 +120,4 @@
     }
   ]
 }
+

@@ -147,7 +147,7 @@ export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
           <h2 className="section-title">{section.title}</h2>
           <div className="form-fields">
             {section.fields.map((field) => (
-              <div key={field.id} className="form-field-wrapper">
+              <div key={field.id} className="form-field-wrapper" id={`field-${field.id}`}>
                 {field.type === 'checkbox' ? (
                   renderField(field)
                 ) : (

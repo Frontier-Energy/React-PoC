@@ -10,7 +10,14 @@
           "type": "text",
           "required": true,
           "externalID": "hvac.unitLocation",
-          "placeholder": "e.g., Attic, Basement, Roof"
+          "placeholder": "e.g., Attic, Basement, Roof",
+          "validationRules": [
+            {
+              "type": "minLength",
+              "value": 3,
+              "message": "Unit location must be at least 3 characters"
+            }
+          ]
         },
         {
           "id": "unitModel",
@@ -26,7 +33,19 @@
           "type": "number",
           "required": true,
           "externalID": "hvac.tonnage",
-          "placeholder": "e.g., 3.5"
+          "placeholder": "e.g., 3.5",
+          "validationRules": [
+            {
+              "type": "min",
+              "value": 1,
+              "message": "Tonnage must be at least 1"
+            },
+            {
+              "type": "max",
+              "value": 20,
+              "message": "Tonnage cannot exceed 20"
+            }
+          ]
         }
       ]
     },
@@ -51,7 +70,14 @@
           "type": "text",
           "required": true,
           "externalID": "hvac.refrigerantPressure",
-          "placeholder": "PSI reading"
+          "placeholder": "PSI reading",
+          "validationRules": [
+            {
+              "type": "pattern",
+              "value": "^\\d+(\\.\\d{1,2})?$",
+              "message": "Please enter a valid PSI value (e.g., 125.5)"
+            }
+          ]
         },
         {
           "id": "operationStatus",
@@ -63,6 +89,21 @@
             { "label": "Normal", "value": "normal" },
             { "label": "Running but with Issues", "value": "issues" },
             { "label": "Not Operating", "value": "not_operating" }
+          ]
+        },
+        {
+          "id": "operationNotes",
+          "label": "Operation Issues",
+          "type": "textarea",
+          "required": false,
+          "externalID": "hvac.operationNotes",
+          "placeholder": "Describe any operational issues",
+          "visibleWhen": [
+            {
+              "fieldId": "operationStatus",
+              "value": "issues",
+              "operator": "equals"
+            }
           ]
         },
         {

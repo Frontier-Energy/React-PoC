@@ -3,6 +3,13 @@ export enum FormType {
   HVAC = 'hvac',
 }
 
+export enum UploadStatus {
+  Local = 'local',
+  Uploading = 'uploading',
+  Uploaded = 'uploaded',
+  Failed = 'failed',
+}
+
 export const FormTypeLabels: Record<FormType, string> = {
   [FormType.Electrical]: 'Electrical',
   [FormType.HVAC]: 'HVAC'
@@ -11,6 +18,18 @@ export const FormTypeLabels: Record<FormType, string> = {
 export interface FormFieldOption {
   label: string;
   value: string;
+}
+
+export interface ValidationRule {
+  type: 'minLength' | 'maxLength' | 'min' | 'max' | 'pattern' | 'custom';
+  value?: string | number;
+  message: string;
+}
+
+export interface ConditionalVisibility {
+  fieldId: string;
+  value: string | boolean | string[];
+  operator?: 'equals' | 'notEquals' | 'contains' | 'greaterThan' | 'lessThan';
 }
 
 export interface FormField {
@@ -22,6 +41,8 @@ export interface FormField {
   options?: FormFieldOption[];
   placeholder?: string;
   description?: string;
+  validationRules?: ValidationRule[];
+  visibleWhen?: ConditionalVisibility[];
 }
 
 export interface FormData {
@@ -35,6 +56,7 @@ export interface FormSection {
 
 export interface FormSchema {
   formName: string;
+  uploadStatus: UploadStatus;
   sections: FormSection[];
 }
 

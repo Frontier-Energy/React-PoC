@@ -11,7 +11,8 @@ export function Layout() {
         <SideNavigation
           items={[
             { type: 'link', text: 'Home', href: '#/' },
-            { type: 'link', text: 'New Form', href: '#/new-form' },
+            { type: 'link', text: 'New Inspection', href: '#/new-inspection' },
+            { type: 'link', text: 'My Inspections', href: '#/my-inspections' },
           ]}
           onFollow={(event) => {
             event.preventDefault();
