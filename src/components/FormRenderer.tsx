@@ -14,33 +14,33 @@ import './FormRenderer.css';
 interface FormRendererProps {
   schema: FormSchema;
   data: FormData;
-  onChange: (fieldId: string, value: string | boolean | string[]) => void;
+  onChange: (fieldId: string, value: string | boolean | string[], externalID?: string) => void;
 }
 
 export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
-  const handleTextChange = (fieldId: string, value: string) => {
-    onChange(fieldId, value);
+  const handleTextChange = (fieldId: string, value: string, externalID?: string) => {
+    onChange(fieldId, value, externalID);
   };
 
-  const handleNumberChange = (fieldId: string, value: string) => {
-    onChange(fieldId, value);
+  const handleNumberChange = (fieldId: string, value: string, externalID?: string) => {
+    onChange(fieldId, value, externalID);
   };
 
-  const handleCheckboxChange = (fieldId: string, checked: boolean) => {
-    onChange(fieldId, checked);
+  const handleCheckboxChange = (fieldId: string, checked: boolean, externalID?: string) => {
+    onChange(fieldId, checked, externalID);
   };
 
-  const handleRadioChange = (fieldId: string, value: string) => {
-    onChange(fieldId, value);
+  const handleRadioChange = (fieldId: string, value: string, externalID?: string) => {
+    onChange(fieldId, value, externalID);
   };
 
-  const handleSelectChange = (fieldId: string, value: string | null) => {
-    onChange(fieldId, value || '');
+  const handleSelectChange = (fieldId: string, value: string | null, externalID?: string) => {
+    onChange(fieldId, value || '', externalID);
   };
 
-  const handleMultiselectChange = (fieldId: string, selectedOptions: readonly any[]) => {
+  const handleMultiselectChange = (fieldId: string, selectedOptions: readonly any[], externalID?: string) => {
     const values = selectedOptions.map((opt) => opt.value);
-    onChange(fieldId, values);
+    onChange(fieldId, values, externalID);
   };
 
   const renderField = (field: FormFieldType) => {
@@ -51,7 +51,7 @@ export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
         return (
           <Input
             value={(value as string) || ''}
-            onChange={(event) => handleTextChange(field.id, event.detail.value)}
+            onChange={(event) => handleTextChange(field.id, event.detail.value, field.externalID)}
             placeholder={field.placeholder}
             type="text"
           />
@@ -61,7 +61,7 @@ export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
         return (
           <Input
             value={(value as string) || ''}
-            onChange={(event) => handleNumberChange(field.id, event.detail.value)}
+            onChange={(event) => handleNumberChange(field.id, event.detail.value, field.externalID)}
             placeholder={field.placeholder}
             type="number"
           />
@@ -71,7 +71,7 @@ export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
         return (
           <Checkbox
             checked={(value as boolean) || false}
-            onChange={(event) => handleCheckboxChange(field.id, event.detail.checked)}
+            onChange={(event) => handleCheckboxChange(field.id, event.detail.checked, field.externalID)}
           >
             {field.label}
           </Checkbox>
@@ -81,7 +81,7 @@ export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
         return (
           <RadioGroup
             value={(value as string) || ''}
-            onChange={(event) => handleRadioChange(field.id, event.detail.value)}
+            onChange={(event) => handleRadioChange(field.id, event.detail.value, field.externalID)}
             items={field.options?.map((opt) => ({
               value: opt.value,
               label: opt.label,
@@ -95,7 +95,7 @@ export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
             selectedOption={
               field.options?.find((opt) => opt.value === value) || null
             }
-            onChange={(event) => handleSelectChange(field.id, event.detail.selectedOption.value)}
+            onChange={(event) => handleSelectChange(field.id, event.detail.selectedOption.value, field.externalID)}
             options={field.options?.map((opt) => ({
               label: opt.label,
               value: opt.value,
@@ -116,7 +116,7 @@ export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
                   value: opt.value,
                 })) || []
             }
-            onChange={(event) => handleMultiselectChange(field.id, event.detail.selectedOptions)}
+            onChange={(event) => handleMultiselectChange(field.id, event.detail.selectedOptions, field.externalID)}
             options={field.options?.map((opt) => ({
               label: opt.label,
               value: opt.value,
@@ -129,7 +129,7 @@ export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
         return (
           <Textarea
             value={(value as string) || ''}
-            onChange={(event) => handleTextChange(field.id, event.detail.value)}
+            onChange={(event) => handleTextChange(field.id, event.detail.value, field.externalID)}
             placeholder={field.placeholder}
             rows={4}
           />

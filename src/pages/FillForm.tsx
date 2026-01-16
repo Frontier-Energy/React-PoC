@@ -4,6 +4,10 @@ import { Header, Container, SpaceBetween, Button } from '@cloudscape-design/comp
 import { InspectionSession, FormTypeLabels, FormSchema, FormType, FormData } from '../types';
 import { FormRenderer } from '../components/FormRenderer';
 
+interface FormDataWithExternalID {
+  [externalID: string]: string | boolean | string[];
+}
+
 export function FillForm() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
@@ -11,6 +15,7 @@ export function FillForm() {
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [formData, setFormData] = useState<FormData>({});
   const [loading, setLoading] = useState(true);
+  const [externalIDMap, setExternalIDMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const storedSession = localStorage.getItem('currentSession');
@@ -31,17 +36,63 @@ export function FillForm() {
   const loadFormSchema = async (formType: FormType) => {
     try {
       const schemaModule = await import(`../resources/${formType}.json`);
-      setFormSchema(schemaModule.default);
+      const schema = schemaModule.default;
+      setFormSchema(schema);
+
+      // Build externalID to fieldId map
+      const map: Record<string, string> = {};
+      schema.sections.forEach((section) => {
+        section.fields.forEach((field) => {
+          if (field.externalID) {
+            map[field.externalID] = field.id;
+          }
+        });
+      });
+      setExternalIDMap(map);
+
+      // Load form data after schema is loaded so we can map externalIDs
+      if (sessionId) {
+        loadFormData(sessionId, map);
+      }
     } catch (error) {
       console.error(`Failed to load form schema for ${formType}:`, error);
     }
   };
 
-  const handleFieldChange = (fieldId: string, value: string | boolean | string[]) => {
-    setFormData((prev) => ({
-      ...prev,
+  const loadFormData = (sessionId: string, map: Record<string, string>) => {
+    const storedData = localStorage.getItem(`formData_${sessionId}`);
+    if (storedData) {
+      try {
+        const parsedData: FormDataWithExternalID = JSON.parse(storedData);
+        // Convert externalID keys back to fieldId keys for state
+        const convertedData: FormData = {};
+        Object.entries(parsedData).forEach(([externalID, value]) => {
+          const fieldId = map[externalID];
+          if (fieldId) {
+            convertedData[fieldId] = value;
+          }
+        });
+        setFormData(convertedData);
+      } catch (error) {
+        console.error('Failed to parse stored form data:', error);
+      }
+    }
+  };
+
+  const handleFieldChange = (fieldId: string, value: string | boolean | string[], externalID?: string) => {
+    const newFormData: FormData = {
+      ...formData,
       [fieldId]: value,
-    }));
+    };
+    setFormData(newFormData);
+
+    // Save to localStorage with externalID as key if available
+    if (sessionId && externalID) {
+      const storedData = localStorage.getItem(`formData_${sessionId}`);
+      const parsedData: FormDataWithExternalID = storedData ? JSON.parse(storedData) : {};
+      parsedData[externalID] = value;
+      localStorage.setItem(`formData_${sessionId}`, JSON.stringify(parsedData));
+    }
   };
 
   const handleSubmit = () => {
@@ -51,6 +102,9 @@ export function FillForm() {
 
   const handleReset = () => {
     setFormData({});
+    if (sessionId) {
+      localStorage.removeItem(`formData_${sessionId}`);
+    }
   };
 
   if (loading || !session) {

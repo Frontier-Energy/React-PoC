@@ -9,6 +9,7 @@
           "label": "Panel Location",
           "type": "text",
           "required": true,
+          "externalID": "electrical.panelLocation",
           "placeholder": "Enter panel location"
         },
         {
@@ -16,6 +17,7 @@
           "label": "Panel Model",
           "type": "text",
           "required": false,
+          "externalID": "electrical.panelModel",
           "placeholder": "e.g., Square D QO"
         },
         {
@@ -23,6 +25,7 @@
           "label": "Amperage",
           "type": "number",
           "required": true,
+          "externalID": "electrical.amperage",
           "placeholder": "e.g., 200"
         }
       ]
@@ -34,19 +37,22 @@
           "id": "breakersChecked",
           "label": "All Breakers Checked",
           "type": "checkbox",
-          "required": false
+          "required": false,
+          "externalID": "electrical.breakersChecked"
         },
         {
           "id": "groundingChecked",
           "label": "Grounding Verified",
           "type": "checkbox",
-          "required": false
+          "required": false,
+          "externalID": "electrical.groundingChecked"
         },
         {
           "id": "panelCondition",
           "label": "Panel Condition",
           "type": "radio",
           "required": true,
+          "externalID": "electrical.panelCondition",
           "options": [
             { "label": "Excellent", "value": "excellent" },
             { "label": "Good", "value": "good" },
@@ -59,6 +65,7 @@
           "label": "Issues Found",
           "type": "multiselect",
           "required": false,
+          "externalID": "electrical.issues",
           "options": [
             { "label": "Loose Connections", "value": "loose_connections" },
             { "label": "Corrosion", "value": "corrosion" },
@@ -72,6 +79,7 @@
           "label": "Inspection Notes",
           "type": "textarea",
           "required": false,
+          "externalID": "electrical.notes",
           "placeholder": "Additional observations and notes"
         }
       ]

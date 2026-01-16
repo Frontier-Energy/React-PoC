@@ -18,6 +18,7 @@ export interface FormField {
   label: string;
   type: 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'multiselect' | 'textarea';
   required: boolean;
+  externalID?: string;
   options?: FormFieldOption[];
   placeholder?: string;
   description?: string;

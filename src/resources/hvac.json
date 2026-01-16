@@ -9,6 +9,7 @@
           "label": "Unit Location",
           "type": "text",
           "required": true,
+          "externalID": "hvac.unitLocation",
           "placeholder": "e.g., Attic, Basement, Roof"
         },
         {
@@ -16,6 +17,7 @@
           "label": "Unit Model",
           "type": "text",
           "required": false,
+          "externalID": "hvac.unitModel",
           "placeholder": "e.g., Carrier 24ACB636A003"
         },
         {
@@ -23,6 +25,7 @@
           "label": "Tonnage",
           "type": "number",
           "required": true,
+          "externalID": "hvac.tonnage",
           "placeholder": "e.g., 3.5"
         }
       ]
@@ -35,6 +38,7 @@
           "label": "Filter Condition",
           "type": "select",
           "required": true,
+          "externalID": "hvac.filterCondition",
           "options": [
             { "label": "Good", "value": "good" },
             { "label": "Fair", "value": "fair" },
@@ -46,6 +50,7 @@
           "label": "Refrigerant Pressure",
           "type": "text",
           "required": true,
+          "externalID": "hvac.refrigerantPressure",
           "placeholder": "PSI reading"
         },
         {
@@ -53,6 +58,7 @@
           "label": "Operation Status",
           "type": "radio",
           "required": true,
+          "externalID": "hvac.operationStatus",
           "options": [
             { "label": "Normal", "value": "normal" },
             { "label": "Running but with Issues", "value": "issues" },
@@ -64,6 +70,7 @@
           "label": "Components Checked",
           "type": "multiselect",
           "required": false,
+          "externalID": "hvac.components",
           "options": [
             { "label": "Compressor", "value": "compressor" },
             { "label": "Condenser", "value": "condenser" },
@@ -77,6 +84,7 @@
           "label": "Inspection Notes",
           "type": "textarea",
           "required": false,
+          "externalID": "hvac.notes",
           "placeholder": "Additional observations and notes"
         }
       ]
