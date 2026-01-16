@@ -1,0 +1,27 @@
+.form-renderer {
+  width: 100%;
+  max-width: 800px;
+}
+
+.form-section {
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #333;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 0.5rem;
+}
+
+.form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-field-wrapper {
+  width: 100%;
+}

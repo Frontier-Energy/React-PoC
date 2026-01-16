@@ -8,12 +8,23 @@ export const FormTypeLabels: Record<FormType, string> = {
   [FormType.HVAC]: 'HVAC'
 };
 
+export interface FormFieldOption {
+  label: string;
+  value: string;
+}
+
 export interface FormField {
   id: string;
   label: string;
-  type: 'text' | 'number' | 'checkbox' | 'textarea' | 'select';
+  type: 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'multiselect' | 'textarea';
   required: boolean;
-  options?: string[];
+  options?: FormFieldOption[];
+  placeholder?: string;
+  description?: string;
+}
+
+export interface FormData {
+  [fieldId: string]: string | boolean | string[];
 }
 
 export interface FormSection {

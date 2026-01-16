@@ -8,19 +8,22 @@
           "id": "unitLocation",
           "label": "Unit Location",
           "type": "text",
-          "required": true
+          "required": true,
+          "placeholder": "e.g., Attic, Basement, Roof"
         },
         {
           "id": "unitModel",
           "label": "Unit Model",
           "type": "text",
-          "required": false
+          "required": false,
+          "placeholder": "e.g., Carrier 24ACB636A003"
         },
         {
           "id": "tonnage",
           "label": "Tonnage",
           "type": "number",
-          "required": true
+          "required": true,
+          "placeholder": "e.g., 3.5"
         }
       ]
     },
@@ -31,20 +34,50 @@
           "id": "filterCondition",
           "label": "Filter Condition",
           "type": "select",
-          "options": ["Good", "Fair", "Poor"],
-          "required": true
+          "required": true,
+          "options": [
+            { "label": "Good", "value": "good" },
+            { "label": "Fair", "value": "fair" },
+            { "label": "Poor - Needs Replacement", "value": "poor" }
+          ]
         },
         {
           "id": "refrigerantPressure",
           "label": "Refrigerant Pressure",
           "type": "text",
-          "required": true
+          "required": true,
+          "placeholder": "PSI reading"
+        },
+        {
+          "id": "operationStatus",
+          "label": "Operation Status",
+          "type": "radio",
+          "required": true,
+          "options": [
+            { "label": "Normal", "value": "normal" },
+            { "label": "Running but with Issues", "value": "issues" },
+            { "label": "Not Operating", "value": "not_operating" }
+          ]
+        },
+        {
+          "id": "components",
+          "label": "Components Checked",
+          "type": "multiselect",
+          "required": false,
+          "options": [
+            { "label": "Compressor", "value": "compressor" },
+            { "label": "Condenser", "value": "condenser" },
+            { "label": "Evaporator", "value": "evaporator" },
+            { "label": "Thermostat", "value": "thermostat" },
+            { "label": "Ductwork", "value": "ductwork" }
+          ]
         },
         {
           "id": "notes",
           "label": "Inspection Notes",
           "type": "textarea",
-          "required": false
+          "required": false,
+          "placeholder": "Additional observations and notes"
         }
       ]
     }

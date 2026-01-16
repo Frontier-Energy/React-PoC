@@ -8,19 +8,22 @@
           "id": "panelLocation",
           "label": "Panel Location",
           "type": "text",
-          "required": true
+          "required": true,
+          "placeholder": "Enter panel location"
         },
         {
           "id": "panelModel",
           "label": "Panel Model",
           "type": "text",
-          "required": false
+          "required": false,
+          "placeholder": "e.g., Square D QO"
         },
         {
           "id": "amperage",
           "label": "Amperage",
           "type": "number",
-          "required": true
+          "required": true,
+          "placeholder": "e.g., 200"
         }
       ]
     },
@@ -31,19 +34,45 @@
           "id": "breakersChecked",
           "label": "All Breakers Checked",
           "type": "checkbox",
-          "required": true
+          "required": false
         },
         {
           "id": "groundingChecked",
           "label": "Grounding Verified",
           "type": "checkbox",
-          "required": true
+          "required": false
+        },
+        {
+          "id": "panelCondition",
+          "label": "Panel Condition",
+          "type": "radio",
+          "required": true,
+          "options": [
+            { "label": "Excellent", "value": "excellent" },
+            { "label": "Good", "value": "good" },
+            { "label": "Fair", "value": "fair" },
+            { "label": "Poor", "value": "poor" }
+          ]
+        },
+        {
+          "id": "issues",
+          "label": "Issues Found",
+          "type": "multiselect",
+          "required": false,
+          "options": [
+            { "label": "Loose Connections", "value": "loose_connections" },
+            { "label": "Corrosion", "value": "corrosion" },
+            { "label": "Double Tapped Breakers", "value": "double_tapped" },
+            { "label": "Missing Knockouts", "value": "missing_knockouts" },
+            { "label": "No Issues", "value": "no_issues" }
+          ]
         },
         {
           "id": "notes",
           "label": "Inspection Notes",
           "type": "textarea",
-          "required": false
+          "required": false,
+          "placeholder": "Additional observations and notes"
         }
       ]
     }
