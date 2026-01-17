@@ -95,7 +95,7 @@ export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
             selectedOption={
               field.options?.find((opt) => opt.value === value) || null
             }
-            onChange={(event) => handleSelectChange(field.id, event.detail.selectedOption.value, field.externalID)}
+            onChange={(event) => handleSelectChange(field.id, event.detail.selectedOption?.value || '', field.externalID)}
             options={field.options?.map((opt) => ({
               label: opt.label,
               value: opt.value,

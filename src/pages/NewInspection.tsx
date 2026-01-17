@@ -37,7 +37,6 @@ export function NewInspection() {
             onChange={({ detail }) => setSelectedFormType(detail.selectedOption)}
             options={formTypeOptions}
             placeholder="Select a form type"
-            labelText="Form Type"
           />
           <Button onClick={handleCreateSession} disabled={!selectedFormType}>
             Create Session

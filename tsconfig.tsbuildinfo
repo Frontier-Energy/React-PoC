@@ -1,1 +1,1 @@
-{"root":["./src/main.tsx","./src/routes.tsx","./src/pages/home.tsx"],"version":"5.9.3"}
+{"root":["./src/layout.tsx","./src/main.tsx","./src/routes.tsx","./src/types.ts","./src/components/formrenderer.tsx","./src/pages/fillform.tsx","./src/pages/home.tsx","./src/pages/myinspections.tsx","./src/pages/newform.tsx","./src/pages/newinspection.tsx","./src/utils/formvalidator.ts"],"version":"5.9.3"}

@@ -14,7 +14,7 @@ export function MyInspections() {
   const [formTypeFilter, setFormTypeFilter] = useState<SelectProps.Option | null>(null);
   const [statusFilter, setStatusFilter] = useState<SelectProps.Option | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [sortingColumn, setSortingColumn] = useState<TableProps.SortingColumn<InspectionSession>>({ columnId: 'name', direction: 'asc' });
+  const [sortingColumn, setSortingColumn] = useState<any>({ id: 'name', direction: 'asc' });
   const [sortingDescending, setSortingDescending] = useState(false);
 
   useEffect(() => {
@@ -98,9 +98,9 @@ export function MyInspections() {
   };
 
   const getUploadStatusBadge = (status: UploadStatus | undefined) => {
-    const badgeConfig: Record<UploadStatus, { color: string; label: string }> = {
+    const badgeConfig: Record<UploadStatus, { color: 'blue' | 'green' | 'red' | 'grey'; label: string }> = {
       [UploadStatus.Local]: { color: 'blue', label: 'Local' },
-      [UploadStatus.Uploading]: { color: 'yellow', label: 'Uploading' },
+      [UploadStatus.Uploading]: { color: 'grey', label: 'Uploading' },
       [UploadStatus.Uploaded]: { color: 'green', label: 'Uploaded' },
       [UploadStatus.Failed]: { color: 'red', label: 'Failed' },
     };
@@ -109,9 +109,9 @@ export function MyInspections() {
     return <Badge color={config.color}>{config.label}</Badge>;
   };
 
-  const handleSortingChange = (detail: TableProps.SortingState<InspectionSession>) => {
+  const handleSortingChange = (detail: any) => {
     setSortingColumn(detail.sortingColumn);
-    setSortingDescending(detail.isDescending);
+    setSortingDescending(detail.isDescending || false);
   };
 
   const formTypeOptions: SelectProps.Option[] = [
@@ -147,14 +147,12 @@ export function MyInspections() {
             onChange={({ detail }) => setFormTypeFilter(detail.selectedOption)}
             options={formTypeOptions}
             placeholder="Filter by form type"
-            labelText="Form Type"
           />
           <Select
             selectedOption={statusFilter}
             onChange={({ detail }) => setStatusFilter(detail.selectedOption)}
             options={statusOptions}
             placeholder="Filter by status"
-            labelText="Status"
           />
           <Button onClick={() => { setFormTypeFilter(null); setStatusFilter(null); }}>
             Clear Filters

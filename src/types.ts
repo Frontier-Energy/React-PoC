@@ -64,4 +64,5 @@ export interface InspectionSession {
   id: string;
   name: string;
   formType: FormType;
+  uploadStatus?: UploadStatus;
 }

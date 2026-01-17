@@ -45,8 +45,8 @@ export function FillForm() {
 
       // Build externalID to fieldId map and validation rules map
       const map: Record<string, string> = {};
-      schema.sections.forEach((section) => {
-        section.fields.forEach((field) => {
+      schema.sections.forEach((section: any) => {
+        section.fields.forEach((field: any) => {
           if (field.externalID) {
             map[field.externalID] = field.id;
           }
@@ -233,19 +233,21 @@ export function FillForm() {
         </Container>
 
         {validationErrors.length > 0 && (
-          <Container ref={errorAlertRef}>
-            <Alert type="error" header="Form Validation Errors">
-              <SpaceBetween size="xs" direction="vertical">
-                {validationErrors.map((error, index) => (
-                  <Box key={index}>
-                    <Link onFollow={() => handleErrorClick(error.fieldId)}>
-                      {error.fieldId}: {error.message}
-                    </Link>
-                  </Box>
-                ))}
-              </SpaceBetween>
-            </Alert>
-          </Container>
+          <div ref={errorAlertRef}>
+            <Container>
+              <Alert type="error" header="Form Validation Errors">
+                <SpaceBetween size="xs" direction="vertical">
+                  {validationErrors.map((error, index) => (
+                    <Box key={index}>
+                      <Link onFollow={() => handleErrorClick(error.fieldId)}>
+                        {error.fieldId}: {error.message}
+                      </Link>
+                    </Box>
+                  ))}
+                </SpaceBetween>
+              </Alert>
+            </Container>
+          </div>
         )}
 
         <Container>
