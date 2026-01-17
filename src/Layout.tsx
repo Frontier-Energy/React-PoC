@@ -1,4 +1,4 @@
-import { AppLayout, SideNavigation } from '@cloudscape-design/components';
+import { AppLayout, SideNavigation, BreadcrumbGroup } from '@cloudscape-design/components';
 import { Outlet, useNavigate } from 'react-router-dom';
 
 export function Layout() {
@@ -6,6 +6,10 @@ export function Layout() {
 
   return (
     <AppLayout
+      breadcrumbs={
+        <BreadcrumbGroup items={[]} onFollow={() => {}} />
+      }
+      contentHeader={<div style={{ fontSize: '24px', fontWeight: 'bold', padding: '16px' }}>QHVAC Inspection Tool</div>}
       content={<Outlet />}
       navigation={
         <SideNavigation
