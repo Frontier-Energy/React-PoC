@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Select, SelectProps, Container, SpaceBetween, Button } from '@cloudscape-design/components';
-import { FormType, FormTypeLabels, InspectionSession } from '../types';
+import { FormType, FormTypeLabels, InspectionSession, UploadStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 export function NewForm() {
@@ -20,6 +20,7 @@ export function NewForm() {
       id: uuidv4(),
       name: '',
       formType: selectedFormType.value as FormType,
+      uploadStatus: UploadStatus.Local,
     };
 
     localStorage.setItem('currentSession', JSON.stringify(session));

@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
-import { Header, Container, SpaceBetween, Button, Alert, Box, Link } from '@cloudscape-design/components';
-import { InspectionSession, FormTypeLabels, FormSchema, FormType, FormData } from '../types';
+import { Header, Container, SpaceBetween, Button, Alert, Box, Link, Input, FormField, Flashbar, FlashbarProps } from '@cloudscape-design/components';
+import { InspectionSession, FormTypeLabels, FormSchema, FormType, FormData, UploadStatus } from '../types';
 import { FormRenderer } from '../components/FormRenderer';
 import { FormValidator, ValidationError } from '../utils/FormValidator';
 
@@ -19,6 +19,7 @@ export function FillForm() {
   const [externalIDMap, setExternalIDMap] = useState<Record<string, string>>({});
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const formRef = useRef<HTMLDivElement>(null);
+  const errorAlertRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const storedSession = localStorage.getItem('currentSession');
@@ -129,9 +130,44 @@ export function FillForm() {
   };
 
   const handleSubmit = () => {
-    if (validateForm()) {
-      console.log('Form submitted:', formData);
-      // TODO: Save form data to backend or storage
+    const isValid = validateForm();
+    
+    if (!isValid) {
+      // Scroll to top of the page immediately
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (session) {
+      // Update session status to uploading
+      const updatedSession: InspectionSession = {
+        ...session,
+        uploadStatus: UploadStatus.Uploading,
+      };
+      // Store in both places for persistence
+      localStorage.setItem('currentSession', JSON.stringify(updatedSession));
+      localStorage.setItem(`inspection_${session.id}`, JSON.stringify(updatedSession));
+
+      // Simulate upload delay and show success
+      setTimeout(() => {
+        // In a real app, this would be where you upload to backend
+        console.log('Form submitted:', formData);
+        
+        // Update session status to uploaded (simulated)
+        const finalSession: InspectionSession = {
+          ...updatedSession,
+          uploadStatus: UploadStatus.Uploaded,
+        };
+        localStorage.setItem('currentSession', JSON.stringify(finalSession));
+        localStorage.setItem(`inspection_${session.id}`, JSON.stringify(finalSession));
+        
+        // Redirect to my inspections with success message
+        navigate('/my-inspections', { 
+          state: { 
+            successMessage: 'Inspection saved successfully. It will upload in the background if you have a persistent internet connection.' 
+          } 
+        });
+      }, 500);
     }
   };
 
@@ -152,6 +188,17 @@ export function FillForm() {
     }
   };
 
+  const handleSessionNameChange = (name: string) => {
+    if (session) {
+      const updatedSession: InspectionSession = {
+        ...session,
+        name,
+      };
+      setSession(updatedSession);
+      localStorage.setItem('currentSession', JSON.stringify(updatedSession));
+    }
+  };
+
   if (loading || !session) {
     return <Header variant="h1">Loading...</Header>;
   }
@@ -166,6 +213,13 @@ export function FillForm() {
         <Header variant="h1">{formSchema.formName}</Header>
         <Container>
           <SpaceBetween size="m">
+            <FormField label="Session Name" stretch>
+              <Input
+                value={session.name}
+                onChange={(event) => handleSessionNameChange(event.detail.value)}
+                placeholder="Enter a name for this inspection session"
+              />
+            </FormField>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <strong>Session ID:</strong> {session.id}
@@ -173,15 +227,12 @@ export function FillForm() {
               <div>
                 <strong>Form Type:</strong> {FormTypeLabels[session.formType]}
               </div>
-              <div>
-                <strong>Name:</strong> {session.name || '(Not set)'}
-              </div>
             </div>
           </SpaceBetween>
         </Container>
 
         {validationErrors.length > 0 && (
-          <Container>
+          <Container ref={errorAlertRef}>
             <Alert type="error" header="Form Validation Errors">
               <SpaceBetween size="xs" direction="vertical">
                 {validationErrors.map((error, index) => (

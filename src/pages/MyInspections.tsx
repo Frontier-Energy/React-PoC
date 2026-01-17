@@ -1,19 +1,32 @@
 import { useNavigate } from 'react-router-dom';
-import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, SelectProps, Link } from '@cloudscape-design/components';
+import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, SelectProps, Link, Alert } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { InspectionSession, FormTypeLabels, UploadStatus, FormType } from '../types';
 
 export function MyInspections() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [inspections, setInspections] = useState<InspectionSession[]>([]);
   const [filteredInspections, setFilteredInspections] = useState<InspectionSession[]>([]);
   const [selectedItems, setSelectedItems] = useState<InspectionSession[]>([]);
   const [formTypeFilter, setFormTypeFilter] = useState<SelectProps.Option | null>(null);
   const [statusFilter, setStatusFilter] = useState<SelectProps.Option | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadInspections();
   }, []);
+
+  useEffect(() => {
+    // Check if there's a success message from navigation state
+    if (location.state?.successMessage) {
+      setSuccessMessage(location.state.successMessage);
+      // Clear the message after 5 seconds
+      const timer = setTimeout(() => setSuccessMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [location]);
 
   useEffect(() => {
     applyFilters();
@@ -120,6 +133,12 @@ export function MyInspections() {
   return (
     <SpaceBetween size="l">
       <Header variant="h1">My Inspections</Header>
+
+      {successMessage && (
+        <Alert type="success" dismissible onDismiss={() => setSuccessMessage(null)}>
+          {successMessage}
+        </Alert>
+      )}
 
       <Container>
         <SpaceBetween size="m" direction="horizontal">
