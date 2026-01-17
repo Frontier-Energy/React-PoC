@@ -196,6 +196,7 @@ export function FillForm() {
       };
       setSession(updatedSession);
       localStorage.setItem('currentSession', JSON.stringify(updatedSession));
+      localStorage.setItem(`inspection_${session.id}`, JSON.stringify(updatedSession));
     }
   };
 

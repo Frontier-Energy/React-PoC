@@ -3,6 +3,7 @@ import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, Sel
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { InspectionSession, FormTypeLabels, UploadStatus, FormType } from '../types';
+import { TableProps } from '@cloudscape-design/components';
 
 export function MyInspections() {
   const navigate = useNavigate();
@@ -13,6 +14,8 @@ export function MyInspections() {
   const [formTypeFilter, setFormTypeFilter] = useState<SelectProps.Option | null>(null);
   const [statusFilter, setStatusFilter] = useState<SelectProps.Option | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [sortingColumn, setSortingColumn] = useState<TableProps.SortingColumn<InspectionSession>>({ columnId: 'name', direction: 'asc' });
+  const [sortingDescending, setSortingDescending] = useState(false);
 
   useEffect(() => {
     loadInspections();
@@ -34,26 +37,16 @@ export function MyInspections() {
 
   const loadInspections = () => {
     // Get all inspection sessions from localStorage
-    const allInspections: InspectionSession[] = [];
+    const sessionMap: Record<string, InspectionSession> = {};
     const keys = Object.keys(localStorage);
     
     keys.forEach((key) => {
-      if (key === 'currentSession') {
+      if (key.startsWith('inspection_')) {
         const sessionStr = localStorage.getItem(key);
         if (sessionStr) {
           try {
             const session: InspectionSession = JSON.parse(sessionStr);
-            allInspections.push(session);
-          } catch (error) {
-            console.error(`Failed to parse session ${key}:`, error);
-          }
-        }
-      } else if (key.startsWith('inspection_')) {
-        const sessionStr = localStorage.getItem(key);
-        if (sessionStr) {
-          try {
-            const session: InspectionSession = JSON.parse(sessionStr);
-            allInspections.push(session);
+            sessionMap[session.id] = session;
           } catch (error) {
             console.error(`Failed to parse session ${key}:`, error);
           }
@@ -61,6 +54,8 @@ export function MyInspections() {
       }
     });
 
+    // Convert map to array
+    const allInspections = Object.values(sessionMap);
     setInspections(allInspections);
   };
 
@@ -112,6 +107,11 @@ export function MyInspections() {
 
     const config = badgeConfig[status || UploadStatus.Local];
     return <Badge color={config.color}>{config.label}</Badge>;
+  };
+
+  const handleSortingChange = (detail: TableProps.SortingState<InspectionSession>) => {
+    setSortingColumn(detail.sortingColumn);
+    setSortingDescending(detail.isDescending);
   };
 
   const formTypeOptions: SelectProps.Option[] = [
@@ -180,21 +180,19 @@ export function MyInspections() {
                 id: 'name',
                 header: 'Name',
                 cell: (item: InspectionSession) => item.name || '(Unnamed)',
+                sortingField: 'name',
               },
               {
                 id: 'formType',
                 header: 'Form Type',
                 cell: (item: InspectionSession) => FormTypeLabels[item.formType],
+                sortingField: 'formType',
               },
               {
                 id: 'uploadStatus',
                 header: 'Status',
                 cell: (item: InspectionSession) => getUploadStatusBadge(item.uploadStatus),
-              },
-              {
-                id: 'sessionId',
-                header: 'Session ID',
-                cell: (item: InspectionSession) => item.id,
+                sortingField: 'uploadStatus',
               },
               {
                 id: 'actions',
@@ -208,6 +206,9 @@ export function MyInspections() {
               },
             ]}
             items={filteredInspections}
+            sortingColumn={sortingColumn}
+            sortingDescending={sortingDescending}
+            onSortingChange={(event) => handleSortingChange(event.detail)}
             empty={
               <Box textAlign="center" color="inherit">
                 <b>No inspections</b>
