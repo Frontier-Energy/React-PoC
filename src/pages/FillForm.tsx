@@ -139,35 +139,23 @@ export function FillForm() {
     }
 
     if (session) {
-      // Update session status to uploading
+      // Update session status to local by default
       const updatedSession: InspectionSession = {
         ...session,
-        uploadStatus: UploadStatus.Uploading,
+        uploadStatus: UploadStatus.Local,
       };
       // Store in both places for persistence
       localStorage.setItem('currentSession', JSON.stringify(updatedSession));
       localStorage.setItem(`inspection_${session.id}`, JSON.stringify(updatedSession));
 
-      // Simulate upload delay and show success
-      setTimeout(() => {
-        // In a real app, this would be where you upload to backend
-        console.log('Form submitted:', formData);
-        
-        // Update session status to uploaded (simulated)
-        const finalSession: InspectionSession = {
-          ...updatedSession,
-          uploadStatus: UploadStatus.Uploaded,
-        };
-        localStorage.setItem('currentSession', JSON.stringify(finalSession));
-        localStorage.setItem(`inspection_${session.id}`, JSON.stringify(finalSession));
-        
-        // Redirect to my inspections with success message
-        navigate('/my-inspections', { 
-          state: { 
-            successMessage: 'Inspection saved successfully. It will upload in the background if you have a persistent internet connection.' 
-          } 
-        });
-      }, 500);
+      console.log('Form submitted:', formData);
+
+      // Redirect to my inspections with success message
+      navigate('/my-inspections', {
+        state: {
+          successMessage: 'Inspection saved successfully and stored locally.',
+        },
+      });
     }
   };
 
