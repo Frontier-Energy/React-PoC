@@ -36,12 +36,22 @@ const uploadInspection = async (inspection: InspectionSession) => {
   const storedData = localStorage.getItem(`formData_${inspection.id}`);
   const formData = storedData ? JSON.parse(storedData) : {};
 
+  const queryParams = Object.fromEntries(
+    Object.entries(formData).map(([key, value]) => [key, String(value)])
+  );
+  const payload = {
+    sessionId: inspection.id,
+    name: inspection.name,
+    userId: (inspection as { userId?: string }).userId,
+    queryParams,
+  };
+
   const response = await fetch(getUploadInspectionUrl(), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ inspection, formData }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
