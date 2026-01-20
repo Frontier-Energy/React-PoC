@@ -15,8 +15,8 @@ export function Login() {
   const handleEmailLookup = async () => {
     const trimmed = email.trim();
     if (!trimmed) {
-      setLookupError(null);
-      return;
+      setLookupError('Email is required.');
+      return null;
     }
     setIsLookupLoading(true);
     setLookupError(null);
@@ -32,18 +32,25 @@ export function Login() {
         throw new Error(`Login lookup failed with status ${response.status}`);
       }
       const payload = (await response.json()) as { userID: string };
-      setUserIdInput(payload.userID || '');
+      const resolvedUserId = payload.userID || '';
+      setUserIdInput(resolvedUserId);
+      return resolvedUserId;
     } catch (error) {
       setLookupError('Unable to look up user ID. Check the email and try again.');
       setUserIdInput('');
       console.error('Login lookup failed:', error);
+      return null;
     } finally {
       setIsLookupLoading(false);
     }
   };
 
-  const handleLogin = () => {
-    const trimmed = userId.trim();
+  const handleLogin = async () => {
+    let trimmed = userId.trim();
+    if (!trimmed) {
+      const lookedUp = await handleEmailLookup();
+      trimmed = lookedUp?.trim() || '';
+    }
     if (!trimmed) {
       return;
     }
@@ -64,10 +71,9 @@ export function Login() {
                 value={email}
                 onChange={(event) => setEmail(event.detail.value)}
                 placeholder="you@example.com"
-                onBlur={handleEmailLookup}
                 onKeyDown={(event) => {
                   if (event.detail.key === 'Enter') {
-                    handleEmailLookup();
+                    handleLogin();
                   }
                 }}
                 disabled={isLookupLoading}
