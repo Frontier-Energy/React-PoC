@@ -1,4 +1,5 @@
-import { FormData, ValidationRule, ConditionalVisibility } from '../types';
+import { FormData, FormDataValue, ValidationRule, ConditionalVisibility } from '../types';
+import { isFileReference, isFileReferenceArray, isFormDataValueEmpty } from './formDataUtils';
 
 export interface ValidationError {
   fieldId: string;
@@ -11,10 +12,14 @@ export class FormValidator {
    */
   static validateField(
     fieldId: string,
-    value: string | boolean | string[],
+    value: FormDataValue,
     validationRules?: ValidationRule[]
   ): ValidationError | null {
     if (!validationRules || validationRules.length === 0) {
+      return null;
+    }
+
+    if (isFileReference(value) || isFileReferenceArray(value)) {
       return null;
     }
 
@@ -33,7 +38,7 @@ export class FormValidator {
    */
   private static validateRule(
     fieldId: string,
-    value: string | boolean | string[],
+    value: FormDataValue,
     rule: ValidationRule
   ): ValidationError | null {
     const stringValue = String(value);
@@ -91,7 +96,7 @@ export class FormValidator {
     if (requiredFields) {
       for (const fieldId of requiredFields) {
         const value = formData[fieldId];
-        if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
+        if (isFormDataValueEmpty(value)) {
           errors.push({
             fieldId,
             message: 'This field is required',
@@ -103,7 +108,7 @@ export class FormValidator {
     // Check validation rules
     for (const [fieldId, rules] of Object.entries(validationRulesMap)) {
       const value = formData[fieldId];
-      if (value !== undefined && value !== null && value !== '') {
+      if (!isFormDataValueEmpty(value)) {
         const error = this.validateField(fieldId, value, rules);
         if (error) {
           errors.push(error);

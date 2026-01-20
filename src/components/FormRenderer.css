@@ -25,3 +25,13 @@
 .form-field-wrapper {
   width: 100%;
 }
+
+.file-input {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.file-input-meta {
+  font-size: 0.85rem;
+  color: #5f6b7a;
+}

@@ -115,6 +115,15 @@
           "required": false,
           "externalID": "electrical.notes",
           "placeholder": "Additional observations and notes"
+        },
+        {
+          "id": "inspectionPhotos",
+          "label": "Inspection Photos",
+          "type": "file",
+          "required": false,
+          "externalID": "electrical.inspectionPhotos",
+          "accept": "image/*",
+          "multiple": true
         }
       ]
     }

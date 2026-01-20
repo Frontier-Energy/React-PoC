@@ -1,12 +1,14 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { Header, Container, SpaceBetween, Button, Alert, Box, Link, Input, FormField, Flashbar, FlashbarProps } from '@cloudscape-design/components';
-import { InspectionSession, FormTypeLabels, FormSchema, FormType, FormData, UploadStatus } from '../types';
+import { InspectionSession, FormTypeLabels, FormSchema, FormType, FormData, FormDataValue, UploadStatus } from '../types';
 import { FormRenderer } from '../components/FormRenderer';
 import { FormValidator, ValidationError } from '../utils/FormValidator';
+import { getFileReferences } from '../utils/formDataUtils';
+import { saveFiles, deleteFiles } from '../utils/fileStorage';
 
 interface FormDataWithExternalID {
-  [externalID: string]: string | boolean | string[];
+  [externalID: string]: FormDataValue;
 }
 
 export function FillForm() {
@@ -83,23 +85,52 @@ export function FillForm() {
     }
   };
 
-  const handleFieldChange = (fieldId: string, value: string | boolean | string[], externalID?: string) => {
-    const newFormData: FormData = {
-      ...formData,
-      [fieldId]: value,
-    };
+  const updateFieldValue = (fieldId: string, value: FormDataValue | undefined, externalID?: string) => {
+    const newFormData: FormData = { ...formData };
+    if (value === undefined) {
+      delete newFormData[fieldId];
+    } else {
+      newFormData[fieldId] = value;
+    }
     setFormData(newFormData);
 
     // Save to localStorage with externalID as key if available
     if (sessionId && externalID) {
       const storedData = localStorage.getItem(`formData_${sessionId}`);
       const parsedData: FormDataWithExternalID = storedData ? JSON.parse(storedData) : {};
-      parsedData[externalID] = value;
+      if (value === undefined) {
+        delete parsedData[externalID];
+      } else {
+        parsedData[externalID] = value;
+      }
       localStorage.setItem(`formData_${sessionId}`, JSON.stringify(parsedData));
     }
 
     // Clear validation errors for this field
     setValidationErrors((prev) => prev.filter((err) => err.fieldId !== fieldId));
+  };
+
+  const handleFieldChange = (fieldId: string, value: FormDataValue, externalID?: string) => {
+    updateFieldValue(fieldId, value, externalID);
+  };
+
+  const handleFileChange = async (fieldId: string, files: File[], externalID?: string) => {
+    const existingFiles = getFileReferences(formData[fieldId]);
+    if (existingFiles.length > 0) {
+      await deleteFiles(existingFiles.map((file) => file.id));
+    }
+
+    if (files.length === 0) {
+      updateFieldValue(fieldId, undefined, externalID);
+      return;
+    }
+
+    const savedFiles = await saveFiles(files, { sessionId, fieldId });
+    const field = formSchema?.sections
+      .flatMap((section) => section.fields)
+      .find((item) => item.id === fieldId);
+    const value = field?.multiple ? savedFiles : savedFiles[0];
+    updateFieldValue(fieldId, value, externalID);
   };
 
   const validateForm = (): boolean => {
@@ -159,7 +190,13 @@ export function FillForm() {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    const fileIds = Object.values(formData)
+      .flatMap((value) => getFileReferences(value))
+      .map((file) => file.id);
+    if (fileIds.length > 0) {
+      await deleteFiles(fileIds);
+    }
     setFormData({});
     setValidationErrors([]);
     if (sessionId) {
@@ -239,7 +276,12 @@ export function FillForm() {
         )}
 
         <Container>
-          <FormRenderer schema={formSchema} data={formData} onChange={handleFieldChange} />
+          <FormRenderer
+            schema={formSchema}
+            data={formData}
+            onChange={handleFieldChange}
+            onFileChange={handleFileChange}
+          />
         </Container>
 
         <Container>

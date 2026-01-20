@@ -35,7 +35,7 @@ export interface ConditionalVisibility {
 export interface FormField {
   id: string;
   label: string;
-  type: 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'multiselect' | 'textarea';
+  type: 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'multiselect' | 'textarea' | 'file';
   required: boolean;
   externalID?: string;
   options?: FormFieldOption[];
@@ -43,10 +43,23 @@ export interface FormField {
   description?: string;
   validationRules?: ValidationRule[];
   visibleWhen?: ConditionalVisibility[];
+  accept?: string;
+  multiple?: boolean;
+  capture?: 'user' | 'environment';
 }
 
+export interface FileReference {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  lastModified: number;
+}
+
+export type FormDataValue = string | boolean | string[] | FileReference | FileReference[];
+
 export interface FormData {
-  [fieldId: string]: string | boolean | string[];
+  [fieldId: string]: FormDataValue;
 }
 
 export interface FormSection {

@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useConnectivity } from './ConnectivityContext';
 import { getUploadInspectionUrl } from './config';
-import { InspectionSession, UploadStatus } from './types';
+import { InspectionSession, UploadStatus, FormDataValue } from './types';
+import { serializeFormValue } from './utils/formDataUtils';
 
 const CONNECTIVITY_CHECK_INTERVAL_MS = 30000;
 
@@ -35,10 +36,10 @@ const updateInspectionStatus = (inspection: InspectionSession, status: UploadSta
 
 const uploadInspection = async (inspection: InspectionSession) => {
   const storedData = localStorage.getItem(`formData_${inspection.id}`);
-  const formData = storedData ? JSON.parse(storedData) : {};
+  const formData: Record<string, FormDataValue> = storedData ? JSON.parse(storedData) : {};
 
   const queryParams = Object.fromEntries(
-    Object.entries(formData).map(([key, value]) => [key, String(value)])
+    Object.entries(formData).map(([key, value]) => [key, serializeFormValue(value)])
   );
   const payload = {
     sessionId: inspection.id,

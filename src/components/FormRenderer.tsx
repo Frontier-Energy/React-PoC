@@ -8,16 +8,18 @@ import {
   Multiselect,
   Textarea,
 } from '@cloudscape-design/components';
-import { FormSchema, FormField as FormFieldType, FormData } from '../types';
+import { FormSchema, FormField as FormFieldType, FormData, FormDataValue } from '../types';
+import { formatFileValue } from '../utils/formDataUtils';
 import './FormRenderer.css';
 
 interface FormRendererProps {
   schema: FormSchema;
   data: FormData;
-  onChange: (fieldId: string, value: string | boolean | string[], externalID?: string) => void;
+  onChange: (fieldId: string, value: FormDataValue, externalID?: string) => void;
+  onFileChange: (fieldId: string, files: File[], externalID?: string) => void;
 }
 
-export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
+export function FormRenderer({ schema, data, onChange, onFileChange }: FormRendererProps) {
   const handleTextChange = (fieldId: string, value: string, externalID?: string) => {
     onChange(fieldId, value, externalID);
   };
@@ -133,6 +135,25 @@ export function FormRenderer({ schema, data, onChange }: FormRendererProps) {
             placeholder={field.placeholder}
             rows={4}
           />
+        );
+
+      case 'file':
+        const fileLabel = formatFileValue(value);
+        return (
+          <div className="file-input">
+            <input
+              type="file"
+              accept={field.accept}
+              multiple={field.multiple}
+              capture={field.capture}
+              onChange={(event) => {
+                const files = event.target.files ? Array.from(event.target.files) : [];
+                onFileChange(field.id, files, field.externalID);
+                event.currentTarget.value = '';
+              }}
+            />
+            {fileLabel && <div className="file-input-meta">{fileLabel}</div>}
+          </div>
         );
 
       default:
