@@ -1,8 +1,16 @@
-import { AppLayout, SideNavigation, BreadcrumbGroup } from '@cloudscape-design/components';
+import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box } from '@cloudscape-design/components';
 import { Outlet, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useConnectivity } from './ConnectivityContext';
 
 export function Layout() {
   const navigate = useNavigate();
+  const { status, lastCheckedAt } = useConnectivity();
+  const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
+
+  const statusType = status === 'online' ? 'success' : status === 'offline' ? 'error' : 'in-progress';
+  const statusLabel = status === 'online' ? 'Online' : status === 'offline' ? 'Offline' : 'Checking connection...';
+  const iconFill = status === 'online' ? '#1d8102' : status === 'offline' ? '#d13212' : '#879596';
 
   return (
     <AppLayout
@@ -11,6 +19,32 @@ export function Layout() {
       }
       contentHeader={<div style={{ fontSize: '24px', fontWeight: 'bold', padding: '16px' }}>QHVAC Inspection Tool</div>}
       content={<Outlet />}
+      drawers={[
+        {
+          id: 'connectivity',
+          ariaLabels: {
+            drawerName: 'Connectivity status',
+            triggerButton: 'Open connectivity status',
+          },
+          trigger: {
+            customIcon: (
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+                <circle cx="9" cy="9" r="6" fill={iconFill} />
+              </svg>
+            ),
+          },
+          content: (
+            <Box>
+              <StatusIndicator type={statusType}>
+                {statusLabel}
+                {lastCheckedAt ? ` (last checked ${lastCheckedAt.toLocaleTimeString()})` : ''}
+              </StatusIndicator>
+            </Box>
+          ),
+        },
+      ]}
+      activeDrawerId={activeDrawerId}
+      onDrawerChange={({ detail }) => setActiveDrawerId(detail.activeDrawerId)}
       navigation={
         <SideNavigation
           items={[
