@@ -27,10 +27,12 @@ export function Layout() {
             triggerButton: 'Open connectivity status',
           },
           trigger: {
-            customIcon: (
-              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
-                <circle cx="9" cy="9" r="6" fill={iconFill} />
-              </svg>
+            iconSvg: (
+              <span style={{ color: iconFill, display: 'inline-flex' }}>
+                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+                  <circle cx="9" cy="9" r="6" fill="currentColor" />
+                </svg>
+              </span>
             ),
           },
           content: (

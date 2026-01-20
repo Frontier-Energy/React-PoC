@@ -1,21 +1,5 @@
-import { Header, SpaceBetween, StatusIndicator, Box } from '@cloudscape-design/components';
-import { useConnectivity } from '../ConnectivityContext';
+import { Header } from '@cloudscape-design/components';
 
 export function Home() {
-  const { status, lastCheckedAt } = useConnectivity();
-
-  const statusType = status === 'online' ? 'success' : status === 'offline' ? 'error' : 'in-progress';
-  const statusLabel = status === 'online' ? 'Online' : status === 'offline' ? 'Offline' : 'Checking connection...';
-
-  return (
-    <SpaceBetween size="m">
-      <Header variant="h1">Inspection Forms</Header>
-      <Box>
-        <StatusIndicator type={statusType}>
-          {statusLabel}
-          {lastCheckedAt ? ` (last checked ${lastCheckedAt.toLocaleTimeString()})` : ''}
-        </StatusIndicator>
-      </Box>
-    </SpaceBetween>
-  );
+  return <Header variant="h1">Inspection Forms</Header>;
 }
