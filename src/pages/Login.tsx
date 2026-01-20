@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, FormField, Input, Button, Box } from '@cloudscape-design/components';
 import { setUserId } from '../auth';
 import { getLoginUrl } from '../config';
@@ -10,7 +10,6 @@ export function Login() {
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
 
   const handleEmailLookup = async () => {
     const trimmed = email.trim();
@@ -31,8 +30,8 @@ export function Login() {
       if (!response.ok) {
         throw new Error(`Login lookup failed with status ${response.status}`);
       }
-      const payload = (await response.json()) as { userID: string };
-      const resolvedUserId = payload.userID || '';
+      const payload = (await response.json()) as { userID?: string; userId?: string; userid?: string };
+      const resolvedUserId = payload.userID || payload.userId || payload.userid || '';
       setUserIdInput(resolvedUserId);
       return resolvedUserId;
     } catch (error) {
@@ -46,17 +45,18 @@ export function Login() {
   };
 
   const handleLogin = async () => {
-    let trimmed = userId.trim();
-    if (!trimmed) {
-      const lookedUp = await handleEmailLookup();
-      trimmed = lookedUp?.trim() || '';
-    }
-    if (!trimmed) {
+    if (!email.trim()) {
+      setLookupError('Email is required.');
       return;
     }
-    setUserId(trimmed);
-    const state = location.state as { from?: string } | null;
-    navigate(state?.from || '/', { replace: true });
+    const lookedUp = await handleEmailLookup();
+    const resolvedUserId = lookedUp?.trim() || '';
+    if (!resolvedUserId) {
+      setLookupError('Login lookup did not return a user ID.');
+      return;
+    }
+    setUserId(resolvedUserId);
+    navigate('/', { replace: true });
   };
 
   return (
@@ -91,7 +91,7 @@ export function Login() {
                 }}
               />
             </FormField>
-            <Button variant="primary" onClick={handleLogin} disabled={!userId.trim()}>
+            <Button variant="primary" onClick={handleLogin} disabled={!email.trim() || isLookupLoading}>
               Login
             </Button>
           </SpaceBetween>

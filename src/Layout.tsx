@@ -2,6 +2,7 @@ import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box } from
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useConnectivity } from './ConnectivityContext';
+import { clearUserId } from './auth';
 
 export function Layout() {
   const navigate = useNavigate();
@@ -53,9 +54,15 @@ export function Layout() {
             { type: 'link', text: 'Home', href: '#/' },
             { type: 'link', text: 'New Inspection', href: '#/new-inspection' },
             { type: 'link', text: 'My Inspections', href: '#/my-inspections' },
+            { type: 'link', text: 'Log out', href: '#/logout' },
           ]}
           onFollow={(event) => {
             event.preventDefault();
+            if (event.detail.href === '#/logout') {
+              clearUserId();
+              navigate('/login');
+              return;
+            }
             navigate(event.detail.href.replace('#', ''));
           }}
         />
