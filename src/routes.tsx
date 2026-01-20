@@ -6,6 +6,7 @@ import { NewInspection } from './pages/NewInspection';
 import { FillForm } from './pages/FillForm';
 import { MyInspections } from './pages/MyInspections';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { getUserId } from './auth';
 
 function RequireUser({ children }: { children: ReactNode }) {
@@ -19,6 +20,7 @@ function RequireUser({ children }: { children: ReactNode }) {
 
 export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
+  { path: '/register', element: <Register /> },
   {
     element: (
       <RequireUser>

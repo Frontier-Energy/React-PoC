@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Header, Container, SpaceBetween, FormField, Input, Button, Box } from '@cloudscape-design/components';
-import { setUserId } from '../auth';
+import { Header, Container, SpaceBetween, FormField, Input, Button, Box, Link } from '@cloudscape-design/components';
+import { getUserId, setUserId } from '../auth';
 import { getLoginUrl } from '../config';
 
 export function Login() {
@@ -33,6 +33,7 @@ export function Login() {
       const payload = (await response.json()) as { userID?: string; userId?: string; userid?: string };
       const resolvedUserId = payload.userID || payload.userId || payload.userid || '';
       setUserIdInput(resolvedUserId);
+      setUserId(resolvedUserId);
       return resolvedUserId;
     } catch (error) {
       setLookupError('Unable to look up user ID. Check the email and try again.');
@@ -55,7 +56,6 @@ export function Login() {
       setLookupError('Login lookup did not return a user ID.');
       return;
     }
-    setUserId(resolvedUserId);
     navigate('/', { replace: true });
   };
 
@@ -79,21 +79,17 @@ export function Login() {
                 disabled={isLookupLoading}
               />
             </FormField>
-            <FormField label="User ID" description="Enter the ID used for inspection submissions.">
-              <Input
-                value={userId}
-                onChange={(event) => setUserIdInput(event.detail.value)}
-                placeholder="e.g., tech-001"
-                onKeyDown={(event) => {
-                  if (event.detail.key === 'Enter') {
-                    handleLogin();
-                  }
-                }}
-              />
+            <FormField label="User ID" description="Assigned after email lookup.">
+              <Box padding={{ top: 'xs' }} color="text-status-info">
+                {userId || getUserId() || 'Not assigned'}
+              </Box>
             </FormField>
-            <Button variant="primary" onClick={handleLogin} disabled={!email.trim() || isLookupLoading}>
-              Login
-            </Button>
+            <SpaceBetween size="s" direction="horizontal">
+              <Button variant="primary" onClick={handleLogin} disabled={!email.trim() || isLookupLoading}>
+                Login
+              </Button>
+              <Link onFollow={() => navigate('/register')}>Create an account</Link>
+            </SpaceBetween>
           </SpaceBetween>
         </Container>
       </SpaceBetween>
