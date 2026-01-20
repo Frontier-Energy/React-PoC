@@ -22,6 +22,15 @@ export function MyInspections() {
   }, []);
 
   useEffect(() => {
+    const handleStatusChange = () => {
+      loadInspections();
+    };
+
+    window.addEventListener('inspection-status-changed', handleStatusChange as EventListener);
+    return () => window.removeEventListener('inspection-status-changed', handleStatusChange as EventListener);
+  }, []);
+
+  useEffect(() => {
     // Check if there's a success message from navigation state
     if (location.state?.successMessage) {
       setSuccessMessage(location.state.successMessage);

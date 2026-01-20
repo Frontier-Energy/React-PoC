@@ -30,6 +30,7 @@ const updateInspectionStatus = (inspection: InspectionSession, status: UploadSta
   const updatedInspection: InspectionSession = { ...inspection, uploadStatus: status };
   localStorage.setItem(`inspection_${inspection.id}`, JSON.stringify(updatedInspection));
   localStorage.setItem('currentSession', JSON.stringify(updatedInspection));
+  window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedInspection }));
 };
 
 const uploadInspection = async (inspection: InspectionSession) => {
