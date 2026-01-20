@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header, Select, SelectProps, Container, SpaceBetween, Button } from '@cloudscape-design/components';
 import { FormType, FormTypeLabels, InspectionSession, UploadStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { getUserId } from '../auth';
 
 export function NewInspection() {
   const [selectedFormType, setSelectedFormType] = useState<SelectProps.Option | null>(null);
@@ -21,6 +22,7 @@ export function NewInspection() {
       name: '',
       formType: selectedFormType.value as FormType,
       uploadStatus: UploadStatus.Local,
+      userId: getUserId() || undefined,
     };
 
     localStorage.setItem('currentSession', JSON.stringify(session));
