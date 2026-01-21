@@ -235,7 +235,7 @@ export function FormRenderer({ schema, data, onChange, onFileChange }: FormRende
       }
       const objectUrl = URL.createObjectURL(storedFile.blob);
       setFilePreviewUrl(objectUrl);
-      setFilePreviewType(file.type || storedFile.type);
+      setFilePreviewType(file.type || storedFile.type || storedFile.blob.type);
     } catch (error) {
       // Keep modal open to show the fallback message.
     }
