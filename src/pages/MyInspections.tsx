@@ -16,6 +16,9 @@ export function MyInspections() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [sortingColumn, setSortingColumn] = useState<any>({ id: 'name', direction: 'asc' });
   const [sortingDescending, setSortingDescending] = useState(false);
+  const failedInspections = inspections.filter(
+    (inspection) => (inspection.uploadStatus || UploadStatus.Local) === UploadStatus.Failed
+  );
 
   useEffect(() => {
     loadInspections();
@@ -106,6 +109,27 @@ export function MyInspections() {
     loadInspections();
   };
 
+  const handleRetryInspection = (inspection: InspectionSession) => {
+    const updatedInspection: InspectionSession = {
+      ...inspection,
+      uploadStatus: UploadStatus.Local,
+    };
+    localStorage.setItem(`inspection_${inspection.id}`, JSON.stringify(updatedInspection));
+    const currentSession = localStorage.getItem('currentSession');
+    if (currentSession) {
+      try {
+        const parsedSession: InspectionSession = JSON.parse(currentSession);
+        if (parsedSession.id === inspection.id) {
+          localStorage.setItem('currentSession', JSON.stringify(updatedInspection));
+        }
+      } catch (error) {
+        // Ignore invalid session data
+      }
+    }
+    window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedInspection }));
+    loadInspections();
+  };
+
   const getUploadStatusBadge = (status: UploadStatus | undefined) => {
     const badgeConfig: Record<UploadStatus, { color: 'blue' | 'green' | 'red' | 'grey'; label: string }> = {
       [UploadStatus.Local]: { color: 'blue', label: 'Local' },
@@ -146,6 +170,14 @@ export function MyInspections() {
       {successMessage && (
         <Alert type="success" dismissible onDismiss={() => setSuccessMessage(null)}>
           {successMessage}
+        </Alert>
+      )}
+
+      {failedInspections.length > 0 && (
+        <Alert type="error">
+          {failedInspections.length === 1
+            ? 'An inspection failed to upload. Use Retry to try again.'
+            : `${failedInspections.length} inspections failed to upload. Use Retry to try again.`}
         </Alert>
       )}
 
@@ -207,6 +239,9 @@ export function MyInspections() {
                 cell: (item: InspectionSession) => (
                   <SpaceBetween direction="horizontal" size="s">
                     <Button onClick={() => handleOpenInspection(item)}>Open</Button>
+                    {(item.uploadStatus || UploadStatus.Local) === UploadStatus.Failed && (
+                      <Button onClick={() => handleRetryInspection(item)}>Retry</Button>
+                    )}
                     <Button onClick={() => handleDeleteInspection(item)}>Delete</Button>
                   </SpaceBetween>
                 ),
