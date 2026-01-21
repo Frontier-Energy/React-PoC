@@ -124,6 +124,13 @@
           "externalID": "electrical.inspectionPhotos",
           "accept": "image/*",
           "multiple": true
+        },
+        {
+          "id": "inspectorSignature",
+          "label": "Inspector Signature",
+          "type": "signature",
+          "required": true,
+          "externalID": "electrical.inspectorSignature"
         }
       ]
     }

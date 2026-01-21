@@ -35,7 +35,7 @@ export interface ConditionalVisibility {
 export interface FormField {
   id: string;
   label: string;
-  type: 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'multiselect' | 'textarea' | 'file';
+  type: 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'multiselect' | 'textarea' | 'file' | 'signature';
   required: boolean;
   externalID?: string;
   options?: FormFieldOption[];

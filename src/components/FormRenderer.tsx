@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { type PointerEvent, useEffect, useRef, useState } from 'react';
 import {
   FormField,
   Input,
@@ -16,8 +16,128 @@ interface FormRendererProps {
   schema: FormSchema;
   data: FormData;
   onChange: (fieldId: string, value: FormDataValue, externalID?: string) => void;
-  onFileChange: (fieldId: string, files: File[], externalID?: string) => void;
+  onFileChange: (fieldId: string, files: File[], externalID?: string) => Promise<void> | void;
 }
+
+interface SignatureFieldProps {
+  field: FormFieldType;
+  value?: FormDataValue;
+  onFileChange: (fieldId: string, files: File[], externalID?: string) => Promise<void> | void;
+}
+
+const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasInk, setHasInk] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#111';
+  }, []);
+
+  const getPoint = (event: PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+  };
+
+  const handlePointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    canvas.setPointerCapture(event.pointerId);
+    const point = getPoint(event);
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
+    setIsDrawing(true);
+    setHasInk(true);
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    const point = getPoint(event);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+  };
+
+  const handlePointerUp = (event: PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.releasePointerCapture(event.pointerId);
+    setIsDrawing(false);
+  };
+
+  const handleClear = async () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasInk(false);
+    await onFileChange(field.id, [], field.externalID);
+  };
+
+  const handleSave = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (!hasInk) {
+      await onFileChange(field.id, [], field.externalID);
+      return;
+    }
+    setIsSaving(true);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((result) => resolve(result), 'image/png')
+    );
+    if (!blob) {
+      setIsSaving(false);
+      return;
+    }
+    const file = new File([blob], `${field.id}-${Date.now()}.png`, { type: 'image/png' });
+    await onFileChange(field.id, [file], field.externalID);
+    setIsSaving(false);
+  };
+
+  const fileLabel = formatFileValue(value);
+
+  return (
+    <div className="signature-field">
+      <canvas
+        ref={canvasRef}
+        className="signature-canvas"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+      />
+      <div className="signature-actions">
+        <button type="button" className="signature-button" onClick={handleSave} disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save Signature'}
+        </button>
+        <button type="button" className="signature-button secondary" onClick={handleClear}>
+          Clear
+        </button>
+      </div>
+      {fileLabel && <div className="file-input-meta">{fileLabel}</div>}
+    </div>
+  );
+};
 
 export function FormRenderer({ schema, data, onChange, onFileChange }: FormRendererProps) {
   const handleTextChange = (fieldId: string, value: string, externalID?: string) => {
@@ -155,6 +275,9 @@ export function FormRenderer({ schema, data, onChange, onFileChange }: FormRende
             {fileLabel && <div className="file-input-meta">{fileLabel}</div>}
           </div>
         );
+
+      case 'signature':
+        return <SignatureField field={field} value={value} onFileChange={onFileChange} />;
 
       default:
         return null;
