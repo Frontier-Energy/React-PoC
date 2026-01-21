@@ -292,7 +292,9 @@ export function MyInspections() {
                 cell: (item: InspectionSession) => (
                   <SpaceBetween direction="horizontal" size="s">
                     <Button onClick={() => handleViewInspection(item)}>View</Button>
-                    <Button onClick={() => handleOpenInspection(item)}>Open</Button>
+                    {(item.uploadStatus || UploadStatus.Local) === UploadStatus.InProgress && (
+                      <Button onClick={() => handleOpenInspection(item)}>Open</Button>
+                    )}
                     {(item.uploadStatus || UploadStatus.Local) === UploadStatus.Failed && (
                       <Button onClick={() => handleRetryInspection(item)}>Retry</Button>
                     )}
