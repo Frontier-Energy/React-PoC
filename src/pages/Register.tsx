@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, FormField, Input, Button, Box } from '@cloudscape-design/components';
 import { getRegisterUrl } from '../config';
+import { setUserId } from '../auth';
 
 export function Register() {
   const [email, setEmail] = useState('');
@@ -37,7 +38,19 @@ export function Register() {
           : 'Registration failed due to a server error. Please try again later.';
         throw new Error(message);
       }
-      navigate('/login', { replace: true });
+      let resolvedUserId = '';
+      try {
+        const payload = (await response.json()) as { userID?: string; userId?: string; userid?: string };
+        resolvedUserId = payload.userID || payload.userId || payload.userid || '';
+      } catch (parseError) {
+        console.warn('Registration response did not include JSON payload:', parseError);
+      }
+      if (resolvedUserId) {
+        setUserId(resolvedUserId);
+        navigate('/my-inspections', { replace: true });
+      } else {
+        navigate('/login', { replace: true });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to register. Please try again.';
       setErrorMessage(message);
