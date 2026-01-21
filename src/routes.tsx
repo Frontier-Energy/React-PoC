@@ -5,6 +5,7 @@ import { Home } from './pages/Home';
 import { NewInspection } from './pages/NewInspection';
 import { FillForm } from './pages/FillForm';
 import { MyInspections } from './pages/MyInspections';
+import { DebugInspection } from './pages/DebugInspection';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { getUserId } from './auth';
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
       { path: '/', element: <Home /> },
       { path: '/new-inspection', element: <NewInspection /> },
       { path: '/fill-form/:sessionId', element: <FillForm /> },
+      { path: '/debug-inspection/:sessionId', element: <DebugInspection /> },
       { path: '/my-inspections', element: <MyInspections /> },
     ],
   },

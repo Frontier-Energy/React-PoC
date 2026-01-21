@@ -90,6 +90,10 @@ export function MyInspections() {
     navigate(`/fill-form/${inspection.id}`);
   };
 
+  const handleViewInspection = (inspection: InspectionSession) => {
+    navigate(`/debug-inspection/${inspection.id}`);
+  };
+
   const handleDeleteInspection = (inspection: InspectionSession) => {
     const keys = Object.keys(localStorage);
     keys.forEach((key) => {
@@ -238,6 +242,7 @@ export function MyInspections() {
                 header: 'Actions',
                 cell: (item: InspectionSession) => (
                   <SpaceBetween direction="horizontal" size="s">
+                    <Button onClick={() => handleViewInspection(item)}>View</Button>
                     <Button onClick={() => handleOpenInspection(item)}>Open</Button>
                     {(item.uploadStatus || UploadStatus.Local) === UploadStatus.Failed && (
                       <Button onClick={() => handleRetryInspection(item)}>Retry</Button>
