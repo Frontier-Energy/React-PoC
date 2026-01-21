@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, SelectProps, Link, Alert } from '@cloudscape-design/components';
+import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, SelectProps, Link, Alert, Modal } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { InspectionSession, FormTypeLabels, UploadStatus, FormType } from '../types';
@@ -16,6 +16,7 @@ export function MyInspections() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [sortingColumn, setSortingColumn] = useState<any>({ id: 'name', direction: 'asc' });
   const [sortingDescending, setSortingDescending] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<InspectionSession | null>(null);
   const failedInspections = inspections.filter(
     (inspection) => (inspection.uploadStatus || UploadStatus.Local) === UploadStatus.Failed
   );
@@ -113,6 +114,22 @@ export function MyInspections() {
     loadInspections();
   };
 
+  const handleRequestDeleteInspection = (inspection: InspectionSession) => {
+    setDeleteTarget(inspection);
+  };
+
+  const handleConfirmDeleteInspection = () => {
+    if (!deleteTarget) {
+      return;
+    }
+    handleDeleteInspection(deleteTarget);
+    setDeleteTarget(null);
+  };
+
+  const handleCancelDeleteInspection = () => {
+    setDeleteTarget(null);
+  };
+
   const handleRetryInspection = (inspection: InspectionSession) => {
     const updatedInspection: InspectionSession = {
       ...inspection,
@@ -170,6 +187,36 @@ export function MyInspections() {
   return (
     <SpaceBetween size="l">
       <Header variant="h1">My Inspections</Header>
+
+      <Modal
+        visible={!!deleteTarget}
+        onDismiss={handleCancelDeleteInspection}
+        header="Delete inspection?"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button variant="link" onClick={handleCancelDeleteInspection}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={handleConfirmDeleteInspection}>
+                Delete
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        {deleteTarget ? (
+          <SpaceBetween size="xs">
+            <Box>
+              This will permanently delete{' '}
+              <Box fontWeight="bold" display="inline">
+                {deleteTarget.name || '(Unnamed)'}
+              </Box>
+              . This action cannot be undone.
+            </Box>
+          </SpaceBetween>
+        ) : null}
+      </Modal>
 
       {successMessage && (
         <Alert type="success" dismissible onDismiss={() => setSuccessMessage(null)}>
@@ -247,7 +294,7 @@ export function MyInspections() {
                     {(item.uploadStatus || UploadStatus.Local) === UploadStatus.Failed && (
                       <Button onClick={() => handleRetryInspection(item)}>Retry</Button>
                     )}
-                    <Button onClick={() => handleDeleteInspection(item)}>Delete</Button>
+                    <Button onClick={() => handleRequestDeleteInspection(item)}>Delete</Button>
                   </SpaceBetween>
                 ),
               },

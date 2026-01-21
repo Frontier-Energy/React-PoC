@@ -9,7 +9,8 @@ import {
   Textarea,
 } from '@cloudscape-design/components';
 import { FormSchema, FormField as FormFieldType, FormData, FormDataValue } from '../types';
-import { formatFileValue } from '../utils/formDataUtils';
+import { formatFileValue, getFileReferences } from '../utils/formDataUtils';
+import { getFile } from '../utils/fileStorage';
 import './FormRenderer.css';
 
 interface FormRendererProps {
@@ -45,6 +46,51 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
     ctx.lineCap = 'round';
     ctx.strokeStyle = '#111';
   }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+
+    const [fileRef] = getFileReferences(value);
+    if (!fileRef) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      setHasInk(false);
+      return;
+    }
+
+    let isActive = true;
+
+    const loadExistingSignature = async () => {
+      const storedFile = await getFile(fileRef.id);
+      if (!storedFile || !isActive) {
+        return;
+      }
+      const objectUrl = URL.createObjectURL(storedFile.blob);
+      const image = new Image();
+      image.onload = () => {
+        if (!isActive) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        const rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, rect.width, rect.height);
+        setHasInk(true);
+        URL.revokeObjectURL(objectUrl);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+      };
+      image.src = objectUrl;
+    };
+
+    void loadExistingSignature();
+
+    return () => {
+      isActive = false;
+    };
+  }, [value]);
 
   const getPoint = (event: PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
