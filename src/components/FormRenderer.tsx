@@ -31,6 +31,7 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasInk, setHasInk] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -56,6 +57,7 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
     if (!fileRef) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       setHasInk(false);
+      setIsLocked(false);
       return;
     }
 
@@ -64,6 +66,11 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
     const loadExistingSignature = async () => {
       const storedFile = await getFile(fileRef.id);
       if (!storedFile || !isActive) {
+        if (isActive) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          setHasInk(false);
+          setIsLocked(false);
+        }
         return;
       }
       const objectUrl = URL.createObjectURL(storedFile.blob);
@@ -77,6 +84,7 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(image, 0, 0, rect.width, rect.height);
         setHasInk(true);
+        setIsLocked(true);
         URL.revokeObjectURL(objectUrl);
       };
       image.onerror = () => {
@@ -103,6 +111,7 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (isLocked) return;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
@@ -115,6 +124,7 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (isLocked) return;
     if (!isDrawing) return;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
@@ -125,6 +135,7 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
   };
 
   const handlePointerUp = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (isLocked) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     canvas.releasePointerCapture(event.pointerId);
@@ -132,6 +143,7 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
   };
 
   const handleClear = async () => {
+    if (isLocked) return;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
@@ -141,6 +153,7 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
   };
 
   const handleSave = async () => {
+    if (isLocked) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     if (!hasInk) {
@@ -173,10 +186,20 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
         onPointerLeave={handlePointerUp}
       />
       <div className="signature-actions">
-        <button type="button" className="signature-button" onClick={handleSave} disabled={isSaving}>
+        <button
+          type="button"
+          className="signature-button"
+          onClick={handleSave}
+          disabled={isSaving || isLocked}
+        >
           {isSaving ? 'Saving...' : 'Save Signature'}
         </button>
-        <button type="button" className="signature-button secondary" onClick={handleClear}>
+        <button
+          type="button"
+          className="signature-button secondary"
+          onClick={handleClear}
+          disabled={isLocked}
+        >
           Clear
         </button>
       </div>
