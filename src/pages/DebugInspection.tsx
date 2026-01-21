@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, Container, Header, Modal, SpaceBetween } from '@cloudscape-design/components';
 import type { FileReference, FormDataValue, FormSchema, InspectionSession } from '../types';
 import { getFile } from '../utils/fileStorage';
@@ -7,6 +7,7 @@ import { getFileReferences } from '../utils/formDataUtils';
 
 export function DebugInspection() {
   const { sessionId } = useParams();
+  const navigate = useNavigate();
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -140,7 +141,16 @@ export function DebugInspection() {
 
   return (
     <SpaceBetween size="l">
-      <Header variant="h1">Debug Inspection</Header>
+      <Header
+        variant="h1"
+        actions={
+          <Button variant="link" onClick={() => navigate('/my-inspections')}>
+            Back to My Inspections
+          </Button>
+        }
+      >
+        Debug Inspection
+      </Header>
       <Container>
         <Box padding="m">
           <pre>{JSON.stringify(inspectionData, null, 2)}</pre>
