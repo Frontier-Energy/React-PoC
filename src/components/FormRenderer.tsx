@@ -7,6 +7,10 @@ import {
   Select,
   Multiselect,
   Textarea,
+  Modal,
+  Box,
+  Button,
+  SpaceBetween,
 } from '@cloudscape-design/components';
 import { FormSchema, FormField as FormFieldType, FormData, FormDataValue } from '../types';
 import { formatFileValue, getFileReferences } from '../utils/formDataUtils';
@@ -210,6 +214,43 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
 };
 
 export function FormRenderer({ schema, data, onChange, onFileChange }: FormRendererProps) {
+  const [filePreviewOpen, setFilePreviewOpen] = useState(false);
+  const [filePreviewName, setFilePreviewName] = useState<string | null>(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
+  const [filePreviewType, setFilePreviewType] = useState<string | null>(null);
+
+  const handleOpenFilePreview = async (file: { id: string; name: string; type: string }) => {
+    if (filePreviewUrl) {
+      URL.revokeObjectURL(filePreviewUrl);
+    }
+    setFilePreviewName(file.name);
+    setFilePreviewType(file.type || null);
+    setFilePreviewUrl(null);
+    setFilePreviewOpen(true);
+
+    try {
+      const storedFile = await getFile(file.id);
+      if (!storedFile) {
+        return;
+      }
+      const objectUrl = URL.createObjectURL(storedFile.blob);
+      setFilePreviewUrl(objectUrl);
+      setFilePreviewType(file.type || storedFile.type);
+    } catch (error) {
+      // Keep modal open to show the fallback message.
+    }
+  };
+
+  const handleCloseFilePreview = () => {
+    setFilePreviewOpen(false);
+    setFilePreviewName(null);
+    setFilePreviewType(null);
+    if (filePreviewUrl) {
+      URL.revokeObjectURL(filePreviewUrl);
+      setFilePreviewUrl(null);
+    }
+  };
+
   const handleTextChange = (fieldId: string, value: string, externalID?: string) => {
     onChange(fieldId, value, externalID);
   };
@@ -328,7 +369,7 @@ export function FormRenderer({ schema, data, onChange, onFileChange }: FormRende
         );
 
       case 'file':
-        const fileLabel = formatFileValue(value);
+        const files = getFileReferences(value);
         return (
           <div className="file-input">
             <input
@@ -342,7 +383,20 @@ export function FormRenderer({ schema, data, onChange, onFileChange }: FormRende
                 event.currentTarget.value = '';
               }}
             />
-            {fileLabel && <div className="file-input-meta">{fileLabel}</div>}
+            {files.length > 0 && (
+              <div className="file-input-meta">
+                {files.map((file) => (
+                  <Button
+                    key={file.id}
+                    variant="link"
+                    type="button"
+                    onClick={() => handleOpenFilePreview(file)}
+                  >
+                    {file.name}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         );
 
@@ -355,7 +409,42 @@ export function FormRenderer({ schema, data, onChange, onFileChange }: FormRende
   };
 
   return (
-    <form className="form-renderer">
+    <form
+      className="form-renderer"
+      onSubmit={(event) => {
+        event.preventDefault();
+      }}
+    >
+      <Modal
+        visible={filePreviewOpen}
+        onDismiss={handleCloseFilePreview}
+        header={filePreviewName || 'File Preview'}
+        size="large"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              {filePreviewUrl && filePreviewName && (
+                <a href={filePreviewUrl} download={filePreviewName}>
+                  Download
+                </a>
+              )}
+              <Button onClick={handleCloseFilePreview}>Close</Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        {filePreviewUrl ? (
+          filePreviewType?.startsWith('image/') ? (
+            <Box textAlign="center">
+              <img src={filePreviewUrl} alt={filePreviewName || 'Preview'} style={{ maxWidth: '100%' }} />
+            </Box>
+          ) : (
+            <Box textAlign="center">Preview not available for this file type.</Box>
+          )
+        ) : (
+          <Box textAlign="center">Unable to load preview.</Box>
+        )}
+      </Modal>
       {schema.sections.map((section, sectionIndex) => (
         <div key={sectionIndex} className="form-section">
           <h2 className="section-title">{section.title}</h2>
