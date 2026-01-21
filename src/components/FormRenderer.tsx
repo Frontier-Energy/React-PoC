@@ -389,7 +389,6 @@ export function FormRenderer({ schema, data, onChange, onFileChange }: FormRende
                   <Button
                     key={file.id}
                     variant="link"
-                    type="button"
                     onClick={() => handleOpenFilePreview(file)}
                   >
                     {file.name}
