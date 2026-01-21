@@ -79,11 +79,7 @@ export function Login() {
                 disabled={isLookupLoading}
               />
             </FormField>
-            <FormField label="User ID" description="Assigned after email lookup.">
-              <Box padding={{ top: 'xs' }} color="text-status-info">
-                {userId || getUserId() || 'Not assigned'}
-              </Box>
-            </FormField>
+            
             <SpaceBetween size="s" direction="horizontal">
               <Button variant="primary" onClick={handleLogin} disabled={!email.trim() || isLookupLoading}>
                 Login
