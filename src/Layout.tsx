@@ -19,7 +19,17 @@ export function Layout() {
         <BreadcrumbGroup items={[]} onFollow={() => {}} />
       }
       contentHeader={<div style={{ fontSize: '24px', fontWeight: 'bold', padding: '16px' }}>QHVAC Inspection Tool</div>}
-      content={<Outlet />}
+      content={
+        <div className="app-content">
+          <Outlet />
+          <footer className="app-footer">
+            Powered By{' '}
+            <a href="https://frontierenergy.com" target="_blank" rel="noreferrer">
+              QControl
+            </a>
+          </footer>
+        </div>
+      }
       drawers={[
         {
           id: 'connectivity',
