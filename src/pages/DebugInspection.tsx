@@ -1,13 +1,17 @@
 import { useMemo, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Container, Header, SpaceBetween } from '@cloudscape-design/components';
-import type { FormDataValue, FormSchema, InspectionSession } from '../types';
+import { Box, Button, Container, Header, Modal, SpaceBetween } from '@cloudscape-design/components';
+import type { FileReference, FormDataValue, FormSchema, InspectionSession } from '../types';
+import { getFile } from '../utils/fileStorage';
 import { getFileReferences } from '../utils/formDataUtils';
 
 export function DebugInspection() {
   const { sessionId } = useParams();
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [schemaError, setSchemaError] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewName, setPreviewName] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const inspectionData = useMemo(() => {
     if (!sessionId) {
@@ -80,6 +84,60 @@ export function DebugInspection() {
       .filter((item) => item.files.length > 0);
   }, [formSchema, inspectionData.formData]);
 
+  const formatFileSize = (size: number) => {
+    if (size < 1024) {
+      return `${size} B`;
+    }
+    if (size < 1024 * 1024) {
+      return `${(size / 1024).toFixed(1)} KB`;
+    }
+    if (size < 1024 * 1024 * 1024) {
+      return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
+
+  const isPreviewableImage = (file: FileReference) => file.type.startsWith('image/');
+
+  const handleDownload = async (file: FileReference) => {
+    const storedFile = await getFile(file.id);
+    if (!storedFile) {
+      return;
+    }
+    const url = URL.createObjectURL(storedFile.blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = file.name;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handlePreview = async (file: FileReference) => {
+    if (!isPreviewableImage(file)) {
+      return;
+    }
+    const storedFile = await getFile(file.id);
+    if (!storedFile) {
+      return;
+    }
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    const url = URL.createObjectURL(storedFile.blob);
+    setPreviewUrl(url);
+    setPreviewName(file.name);
+    setPreviewOpen(true);
+  };
+
+  const closePreview = () => {
+    setPreviewOpen(false);
+    setPreviewName(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  };
+
   return (
     <SpaceBetween size="l">
       <Header variant="h1">Debug Inspection</Header>
@@ -101,15 +159,59 @@ export function DebugInspection() {
                 <div>
                   <strong>{item.label}</strong> ({item.type})
                 </div>
-                <ul>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr',
+                    gap: '0.5rem 1rem',
+                    alignItems: 'center',
+                    marginTop: '0.5rem',
+                  }}
+                >
+                  <Box fontWeight="bold">File Name</Box>
+                  <Box fontWeight="bold">Size</Box>
+                  <Box fontWeight="bold">File Type</Box>
+                  <Box fontWeight="bold">Download</Box>
+                  <Box fontWeight="bold">Preview</Box>
                   {item.files.map((file) => (
-                    <li key={file.id}>{file.name}</li>
+                    <div key={file.id} style={{ display: 'contents' }}>
+                      <Box>{file.name}</Box>
+                      <Box>{formatFileSize(file.size)}</Box>
+                      <Box>{file.type || 'Unknown'}</Box>
+                      <Box>
+                        <Button onClick={() => handleDownload(file)}>Download</Button>
+                      </Box>
+                      <Box>
+                        {isPreviewableImage(file) ? (
+                          <Button onClick={() => handlePreview(file)}>Preview</Button>
+                        ) : (
+                          <span>-</span>
+                        )}
+                      </Box>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </Box>
             ))}
         </SpaceBetween>
       </Container>
+      <Modal
+        visible={previewOpen}
+        onDismiss={closePreview}
+        header={previewName || 'Preview'}
+        size="large"
+        footer={
+          <Box float="right">
+            <Button onClick={closePreview}>Close</Button>
+          </Box>
+        }
+      >
+        {previewUrl && (
+          <Box textAlign="center">
+            <img src={previewUrl} alt={previewName || 'Preview'} style={{ maxWidth: '100%' }} />
+          </Box>
+        )}
+      </Modal>
     </SpaceBetween>
   );
 }
