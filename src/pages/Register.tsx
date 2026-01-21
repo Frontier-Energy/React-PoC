@@ -50,7 +50,16 @@ export function Register() {
   return (
     <Box padding="l">
       <SpaceBetween size="l">
-        <Header variant="h1">Register</Header>
+        <Header
+          variant="h1"
+          actions={
+            <Button variant="link" onClick={() => navigate('/login')}>
+              Back to Login
+            </Button>
+          }
+        >
+          Register
+        </Header>
         {errorMessage && (
           <Box color="text-status-error">
             {errorMessage}
