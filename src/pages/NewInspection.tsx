@@ -21,7 +21,7 @@ export function NewInspection() {
       id: uuidv4(),
       name: '',
       formType: selectedFormType.value as FormType,
-      uploadStatus: UploadStatus.Local,
+      uploadStatus: UploadStatus.InProgress,
       userId: getUserId() || undefined,
     };
 

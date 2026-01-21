@@ -5,6 +5,7 @@ export enum FormType {
 
 export enum UploadStatus {
   Local = 'local',
+  InProgress = 'in-progress',
   Uploading = 'uploading',
   Uploaded = 'uploaded',
   Failed = 'failed',

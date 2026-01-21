@@ -170,10 +170,10 @@ export function FillForm() {
     }
 
     if (session) {
-      // Update session status to local by default
+      // Keep new inspections from uploading automatically.
       const updatedSession: InspectionSession = {
         ...session,
-        uploadStatus: UploadStatus.Local,
+        uploadStatus: UploadStatus.InProgress,
       };
       // Store in both places for persistence
       localStorage.setItem('currentSession', JSON.stringify(updatedSession));
@@ -188,6 +188,24 @@ export function FillForm() {
         },
       });
     }
+  };
+
+  const handleSave = () => {
+    if (!session) {
+      return;
+    }
+
+    const updatedSession: InspectionSession = {
+      ...session,
+    };
+
+    localStorage.setItem('currentSession', JSON.stringify(updatedSession));
+    localStorage.setItem(`inspection_${session.id}`, JSON.stringify(updatedSession));
+    navigate('/my-inspections', {
+      state: {
+        successMessage: 'Inspection saved successfully.',
+      },
+    });
   };
 
   const handleReset = async () => {
@@ -287,6 +305,7 @@ export function FillForm() {
         <Container>
           <SpaceBetween direction="horizontal" size="m">
             <Button onClick={handleReset}>Reset Form</Button>
+            <Button onClick={handleSave}>Save</Button>
             <Button variant="primary" onClick={handleSubmit}>
               Submit
             </Button>

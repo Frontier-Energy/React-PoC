@@ -154,6 +154,7 @@ export function MyInspections() {
   const getUploadStatusBadge = (status: UploadStatus | undefined) => {
     const badgeConfig: Record<UploadStatus, { color: 'blue' | 'green' | 'red' | 'grey'; label: string }> = {
       [UploadStatus.Local]: { color: 'blue', label: 'Local' },
+      [UploadStatus.InProgress]: { color: 'grey', label: 'In Progress' },
       [UploadStatus.Uploading]: { color: 'grey', label: 'Uploading' },
       [UploadStatus.Uploaded]: { color: 'green', label: 'Uploaded' },
       [UploadStatus.Failed]: { color: 'red', label: 'Failed' },
@@ -179,6 +180,7 @@ export function MyInspections() {
   const statusOptions: SelectProps.Option[] = [
     { label: 'All Statuses', value: '' },
     { label: 'Local', value: UploadStatus.Local },
+    { label: 'In Progress', value: UploadStatus.InProgress },
     { label: 'Uploading', value: UploadStatus.Uploading },
     { label: 'Uploaded', value: UploadStatus.Uploaded },
     { label: 'Failed', value: UploadStatus.Failed },
