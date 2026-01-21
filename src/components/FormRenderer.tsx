@@ -143,12 +143,12 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
   };
 
   const handleClear = async () => {
-    if (isLocked) return;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setHasInk(false);
+    setIsLocked(false);
     await onFileChange(field.id, [], field.externalID);
   };
 
@@ -186,19 +186,20 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
         onPointerLeave={handlePointerUp}
       />
       <div className="signature-actions">
-        <button
-          type="button"
-          className="signature-button"
-          onClick={handleSave}
-          disabled={isSaving || isLocked}
-        >
-          {isSaving ? 'Saving...' : 'Save Signature'}
-        </button>
+        {!isLocked && (
+          <button
+            type="button"
+            className="signature-button"
+            onClick={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Save Signature'}
+          </button>
+        )}
         <button
           type="button"
           className="signature-button secondary"
           onClick={handleClear}
-          disabled={isLocked}
         >
           Clear
         </button>
