@@ -170,10 +170,9 @@ export function FillForm() {
     }
 
     if (session) {
-      // Keep new inspections from uploading automatically.
       const updatedSession: InspectionSession = {
         ...session,
-        uploadStatus: UploadStatus.InProgress,
+        uploadStatus: UploadStatus.Local,
       };
       // Store in both places for persistence
       localStorage.setItem('currentSession', JSON.stringify(updatedSession));
