@@ -160,7 +160,10 @@ export class FormValidator {
 
       case 'contains':
         if (Array.isArray(dependentValue)) {
-          return dependentValue.includes(condition.value as string);
+          if (isFileReferenceArray(dependentValue)) {
+            return false;
+          }
+          return (dependentValue as string[]).includes(String(condition.value));
         }
         return String(dependentValue).includes(String(condition.value));
 
