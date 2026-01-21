@@ -1,0 +1,31 @@
+/* Global customizations. Extend this file with additional variables and rules. */
+:root {
+  --app-font-family: "Source Sans Pro", "Helvetica Neue", Arial, sans-serif;
+  --app-text-color: #1a1a1a;
+  --app-bg-color: #f7f8fa;
+  --app-accent-color: #2b6cb0;
+  --app-border-radius: 8px;
+  --app-spacing: 16px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--app-font-family);
+  color: var(--app-text-color);
+  background-color: var(--app-bg-color);
+}
+
+#root {
+  min-height: 100%;
+}

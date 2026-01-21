@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './routes';
 import '@cloudscape-design/global-styles/index.css';
+import './global.css';
 import { ConnectivityProvider } from './ConnectivityContext';
 import { BackgroundUploadManager } from './BackgroundUploadManager';
 
