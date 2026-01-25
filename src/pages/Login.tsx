@@ -56,7 +56,7 @@ export function Login() {
       setLookupError('Login lookup did not return a user ID.');
       return;
     }
-    navigate('/', { replace: true });
+    navigate('/myInspections', { replace: true });
   };
 
   return (
