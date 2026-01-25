@@ -39,77 +39,59 @@ const uploadInspection = async (inspection: InspectionSession) => {
   const storedData = localStorage.getItem(`formData_${inspection.id}`);
   const formData: Record<string, FormDataValue> = storedData ? JSON.parse(storedData) : {};
 
-  const fileEntries = Object.entries(formData).filter(([, value]) => getFileReferences(value).length > 0);
-  const hasFiles = fileEntries.length > 0;
+  const uploadForm = new FormData();
+  uploadForm.append('sessionId', inspection.id);
+  uploadForm.append('name', inspection.name);
 
-  if (hasFiles) {
-    const uploadForm = new FormData();
-    uploadForm.append('sessionId', inspection.id);
-    uploadForm.append('name', inspection.name);
-    if ((inspection as { userId?: string }).userId) {
-      uploadForm.append('userId', String((inspection as { userId?: string }).userId));
+
+  const fileMap: Record<string, string[]> = {};
+
+  for (const [key, value] of Object.entries(formData)) {
+    const files = getFileReferences(value);
+    if (files.length === 0) {
+      continue;
     }
 
-    const fileMap: Record<string, string[]> = {};
-
-    for (const [key, value] of Object.entries(formData)) {
-      const files = getFileReferences(value);
-      if (files.length === 0) {
-        uploadForm.append(key, serializeFormValue(value));
+    fileMap[key] = [];
+    for (const fileRef of files) {
+      const storedFile = await getFile(fileRef.id);
+      if (!storedFile) {
+        console.warn(`Missing stored file for ${fileRef.id}`);
         continue;
       }
-
-      fileMap[key] = [];
-      for (const fileRef of files) {
-        const storedFile = await getFile(fileRef.id);
-        if (!storedFile) {
-          console.warn(`Missing stored file for ${fileRef.id}`);
-          continue;
-        }
-        uploadForm.append(key, storedFile.blob, storedFile.name);
-        fileMap[key].push(fileRef.id);
-      }
+      uploadForm.append(key, storedFile.blob, storedFile.name);
+      fileMap[key].push(fileRef.id);
     }
-
-    uploadForm.append('fileMap', JSON.stringify(fileMap));
-
-    const response = await fetch(getUploadInspectionUrl(), {
-      method: 'POST',
-      body: uploadForm,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Upload failed with status ${response.status}`);
-    }
-
-    const uploadedFileIds = Object.values(formData)
-      .flatMap((value) => getFileReferences(value))
-      .map((file) => file.id);
-    if (uploadedFileIds.length > 0) {
-      await deleteFiles(uploadedFileIds);
-    }
-  } else {
-    const queryParams = Object.fromEntries(
-      Object.entries(formData).map(([key, value]) => [key, serializeFormValue(value)])
-    );
-    const payload = {
-      sessionId: inspection.id,
-      name: inspection.name,
-      userId: (inspection as { userId?: string }).userId,
-      queryParams,
+  }
+  var payload =  {
+    sessionId:inspection.id,
+    name: inspection.name, 
+    userId: '',
+    queryParams: storedData
     };
 
-    const response = await fetch(getUploadInspectionUrl(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Upload failed with status ${response.status}`);
+    if ((inspection as { userId?: string }).userId) {
+      payload.userId= (inspection as { userId: string }).userId;
     }
+
+
+  uploadForm.append('payload', JSON.stringify(payload));
+  uploadForm.append('fileMap', JSON.stringify(fileMap));
+
+  const response = await fetch(getUploadInspectionUrl(), {
+    method: 'POST',
+    body: uploadForm,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Upload failed with status ${response.status}`);
+  }
+
+  const uploadedFileIds = Object.values(formData)
+    .flatMap((value) => getFileReferences(value))
+    .map((file) => file.id);
+  if (uploadedFileIds.length > 0) {
+    await deleteFiles(uploadedFileIds);
   }
 };
 
