@@ -1,4 +1,4 @@
-import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box, Table, Header, SpaceBetween, FormField, Select } from '@cloudscape-design/components';
+import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box, Table, Header, SpaceBetween, FormField, Select, Link } from '@cloudscape-design/components';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useConnectivity } from './ConnectivityContext';
@@ -217,9 +217,9 @@ export function Layout() {
           <Outlet />
           <footer className="app-footer">
             {labels.app.poweredBy}{' '}
-            <a href="https://frontierenergy.com" target="_blank" rel="noreferrer">
+            <Link href="https://frontierenergy.com" external externalIconAriaLabel={labels.app.brand}>
               {labels.app.brand}
-            </a>
+            </Link>
           </footer>
         </div>
       }
