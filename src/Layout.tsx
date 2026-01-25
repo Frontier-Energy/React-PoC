@@ -166,6 +166,7 @@ export function Layout() {
 
   const languageOptions: SelectProps.Option[] = [
     { label: labels.customization.languageOptions.en, value: 'en' },
+    { label: labels.customization.languageOptions.es, value: 'es' },
   ];
 
   useEffect(() => {

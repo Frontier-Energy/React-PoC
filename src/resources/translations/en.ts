@@ -89,6 +89,7 @@ export const en = {
     },
     languageOptions: {
       en: 'English',
+      es: 'Spanish',
     },
   },
   uploadStatus: {
@@ -254,4 +255,3 @@ export const en = {
     },
   },
 } as const;
-
