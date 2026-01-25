@@ -179,7 +179,19 @@ export function Layout() {
       breadcrumbs={
         <BreadcrumbGroup items={[]} onFollow={() => {}} />
       }
-      contentHeader={<div style={{ fontSize: '24px', fontWeight: 'bold', padding: '16px' }}>QHVAC Inspection Tool</div>}
+      contentHeader={
+        <div
+          style={{
+            fontSize: '24px',
+            fontWeight: 'bold',
+            padding: '16px',
+            backgroundColor: 'var(--app-bg-color)',
+            color: 'var(--app-text-color)',
+          }}
+        >
+          QHVAC Inspection Tool
+        </div>
+      }
       content={
         <div className="app-content">
           <Outlet />

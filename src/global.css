@@ -42,6 +42,20 @@ body {
   background-color: var(--app-bg-color);
 }
 
+/* Cloudscape AppLayout containers default to white; sync with theme background. */
+[class*="awsui_app-layout__content"],
+[class*="awsui_app-layout__content-container"],
+[class*="awsui_app-layout__main"],
+[class*="awsui_app-layout__content-header"],
+[class*="awsui_app-layout__footer"],
+[class*="awsui_content-layout__container"],
+[class*="awsui_content-layout__content"],
+[class*="awsui_content-layout__header"],
+[class*="awsui_content-layout__content-header"],
+[class*="awsui_content-layout__main"] {
+  background-color: var(--app-bg-color);
+}
+
 .app-footer {
   margin-top: auto;
   padding: 2px;
