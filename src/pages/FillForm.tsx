@@ -156,6 +156,12 @@ export function FillForm() {
 
     // Validate form
     const validationErrors = FormValidator.validateForm(formData, validationRulesMap, requiredFields);
+    if (!session?.name.trim()) {
+      validationErrors.unshift({
+        fieldId: 'sessionName',
+        message: 'Session name is required.',
+      });
+    }
     setValidationErrors(validationErrors);
 
     return validationErrors;
@@ -216,8 +222,12 @@ export function FillForm() {
 
   const handleErrorClick = (fieldId: string) => {
     // Find the field element and scroll to it
-    const stepIndex = formSchema ? getSectionIndexForField(fieldId) : 0;
-    setActiveStepIndex(stepIndex);
+    if (fieldId === 'sessionName') {
+      setActiveStepIndex(0);
+    } else {
+      const stepIndex = formSchema ? getSectionIndexForField(fieldId) : 0;
+      setActiveStepIndex(stepIndex);
+    }
     window.setTimeout(() => {
       const fieldElement = document.getElementById(`field-${fieldId}`);
       if (fieldElement) {
@@ -237,6 +247,7 @@ export function FillForm() {
       localStorage.setItem('currentSession', JSON.stringify(updatedSession));
       localStorage.setItem(`inspection_${session.id}`, JSON.stringify(updatedSession));
     }
+    setValidationErrors((prev) => prev.filter((err) => err.fieldId !== 'sessionName'));
   };
 
   const getSectionIndexForField = (fieldId: string) => {
@@ -342,6 +353,7 @@ export function FillForm() {
           <SpaceBetween size="m">
             <FormField label="Session Name" stretch>
               <Input
+                id="field-sessionName"
                 value={session.name}
                 onChange={(event) => handleSessionNameChange(event.detail.value)}
                 placeholder="Enter a name for this inspection session"
