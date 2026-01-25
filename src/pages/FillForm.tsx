@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
-import { Header, Container, SpaceBetween, Button, Alert, Box, Link, Input, FormField, Flashbar, FlashbarProps } from '@cloudscape-design/components';
+import { Header, Container, SpaceBetween, Alert, Box, Link, Input, FormField, Wizard, Checkbox } from '@cloudscape-design/components';
 import { InspectionSession, FormTypeLabels, FormSchema, FormType, FormData, FormDataValue, UploadStatus } from '../types';
 import { FormRenderer } from '../components/FormRenderer';
 import { FormValidator, ValidationError } from '../utils/FormValidator';
-import { getFileReferences } from '../utils/formDataUtils';
+import { formatFileValue, getFileReferences, isFormDataValueEmpty } from '../utils/formDataUtils';
 import { saveFiles, deleteFiles } from '../utils/fileStorage';
 
 interface FormDataWithExternalID {
@@ -20,6 +20,9 @@ export function FillForm() {
   const [loading, setLoading] = useState(true);
   const [externalIDMap, setExternalIDMap] = useState<Record<string, string>>({});
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const errorAlertRef = useRef<HTMLDivElement>(null);
 
@@ -133,10 +136,8 @@ export function FillForm() {
     updateFieldValue(fieldId, value, externalID);
   };
 
-  const validateForm = (): boolean => {
-    if (!formSchema) return false;
-
-    const errors: ValidationError[] = [];
+  const validateForm = (): ValidationError[] => {
+    if (!formSchema) return [];
 
     // Build validation rules map and required fields list
     const validationRulesMap: Record<string, any[] | undefined> = {};
@@ -157,15 +158,23 @@ export function FillForm() {
     const validationErrors = FormValidator.validateForm(formData, validationRulesMap, requiredFields);
     setValidationErrors(validationErrors);
 
-    return validationErrors.length === 0;
+    return validationErrors;
   };
 
   const handleSubmit = () => {
-    const isValid = validateForm();
+    const errors = validateForm();
     
-    if (!isValid) {
+    if (errors.length > 0) {
+      const firstErrorField = errors[0].fieldId;
+      const stepIndex = getSectionIndexForField(firstErrorField);
+      setActiveStepIndex(stepIndex);
       // Scroll to top of the page immediately
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!reviewConfirmed) {
+      setReviewError('Confirm that the details are correct before submitting.');
       return;
     }
 
@@ -189,24 +198,6 @@ export function FillForm() {
     }
   };
 
-  const handleSave = () => {
-    if (!session) {
-      return;
-    }
-
-    const updatedSession: InspectionSession = {
-      ...session,
-    };
-
-    localStorage.setItem('currentSession', JSON.stringify(updatedSession));
-    localStorage.setItem(`inspection_${session.id}`, JSON.stringify(updatedSession));
-    navigate('/my-inspections', {
-      state: {
-        successMessage: 'Inspection saved successfully.',
-      },
-    });
-  };
-
   const handleReset = async () => {
     const fileIds = Object.values(formData)
       .flatMap((value) => getFileReferences(value))
@@ -219,15 +210,21 @@ export function FillForm() {
     if (sessionId) {
       localStorage.removeItem(`formData_${sessionId}`);
     }
+    setReviewConfirmed(false);
+    setReviewError(null);
   };
 
   const handleErrorClick = (fieldId: string) => {
     // Find the field element and scroll to it
-    const fieldElement = document.getElementById(`field-${fieldId}`);
-    if (fieldElement) {
-      fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      fieldElement.focus();
-    }
+    const stepIndex = formSchema ? getSectionIndexForField(fieldId) : 0;
+    setActiveStepIndex(stepIndex);
+    window.setTimeout(() => {
+      const fieldElement = document.getElementById(`field-${fieldId}`);
+      if (fieldElement) {
+        fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        fieldElement.focus();
+      }
+    }, 0);
   };
 
   const handleSessionNameChange = (name: string) => {
@@ -242,6 +239,46 @@ export function FillForm() {
     }
   };
 
+  const getSectionIndexForField = (fieldId: string) => {
+    if (!formSchema) return 0;
+    const index = formSchema.sections.findIndex((section) =>
+      section.fields.some((field) => field.id === fieldId)
+    );
+    return index === -1 ? 0 : index;
+  };
+
+  const formatReviewValue = (fieldId: string, value: FormDataValue | undefined) => {
+    if (isFormDataValueEmpty(value)) {
+      return 'Not provided';
+    }
+    const field = formSchema?.sections
+      .flatMap((section) => section.fields)
+      .find((item) => item.id === fieldId);
+    const fileLabel = formatFileValue(value);
+    if (fileLabel) {
+      return fileLabel;
+    }
+    if (field?.options) {
+      if (Array.isArray(value)) {
+        const labels = value
+          .map((item) => field.options?.find((opt) => opt.value === item)?.label || item)
+          .join(', ');
+        return labels;
+      }
+      const label = field.options.find((opt) => opt.value === value)?.label;
+      if (label) {
+        return label;
+      }
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    if (Array.isArray(value)) {
+      return value.join(', ');
+    }
+    return String(value);
+  };
+
   if (loading || !session) {
     return <Header variant="h1">Loading...</Header>;
   }
@@ -249,6 +286,53 @@ export function FillForm() {
   if (!formSchema) {
     return <Header variant="h1">Error loading form schema</Header>;
   }
+
+  const reviewStepContent = (
+    <SpaceBetween size="l">
+      {reviewError && (
+        <Alert type="error" header="Confirmation required">
+          {reviewError}
+        </Alert>
+      )}
+      <Container header={<Header variant="h2">Session details</Header>}>
+        <SpaceBetween size="s">
+          <Box>
+            <strong>Session Name:</strong> {session.name}
+          </Box>
+          <Box>
+            <strong>Session ID:</strong> {session.id}
+          </Box>
+          <Box>
+            <strong>Form Type:</strong> {FormTypeLabels[session.formType]}
+          </Box>
+        </SpaceBetween>
+      </Container>
+      {formSchema.sections.map((section, sectionIndex) => (
+        <Container key={sectionIndex} header={<Header variant="h2">{section.title}</Header>}>
+          <SpaceBetween size="s">
+            {section.fields.map((field) => (
+              <Box key={field.id}>
+                <strong>{field.label}:</strong> {formatReviewValue(field.id, formData[field.id])}
+              </Box>
+            ))}
+          </SpaceBetween>
+        </Container>
+      ))}
+      <FormField label="Final confirmation">
+        <Checkbox
+          checked={reviewConfirmed}
+          onChange={(event) => {
+            setReviewConfirmed(event.detail.checked);
+            if (event.detail.checked) {
+              setReviewError(null);
+            }
+          }}
+        >
+          I confirm the details above are accurate and ready to submit.
+        </Checkbox>
+      </FormField>
+    </SpaceBetween>
+  );
 
   return (
     <div ref={formRef}>
@@ -292,23 +376,47 @@ export function FillForm() {
           </div>
         )}
 
-        <Container>
-          <FormRenderer
-            schema={formSchema}
-            data={formData}
-            onChange={handleFieldChange}
-            onFileChange={handleFileChange}
-          />
-        </Container>
-
+        <Wizard
+          activeStepIndex={activeStepIndex}
+          onNavigate={(event) => setActiveStepIndex(event.detail.requestedStepIndex)}
+          onCancel={() => navigate('/new-inspection')}
+          onSubmit={handleSubmit}
+          steps={[
+            ...formSchema.sections.map((section) => ({
+              title: section.title,
+              content: (
+                <Container>
+                  <FormRenderer
+                    schema={{ ...formSchema, sections: [section] }}
+                    data={formData}
+                    onChange={handleFieldChange}
+                    onFileChange={handleFileChange}
+                    showSectionTitles={false}
+                  />
+                </Container>
+              ),
+            })),
+            {
+              title: 'Review',
+              content: reviewStepContent,
+            },
+          ]}
+          i18nStrings={{
+            stepNumberLabel: (stepNumber) => `Step ${stepNumber}`,
+            collapsedStepsLabel: (stepNumber, stepsCount) =>
+              `Step ${stepNumber} of ${stepsCount}`,
+            skipToButtonLabel: (step, stepNumber) =>
+              `Skip to ${step.title} (Step ${stepNumber})`,
+            navigationAriaLabel: 'Form steps',
+            cancelButton: 'Cancel',
+            previousButton: 'Previous',
+            nextButton: 'Next',
+            submitButton: 'Submit',
+          }}
+        />
         <Container>
           <SpaceBetween direction="horizontal" size="m">
-            <Button onClick={handleReset}>Reset Form</Button>
-            <Button onClick={handleSave}>Save</Button>
-            <Button variant="primary" onClick={handleSubmit}>
-              Submit
-            </Button>
-            <Button onClick={() => navigate('/new-inspection')}>Cancel</Button>
+            <Link onFollow={handleReset}>Reset form</Link>
           </SpaceBetween>
         </Container>
       </SpaceBetween>

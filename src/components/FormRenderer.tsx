@@ -22,6 +22,7 @@ interface FormRendererProps {
   data: FormData;
   onChange: (fieldId: string, value: FormDataValue, externalID?: string) => void;
   onFileChange: (fieldId: string, files: File[], externalID?: string) => Promise<void> | void;
+  showSectionTitles?: boolean;
 }
 
 interface SignatureFieldProps {
@@ -213,7 +214,13 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
   );
 };
 
-export function FormRenderer({ schema, data, onChange, onFileChange }: FormRendererProps) {
+export function FormRenderer({
+  schema,
+  data,
+  onChange,
+  onFileChange,
+  showSectionTitles = true,
+}: FormRendererProps) {
   const [filePreviewOpen, setFilePreviewOpen] = useState(false);
   const [filePreviewName, setFilePreviewName] = useState<string | null>(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
@@ -446,7 +453,7 @@ export function FormRenderer({ schema, data, onChange, onFileChange }: FormRende
       </Modal>
       {schema.sections.map((section, sectionIndex) => (
         <div key={sectionIndex} className="form-section">
-          <h2 className="section-title">{section.title}</h2>
+          {showSectionTitles && <h2 className="section-title">{section.title}</h2>}
           <div className="form-fields">
             {section.fields.map((field) => (
               <div key={field.id} className="form-field-wrapper" id={`field-${field.id}`}>
