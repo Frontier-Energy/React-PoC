@@ -187,7 +187,6 @@ export function Layout() {
       navigation={
         <SideNavigation
           items={[
-            { type: 'link', text: 'Home', href: '#/' },
             { type: 'link', text: 'New Inspection', href: '#/new-inspection' },
             { type: 'link', text: 'My Inspections', href: '#/my-inspections' },
             { type: 'link', text: 'Log out', href: '#/logout' },
