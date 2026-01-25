@@ -40,43 +40,36 @@ const uploadInspection = async (inspection: InspectionSession) => {
   const formData: Record<string, FormDataValue> = storedData ? JSON.parse(storedData) : {};
 
   const uploadForm = new FormData();
-  uploadForm.append('sessionId', inspection.id);
-  uploadForm.append('name', inspection.name);
-
-
-  const fileMap: Record<string, string[]> = {};
+  const queryParams: Record<string, string> = {};
 
   for (const [key, value] of Object.entries(formData)) {
+    queryParams[key] = serializeFormValue(value);
     const files = getFileReferences(value);
     if (files.length === 0) {
       continue;
     }
 
-    fileMap[key] = [];
     for (const fileRef of files) {
       const storedFile = await getFile(fileRef.id);
       if (!storedFile) {
         console.warn(`Missing stored file for ${fileRef.id}`);
         continue;
       }
-      uploadForm.append(key, storedFile.blob, storedFile.name);
-      fileMap[key].push(fileRef.id);
+      uploadForm.append('files', storedFile.blob, storedFile.name);
     }
   }
-  var payload =  {
-    sessionId:inspection.id,
-    name: inspection.name, 
+  const payload = {
+    sessionId: inspection.id,
+    name: inspection.name,
     userId: '',
-    queryParams: storedData
-    };
+    queryParams,
+  };
 
-    if ((inspection as { userId?: string }).userId) {
-      payload.userId= (inspection as { userId: string }).userId;
-    }
-
+  if ((inspection as { userId?: string }).userId) {
+    payload.userId = (inspection as { userId: string }).userId;
+  }
 
   uploadForm.append('payload', JSON.stringify(payload));
-  uploadForm.append('fileMap', JSON.stringify(fileMap));
 
   const response = await fetch(getUploadInspectionUrl(), {
     method: 'POST',
