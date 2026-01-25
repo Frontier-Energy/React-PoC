@@ -5,15 +5,19 @@ import { useConnectivity } from './ConnectivityContext';
 import { clearUserId } from './auth';
 import { InspectionSession, UploadStatus } from './types';
 import type { SelectProps } from '@cloudscape-design/components';
+import { useLocalization } from './LocalizationContext';
+import type { LanguageCode } from './resources/translations';
 
 export function Layout() {
   const navigate = useNavigate();
   const { status, lastCheckedAt } = useConnectivity();
+  const { labels, language, setLanguage } = useLocalization();
   const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
   const [customization, setCustomization] = useState(() => {
     const defaults = {
       theme: 'mist',
       font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
+      language,
     };
     const stored = localStorage.getItem('appCustomization');
     if (!stored) {
@@ -36,7 +40,12 @@ export function Layout() {
   }));
 
   const statusType = status === 'online' ? 'success' : status === 'offline' ? 'error' : 'in-progress';
-  const statusLabel = status === 'online' ? 'Online' : status === 'offline' ? 'Offline' : 'Checking connection...';
+  const statusLabel =
+    status === 'online'
+      ? labels.connectivity.status.online
+      : status === 'offline'
+        ? labels.connectivity.status.offline
+        : labels.connectivity.status.checking;
   const iconFill = status === 'online' ? '#1d8102' : status === 'offline' ? '#d13212' : '#879596';
 
   useEffect(() => {
@@ -90,18 +99,24 @@ export function Layout() {
     };
   }, []);
 
-  const statusLabels: Record<UploadStatus, string> = {
-    [UploadStatus.Local]: 'Local',
-    [UploadStatus.InProgress]: 'In Progress',
-    [UploadStatus.Uploading]: 'Uploading',
-    [UploadStatus.Uploaded]: 'Uploaded',
-    [UploadStatus.Failed]: 'Failed',
-  };
+  const statusLabels: Record<UploadStatus, string> = labels.uploadStatus;
 
   const themeOptions: SelectProps.Option[] = [
-    { label: 'Mist', value: 'mist', description: 'Soft light gray' },
-    { label: 'Harbor', value: 'harbor', description: 'Cool blue tint' },
-    { label: 'Sand', value: 'sand', description: 'Warm neutral' },
+    {
+      label: labels.customization.themeOptions.mist.label,
+      value: 'mist',
+      description: labels.customization.themeOptions.mist.description,
+    },
+    {
+      label: labels.customization.themeOptions.harbor.label,
+      value: 'harbor',
+      description: labels.customization.themeOptions.harbor.description,
+    },
+    {
+      label: labels.customization.themeOptions.sand.label,
+      value: 'sand',
+      description: labels.customization.themeOptions.sand.description,
+    },
   ];
 
   const themeStyles: Record<
@@ -133,20 +148,24 @@ export function Layout() {
 
   const fontOptions: SelectProps.Option[] = [
     {
-      label: 'Source Sans Pro',
+      label: labels.customization.fontOptions.sourceSansPro.label,
       value: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
-      description: 'Clean sans-serif',
+      description: labels.customization.fontOptions.sourceSansPro.description,
     },
     {
-      label: 'Georgia',
+      label: labels.customization.fontOptions.georgia.label,
       value: 'Georgia, "Times New Roman", serif',
-      description: 'Classic serif',
+      description: labels.customization.fontOptions.georgia.description,
     },
     {
-      label: 'Tahoma',
+      label: labels.customization.fontOptions.tahoma.label,
       value: 'Tahoma, "Trebuchet MS", Arial, sans-serif',
-      description: 'Compact sans-serif',
+      description: labels.customization.fontOptions.tahoma.description,
     },
+  ];
+
+  const languageOptions: SelectProps.Option[] = [
+    { label: labels.customization.languageOptions.en, value: 'en' },
   ];
 
   useEffect(() => {
@@ -163,6 +182,10 @@ export function Layout() {
       document.body.classList.remove('app-theme');
     };
   }, [customization]);
+
+  useEffect(() => {
+    setCustomization((prev) => (prev.language === language ? prev : { ...prev, language }));
+  }, [language]);
 
   const statusOrder: UploadStatus[] = [
     UploadStatus.Local,
@@ -185,16 +208,16 @@ export function Layout() {
       }
       header={
         <div className="app-layout-header">
-          QHVAC Inspection Tool
+          {labels.app.title}
         </div>
       }
       content={
         <div className="app-content">
           <Outlet />
           <footer className="app-footer">
-            Powered By{' '}
+            {labels.app.poweredBy}{' '}
             <a href="https://frontierenergy.com" target="_blank" rel="noreferrer">
-              QControl
+              {labels.app.brand}
             </a>
           </footer>
         </div>
@@ -203,8 +226,8 @@ export function Layout() {
         {
           id: 'connectivity',
           ariaLabels: {
-            drawerName: 'Connectivity status',
-            triggerButton: 'Open connectivity status',
+            drawerName: labels.drawers.connectivity.name,
+            triggerButton: labels.drawers.connectivity.trigger,
           },
           trigger: {
             iconSvg: (
@@ -219,7 +242,7 @@ export function Layout() {
             <Box>
               <StatusIndicator type={statusType}>
                 {statusLabel}
-                {lastCheckedAt ? ` (last checked ${lastCheckedAt.toLocaleTimeString()})` : ''}
+                {lastCheckedAt ? labels.connectivity.lastCheckedAt(lastCheckedAt.toLocaleTimeString()) : ''}
               </StatusIndicator>
             </Box>
           ),
@@ -227,8 +250,8 @@ export function Layout() {
         {
           id: 'inspection-stats',
           ariaLabels: {
-            drawerName: 'Inspection statistics',
-            triggerButton: 'Open inspection statistics',
+            drawerName: labels.drawers.inspectionStats.name,
+            triggerButton: labels.drawers.inspectionStats.trigger,
           },
           trigger: {
             iconSvg: (
@@ -243,26 +266,26 @@ export function Layout() {
           },
           content: (
             <SpaceBetween size="s">
-              <Header variant="h3">Inspection Stats</Header>
+              <Header variant="h3">{labels.inspectionStats.header}</Header>
               <Table
                 variant="embedded"
                 trackBy="status"
                 columnDefinitions={[
                   {
                     id: 'status',
-                    header: 'Status',
+                    header: labels.inspectionStats.statusHeader,
                     cell: (item) => item.label,
                   },
                   {
                     id: 'count',
-                    header: 'Count',
+                    header: labels.inspectionStats.countHeader,
                     cell: (item) => item.count,
                   },
                 ]}
                 items={statsItems}
                 empty={
                   <Box textAlign="center" color="inherit">
-                    <b>No inspections</b>
+                    <b>{labels.inspectionStats.empty}</b>
                   </Box>
                 }
               />
@@ -272,8 +295,8 @@ export function Layout() {
         {
           id: 'customization',
           ariaLabels: {
-            drawerName: 'Customization options',
-            triggerButton: 'Open customization options',
+            drawerName: labels.drawers.customization.name,
+            triggerButton: labels.drawers.customization.trigger,
           },
           trigger: {
             iconSvg: (
@@ -289,8 +312,8 @@ export function Layout() {
           },
           content: (
             <SpaceBetween size="s">
-              <Header variant="h3">Customization</Header>
-              <FormField label="Theme">
+              <Header variant="h3">{labels.customization.header}</Header>
+              <FormField label={labels.customization.themeLabel}>
                 <Select
                   selectedOption={
                     themeOptions.find((option) => option.value === customization.theme) ?? themeOptions[0]
@@ -304,7 +327,7 @@ export function Layout() {
                   options={themeOptions}
                 />
               </FormField>
-              <FormField label="Font">
+              <FormField label={labels.customization.fontLabel}>
                 <Select
                   selectedOption={
                     fontOptions.find((option) => option.value === customization.font) ?? fontOptions[0]
@@ -318,8 +341,24 @@ export function Layout() {
                   options={fontOptions}
                 />
               </FormField>
+              <FormField label={labels.customization.languageLabel}>
+                <Select
+                  selectedOption={
+                    languageOptions.find((option) => option.value === customization.language) ?? languageOptions[0]
+                  }
+                  onChange={(event) => {
+                    const nextLanguage = event.detail.selectedOption.value ?? customization.language;
+                    setLanguage(nextLanguage as LanguageCode);
+                    setCustomization((prev) => ({
+                      ...prev,
+                      language: nextLanguage,
+                    }));
+                  }}
+                  options={languageOptions}
+                />
+              </FormField>
               <Box fontSize="body-s" color="text-body-secondary">
-                Preferences are saved locally on this device.
+                {labels.customization.preferencesSaved}
               </Box>
             </SpaceBetween>
           ),
@@ -330,9 +369,9 @@ export function Layout() {
       navigation={
         <SideNavigation
           items={[
-            { type: 'link', text: 'New Inspection', href: '#/new-inspection' },
-            { type: 'link', text: 'My Inspections', href: '#/my-inspections' },
-            { type: 'link', text: 'Log out', href: '#/logout' },
+            { type: 'link', text: labels.nav.newInspection, href: '#/new-inspection' },
+            { type: 'link', text: labels.nav.myInspections, href: '#/my-inspections' },
+            { type: 'link', text: labels.nav.logout, href: '#/logout' },
           ]}
           onFollow={(event) => {
             event.preventDefault();

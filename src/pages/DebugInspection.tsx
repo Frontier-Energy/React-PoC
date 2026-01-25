@@ -4,10 +4,12 @@ import { Box, Button, Container, Header, Modal, SpaceBetween } from '@cloudscape
 import type { FileReference, FormDataValue, FormSchema, InspectionSession } from '../types';
 import { getFile } from '../utils/fileStorage';
 import { getFileReferences } from '../utils/formDataUtils';
+import { useLocalization } from '../LocalizationContext';
 
 export function DebugInspection() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const { labels } = useLocalization();
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -16,7 +18,7 @@ export function DebugInspection() {
 
   const inspectionData = useMemo(() => {
     if (!sessionId) {
-      return { error: 'Missing inspection id.' };
+      return { error: labels.debugInspection.errors.missingInspectionId };
     }
 
     const sessionStr = localStorage.getItem(`inspection_${sessionId}`);
@@ -27,7 +29,7 @@ export function DebugInspection() {
       try {
         inspection = JSON.parse(sessionStr) as InspectionSession;
       } catch (error) {
-        return { error: 'Failed to parse inspection data.' };
+        return { error: labels.debugInspection.errors.parseInspection };
       }
     }
 
@@ -36,7 +38,7 @@ export function DebugInspection() {
       try {
         formData = JSON.parse(formDataStr) as Record<string, FormDataValue>;
       } catch (error) {
-        formData = { error: 'Failed to parse form data.' };
+        formData = { error: labels.debugInspection.errors.parseFormData };
       }
     }
 
@@ -44,7 +46,7 @@ export function DebugInspection() {
       inspection,
       formData,
     };
-  }, [sessionId]);
+  }, [sessionId, labels]);
 
   useEffect(() => {
     const loadSchema = async () => {
@@ -56,11 +58,11 @@ export function DebugInspection() {
         setFormSchema(schemaModule.default as FormSchema);
         setSchemaError(null);
       } catch (error) {
-        setSchemaError('Failed to load form schema.');
+        setSchemaError(labels.debugInspection.schemaLoadError);
       }
     };
     loadSchema();
-  }, [inspectionData.inspection]);
+  }, [inspectionData.inspection, labels]);
 
   const fileItems = useMemo(() => {
     if (!formSchema || !inspectionData.formData) {
@@ -145,11 +147,11 @@ export function DebugInspection() {
         variant="h1"
         actions={
           <Button variant="link" onClick={() => navigate('/my-inspections')}>
-            Back to My Inspections
+            {labels.debugInspection.backToMyInspections}
           </Button>
         }
       >
-        Debug Inspection
+        {labels.debugInspection.title}
       </Header>
       <Container>
         <Box padding="m">
@@ -158,10 +160,10 @@ export function DebugInspection() {
       </Container>
       <Container>
         <SpaceBetween size="s">
-          <Header variant="h2">Files in Form</Header>
+          <Header variant="h2">{labels.debugInspection.filesHeader}</Header>
           {schemaError && <Box color="text-status-error">{schemaError}</Box>}
           {!schemaError && fileItems.length === 0 && (
-            <Box color="text-body-secondary">No files or signatures found.</Box>
+            <Box color="text-body-secondary">{labels.debugInspection.noFilesFound}</Box>
           )}
           {!schemaError &&
             fileItems.map((item) => (
@@ -178,22 +180,22 @@ export function DebugInspection() {
                     marginTop: '0.5rem',
                   }}
                 >
-                  <Box fontWeight="bold">File Name</Box>
-                  <Box fontWeight="bold">Size</Box>
-                  <Box fontWeight="bold">File Type</Box>
-                  <Box fontWeight="bold">Download</Box>
-                  <Box fontWeight="bold">Preview</Box>
+                  <Box fontWeight="bold">{labels.debugInspection.table.fileName}</Box>
+                  <Box fontWeight="bold">{labels.debugInspection.table.size}</Box>
+                  <Box fontWeight="bold">{labels.debugInspection.table.fileType}</Box>
+                  <Box fontWeight="bold">{labels.debugInspection.table.download}</Box>
+                  <Box fontWeight="bold">{labels.debugInspection.table.preview}</Box>
                   {item.files.map((file) => (
                     <div key={file.id} style={{ display: 'contents' }}>
                       <Box>{file.name}</Box>
                       <Box>{formatFileSize(file.size)}</Box>
-                      <Box>{file.type || 'Unknown'}</Box>
+                      <Box>{file.type || labels.common.unknown}</Box>
                       <Box>
-                        <Button onClick={() => handleDownload(file)}>Download</Button>
+                        <Button onClick={() => handleDownload(file)}>{labels.common.download}</Button>
                       </Box>
                       <Box>
                         {isPreviewableImage(file) ? (
-                          <Button onClick={() => handlePreview(file)}>Preview</Button>
+                          <Button onClick={() => handlePreview(file)}>{labels.common.preview}</Button>
                         ) : (
                           <span>-</span>
                         )}
@@ -208,17 +210,17 @@ export function DebugInspection() {
       <Modal
         visible={previewOpen}
         onDismiss={closePreview}
-        header={previewName || 'Preview'}
+        header={previewName || labels.debugInspection.previewTitle}
         size="large"
         footer={
           <Box float="right">
-            <Button onClick={closePreview}>Close</Button>
+            <Button onClick={closePreview}>{labels.debugInspection.close}</Button>
           </Box>
         }
       >
         {previewUrl && (
           <Box textAlign="center">
-            <img src={previewUrl} alt={previewName || 'Preview'} style={{ maxWidth: '100%' }} />
+            <img src={previewUrl} alt={previewName || labels.debugInspection.previewTitle} style={{ maxWidth: '100%' }} />
           </Box>
         )}
       </Modal>

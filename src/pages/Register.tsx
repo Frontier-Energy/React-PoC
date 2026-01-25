@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, FormField, Input, Button, Box } from '@cloudscape-design/components';
 import { getRegisterUrl } from '../config';
 import { setUserId } from '../auth';
+import { useLocalization } from '../LocalizationContext';
 
 export function Register() {
   const [email, setEmail] = useState('');
@@ -11,10 +12,11 @@ export function Register() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const { labels } = useLocalization();
 
   const handleRegister = async () => {
     if (!email.trim() || !firstName.trim() || !lastName.trim()) {
-      setErrorMessage('Email, first name, and last name are required.');
+      setErrorMessage(labels.register.requiredError);
       return;
     }
     setIsSubmitting(true);
@@ -34,8 +36,8 @@ export function Register() {
       if (!response.ok) {
         const isClientError = response.status === 400 || response.status === 422;
         const message = isClientError
-          ? 'Registration failed due to invalid input. Please check your details and try again.'
-          : 'Registration failed due to a server error. Please try again later.';
+          ? labels.register.errors.invalidInput
+          : labels.register.errors.serverError;
         throw new Error(message);
       }
       let resolvedUserId = '';
@@ -52,7 +54,7 @@ export function Register() {
         navigate('/login', { replace: true });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to register. Please try again.';
+      const message = error instanceof Error ? error.message : labels.register.errors.unableToRegister;
       setErrorMessage(message);
       console.error('Registration failed:', error);
     } finally {
@@ -67,11 +69,11 @@ export function Register() {
           variant="h1"
           actions={
             <Button variant="link" onClick={() => navigate('/login')}>
-              Back to Login
+              {labels.register.backToLogin}
             </Button>
           }
         >
-          Register
+          {labels.register.title}
         </Header>
         {errorMessage && (
           <Box color="text-status-error">
@@ -80,33 +82,33 @@ export function Register() {
         )}
         <Container>
           <SpaceBetween size="m">
-            <FormField label="Email" errorText={errorMessage || undefined}>
+            <FormField label={labels.register.emailLabel} errorText={errorMessage || undefined}>
               <Input
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.detail.value)}
-                placeholder="you@example.com"
+                placeholder={labels.register.emailPlaceholder}
                 disabled={isSubmitting}
               />
             </FormField>
-            <FormField label="First Name">
+            <FormField label={labels.register.firstNameLabel}>
               <Input
                 value={firstName}
                 onChange={(event) => setFirstName(event.detail.value)}
-                placeholder="First name"
+                placeholder={labels.register.firstNamePlaceholder}
                 disabled={isSubmitting}
               />
             </FormField>
-            <FormField label="Last Name">
+            <FormField label={labels.register.lastNameLabel}>
               <Input
                 value={lastName}
                 onChange={(event) => setLastName(event.detail.value)}
-                placeholder="Last name"
+                placeholder={labels.register.lastNamePlaceholder}
                 disabled={isSubmitting}
               />
             </FormField>
             <Button variant="primary" onClick={handleRegister} disabled={isSubmitting}>
-              Create Account
+              {labels.register.createAccount}
             </Button>
           </SpaceBetween>
         </Container>

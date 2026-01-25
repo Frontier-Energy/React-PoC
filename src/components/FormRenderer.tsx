@@ -16,6 +16,7 @@ import { FormSchema, FormField as FormFieldType, FormData, FormDataValue } from 
 import { formatFileValue, getFileReferences } from '../utils/formDataUtils';
 import { getFile } from '../utils/fileStorage';
 import './FormRenderer.css';
+import { useLocalization } from '../LocalizationContext';
 
 interface FormRendererProps {
   schema: FormSchema;
@@ -37,6 +38,7 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
   const [hasInk, setHasInk] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const { labels } = useLocalization();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -198,7 +200,7 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
             onClick={handleSave}
             disabled={isSaving}
           >
-            {isSaving ? 'Saving...' : 'Save Signature'}
+            {isSaving ? labels.formRenderer.signature.saving : labels.formRenderer.signature.save}
           </button>
         )}
         <button
@@ -206,7 +208,7 @@ const SignatureField = ({ field, value, onFileChange }: SignatureFieldProps) => 
           className="signature-button secondary"
           onClick={handleClear}
         >
-          Clear
+          {labels.formRenderer.signature.clear}
         </button>
       </div>
       {fileLabel && <div className="file-input-meta">{fileLabel}</div>}
@@ -221,6 +223,7 @@ export function FormRenderer({
   onFileChange,
   showSectionTitles = true,
 }: FormRendererProps) {
+  const { labels } = useLocalization();
   const [filePreviewOpen, setFilePreviewOpen] = useState(false);
   const [filePreviewName, setFilePreviewName] = useState<string | null>(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
@@ -340,7 +343,7 @@ export function FormRenderer({
               label: opt.label,
               value: opt.value,
             })) || []}
-            placeholder="Select an option"
+            placeholder={labels.formRenderer.placeholders.selectOne}
           />
         );
 
@@ -361,7 +364,7 @@ export function FormRenderer({
               label: opt.label,
               value: opt.value,
             })) || []}
-            placeholder="Select options"
+            placeholder={labels.formRenderer.placeholders.selectMultiple}
           />
         );
 
@@ -424,17 +427,17 @@ export function FormRenderer({
       <Modal
         visible={filePreviewOpen}
         onDismiss={handleCloseFilePreview}
-        header={filePreviewName || 'File Preview'}
+        header={filePreviewName || labels.formRenderer.filePreview.header}
         size="large"
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
               {filePreviewUrl && filePreviewName && (
                 <a href={filePreviewUrl} download={filePreviewName}>
-                  Download
+                  {labels.formRenderer.filePreview.download}
                 </a>
               )}
-              <Button onClick={handleCloseFilePreview}>Close</Button>
+              <Button onClick={handleCloseFilePreview}>{labels.formRenderer.filePreview.close}</Button>
             </SpaceBetween>
           </Box>
         }
@@ -442,13 +445,13 @@ export function FormRenderer({
         {filePreviewUrl ? (
           filePreviewType?.startsWith('image/') ? (
             <Box textAlign="center">
-              <img src={filePreviewUrl} alt={filePreviewName || 'Preview'} style={{ maxWidth: '100%' }} />
+              <img src={filePreviewUrl} alt={filePreviewName || labels.common.preview} style={{ maxWidth: '100%' }} />
             </Box>
           ) : (
-            <Box textAlign="center">Preview not available for this file type.</Box>
+            <Box textAlign="center">{labels.formRenderer.filePreview.previewNotAvailable}</Box>
           )
         ) : (
-          <Box textAlign="center">Unable to load preview.</Box>
+          <Box textAlign="center">{labels.formRenderer.filePreview.unableToLoad}</Box>
         )}
       </Modal>
       {schema.sections.map((section, sectionIndex) => (

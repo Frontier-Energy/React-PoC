@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Select, SelectProps, Container, SpaceBetween, Button } from '@cloudscape-design/components';
-import { FormType, FormTypeLabels, InspectionSession, UploadStatus } from '../types';
+import { FormType, InspectionSession, UploadStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { useLocalization } from '../LocalizationContext';
 
 export function NewForm() {
   const [selectedFormType, setSelectedFormType] = useState<SelectProps.Option | null>(null);
   const navigate = useNavigate();
+  const { labels } = useLocalization();
 
   const formTypeOptions: SelectProps.Option[] = Object.values(FormType).map((type) => ({
-    label: FormTypeLabels[type],
+    label: labels.formTypes[type],
     value: type,
   }));
 
@@ -29,17 +31,17 @@ export function NewForm() {
 
   return (
     <SpaceBetween size="l">
-      <Header variant="h1">New Form</Header>
+      <Header variant="h1">{labels.newForm.title}</Header>
       <Container>
         <SpaceBetween size="m">
           <Select
             selectedOption={selectedFormType}
             onChange={({ detail }) => setSelectedFormType(detail.selectedOption)}
             options={formTypeOptions}
-            placeholder="Select a form type"
+            placeholder={labels.newForm.selectPlaceholder}
           />
           <Button onClick={handleCreateSession} disabled={!selectedFormType}>
-            Create Session
+            {labels.newForm.createSession}
           </Button>
         </SpaceBetween>
       </Container>

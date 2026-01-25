@@ -12,12 +12,6 @@ export enum UploadStatus {
   Failed = 'failed',
 }
 
-export const FormTypeLabels: Record<FormType, string> = {
-  [FormType.Electrical]: 'Electrical',
-  [FormType.ElectricalSF]: 'Electrical SF',
-  [FormType.HVAC]: 'HVAC'
-};
-
 export interface FormFieldOption {
   label: string;
   value: string;

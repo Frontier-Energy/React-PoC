@@ -2,12 +2,14 @@ import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, SelectProps, Link, Alert, Modal } from '@cloudscape-design/components';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { InspectionSession, FormTypeLabels, UploadStatus, FormType } from '../types';
+import { InspectionSession, UploadStatus, FormType } from '../types';
 import { TableProps } from '@cloudscape-design/components';
+import { useLocalization } from '../LocalizationContext';
 
 export function MyInspections() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { labels } = useLocalization();
   const [inspections, setInspections] = useState<InspectionSession[]>([]);
   const [filteredInspections, setFilteredInspections] = useState<InspectionSession[]>([]);
   const [selectedItems, setSelectedItems] = useState<InspectionSession[]>([]);
@@ -153,11 +155,11 @@ export function MyInspections() {
 
   const getUploadStatusBadge = (status: UploadStatus | undefined) => {
     const badgeConfig: Record<UploadStatus, { color: 'blue' | 'green' | 'red' | 'grey'; label: string }> = {
-      [UploadStatus.Local]: { color: 'blue', label: 'Local' },
-      [UploadStatus.InProgress]: { color: 'grey', label: 'In Progress' },
-      [UploadStatus.Uploading]: { color: 'grey', label: 'Uploading' },
-      [UploadStatus.Uploaded]: { color: 'green', label: 'Uploaded' },
-      [UploadStatus.Failed]: { color: 'red', label: 'Failed' },
+      [UploadStatus.Local]: { color: 'blue', label: labels.uploadStatus[UploadStatus.Local] },
+      [UploadStatus.InProgress]: { color: 'grey', label: labels.uploadStatus[UploadStatus.InProgress] },
+      [UploadStatus.Uploading]: { color: 'grey', label: labels.uploadStatus[UploadStatus.Uploading] },
+      [UploadStatus.Uploaded]: { color: 'green', label: labels.uploadStatus[UploadStatus.Uploaded] },
+      [UploadStatus.Failed]: { color: 'red', label: labels.uploadStatus[UploadStatus.Failed] },
     };
 
     const config = badgeConfig[status || UploadStatus.Local];
@@ -170,38 +172,38 @@ export function MyInspections() {
   };
 
   const formTypeOptions: SelectProps.Option[] = [
-    { label: 'All Form Types', value: '' },
+    { label: labels.myInspections.filters.allFormTypes, value: '' },
     ...Object.values(FormType).map((type) => ({
-      label: FormTypeLabels[type],
+      label: labels.formTypes[type],
       value: type,
     })),
   ];
 
   const statusOptions: SelectProps.Option[] = [
-    { label: 'All Statuses', value: '' },
-    { label: 'Local', value: UploadStatus.Local },
-    { label: 'In Progress', value: UploadStatus.InProgress },
-    { label: 'Uploading', value: UploadStatus.Uploading },
-    { label: 'Uploaded', value: UploadStatus.Uploaded },
-    { label: 'Failed', value: UploadStatus.Failed },
+    { label: labels.myInspections.filters.allStatuses, value: '' },
+    { label: labels.uploadStatus[UploadStatus.Local], value: UploadStatus.Local },
+    { label: labels.uploadStatus[UploadStatus.InProgress], value: UploadStatus.InProgress },
+    { label: labels.uploadStatus[UploadStatus.Uploading], value: UploadStatus.Uploading },
+    { label: labels.uploadStatus[UploadStatus.Uploaded], value: UploadStatus.Uploaded },
+    { label: labels.uploadStatus[UploadStatus.Failed], value: UploadStatus.Failed },
   ];
 
   return (
     <SpaceBetween size="l">
-      <Header variant="h1">My Inspections</Header>
+      <Header variant="h1">{labels.myInspections.title}</Header>
 
       <Modal
         visible={!!deleteTarget}
         onDismiss={handleCancelDeleteInspection}
-        header="Delete inspection?"
+        header={labels.myInspections.deleteModal.header}
         footer={
           <Box float="right">
             <SpaceBetween direction="horizontal" size="xs">
               <Button variant="link" onClick={handleCancelDeleteInspection}>
-                Cancel
+                {labels.common.cancel}
               </Button>
               <Button variant="primary" onClick={handleConfirmDeleteInspection}>
-                Delete
+                {labels.common.delete}
               </Button>
             </SpaceBetween>
           </Box>
@@ -210,11 +212,11 @@ export function MyInspections() {
         {deleteTarget ? (
           <SpaceBetween size="xs">
             <Box>
-              This will permanently delete{' '}
+              {labels.myInspections.deleteModal.confirmPrefix}{' '}
               <Box fontWeight="bold" display="inline">
-                {deleteTarget.name || '(Unnamed)'}
+                {deleteTarget.name || labels.common.unnamed}
               </Box>
-              . This action cannot be undone.
+              {labels.myInspections.deleteModal.confirmSuffix}
             </Box>
           </SpaceBetween>
         ) : null}
@@ -228,9 +230,7 @@ export function MyInspections() {
 
       {failedInspections.length > 0 && (
         <Alert type="error">
-          {failedInspections.length === 1
-            ? 'An inspection failed to upload. Use Retry to try again.'
-            : `${failedInspections.length} inspections failed to upload. Use Retry to try again.`}
+          {labels.myInspections.failedUploadMessage(failedInspections.length)}
         </Alert>
       )}
 
@@ -240,16 +240,16 @@ export function MyInspections() {
             selectedOption={formTypeFilter}
             onChange={({ detail }) => setFormTypeFilter(detail.selectedOption)}
             options={formTypeOptions}
-            placeholder="Filter by form type"
+            placeholder={labels.myInspections.filters.filterByFormType}
           />
           <Select
             selectedOption={statusFilter}
             onChange={({ detail }) => setStatusFilter(detail.selectedOption)}
             options={statusOptions}
-            placeholder="Filter by status"
+            placeholder={labels.myInspections.filters.filterByStatus}
           />
           <Button onClick={() => { setFormTypeFilter(null); setStatusFilter(null); }}>
-            Clear Filters
+            {labels.myInspections.filters.clearFilters}
           </Button>
         </SpaceBetween>
       </Container>
@@ -258,9 +258,15 @@ export function MyInspections() {
         <Container>
           <Box textAlign="center" color="text-body-secondary">
             {inspections.length === 0 ? (
-              <>No inspections found. <Link onFollow={() => navigate('/new-inspection')}>Create a new inspection</Link> to get started.</>
+              <>
+                {labels.myInspections.emptyState.noInspections}{' '}
+                <Link onFollow={() => navigate('/new-inspection')}>
+                  {labels.myInspections.emptyState.createNewInspectionLink}
+                </Link>{' '}
+                {labels.myInspections.emptyState.createNewInspectionSuffix}
+              </>
             ) : (
-              <>No inspections match the selected filters.</>
+              <>{labels.myInspections.emptyState.noMatchingFilters}</>
             )}
           </Box>
         </Container>
@@ -270,35 +276,35 @@ export function MyInspections() {
             columnDefinitions={[
               {
                 id: 'name',
-                header: 'Name',
-                cell: (item: InspectionSession) => item.name || '(Unnamed)',
+                header: labels.myInspections.table.name,
+                cell: (item: InspectionSession) => item.name || labels.common.unnamed,
                 sortingField: 'name',
               },
               {
                 id: 'formType',
-                header: 'Form Type',
-                cell: (item: InspectionSession) => FormTypeLabels[item.formType],
+                header: labels.myInspections.table.formType,
+                cell: (item: InspectionSession) => labels.formTypes[item.formType],
                 sortingField: 'formType',
               },
               {
                 id: 'uploadStatus',
-                header: 'Status',
+                header: labels.myInspections.table.status,
                 cell: (item: InspectionSession) => getUploadStatusBadge(item.uploadStatus),
                 sortingField: 'uploadStatus',
               },
               {
                 id: 'actions',
-                header: 'Actions',
+                header: labels.myInspections.table.actions,
                 cell: (item: InspectionSession) => (
                   <SpaceBetween direction="horizontal" size="s">
-                    <Button onClick={() => handleViewInspection(item)}>View</Button>
+                    <Button onClick={() => handleViewInspection(item)}>{labels.myInspections.table.buttons.view}</Button>
                     {(item.uploadStatus || UploadStatus.Local) === UploadStatus.InProgress && (
-                      <Button onClick={() => handleOpenInspection(item)}>Open</Button>
+                      <Button onClick={() => handleOpenInspection(item)}>{labels.myInspections.table.buttons.open}</Button>
                     )}
                     {(item.uploadStatus || UploadStatus.Local) === UploadStatus.Failed && (
-                      <Button onClick={() => handleRetryInspection(item)}>Retry</Button>
+                      <Button onClick={() => handleRetryInspection(item)}>{labels.myInspections.table.buttons.retry}</Button>
                     )}
-                    <Button onClick={() => handleRequestDeleteInspection(item)}>Delete</Button>
+                    <Button onClick={() => handleRequestDeleteInspection(item)}>{labels.myInspections.table.buttons.delete}</Button>
                   </SpaceBetween>
                 ),
               },
@@ -309,7 +315,7 @@ export function MyInspections() {
             onSortingChange={(event) => handleSortingChange(event.detail)}
             empty={
               <Box textAlign="center" color="inherit">
-                <b>No inspections</b>
+                <b>{labels.myInspections.table.empty}</b>
               </Box>
             }
           />
@@ -317,7 +323,7 @@ export function MyInspections() {
       )}
 
       <Container>
-        <Button onClick={() => navigate('/new-inspection')}>Create New Inspection</Button>
+        <Button onClick={() => navigate('/new-inspection')}>{labels.myInspections.createNewInspection}</Button>
       </Container>
     </SpaceBetween>
   );

@@ -1,11 +1,12 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { Header, Container, SpaceBetween, Alert, Box, Link, Input, FormField, Wizard, Checkbox } from '@cloudscape-design/components';
-import { InspectionSession, FormTypeLabels, FormSchema, FormType, FormData, FormDataValue, UploadStatus } from '../types';
+import { InspectionSession, FormSchema, FormType, FormData, FormDataValue, UploadStatus } from '../types';
 import { FormRenderer } from '../components/FormRenderer';
 import { FormValidator, ValidationError } from '../utils/FormValidator';
 import { formatFileValue, getFileReferences, isFormDataValueEmpty } from '../utils/formDataUtils';
 import { saveFiles, deleteFiles } from '../utils/fileStorage';
+import { useLocalization } from '../LocalizationContext';
 
 interface FormDataWithExternalID {
   [externalID: string]: FormDataValue;
@@ -14,6 +15,7 @@ interface FormDataWithExternalID {
 export function FillForm() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
+  const { labels } = useLocalization();
   const [session, setSession] = useState<InspectionSession | null>(null);
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [formData, setFormData] = useState<FormData>({});
@@ -159,7 +161,7 @@ export function FillForm() {
     if (!session?.name.trim()) {
       validationErrors.unshift({
         fieldId: 'sessionName',
-        message: 'Session name is required.',
+        message: labels.fillForm.sessionNameRequired,
       });
     }
     setValidationErrors(validationErrors);
@@ -180,7 +182,7 @@ export function FillForm() {
     }
 
     if (!reviewConfirmed) {
-      setReviewError('Confirm that the details are correct before submitting.');
+      setReviewError(labels.fillForm.confirmDetailsError);
       return;
     }
 
@@ -198,7 +200,7 @@ export function FillForm() {
       // Redirect to my inspections with success message
       navigate('/my-inspections', {
         state: {
-          successMessage: 'Inspection saved successfully and stored locally.',
+          successMessage: labels.fillForm.successMessage,
         },
       });
     }
@@ -260,7 +262,7 @@ export function FillForm() {
 
   const formatReviewValue = (fieldId: string, value: FormDataValue | undefined) => {
     if (isFormDataValueEmpty(value)) {
-      return 'Not provided';
+      return labels.common.notProvided;
     }
     const field = formSchema?.sections
       .flatMap((section) => section.fields)
@@ -282,7 +284,7 @@ export function FillForm() {
       }
     }
     if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
+      return value ? labels.common.yes : labels.common.no;
     }
     if (Array.isArray(value)) {
       return value.join(', ');
@@ -291,30 +293,30 @@ export function FillForm() {
   };
 
   if (loading || !session) {
-    return <Header variant="h1">Loading...</Header>;
+    return <Header variant="h1">{labels.fillForm.loading}</Header>;
   }
 
   if (!formSchema) {
-    return <Header variant="h1">Error loading form schema</Header>;
+    return <Header variant="h1">{labels.fillForm.errorLoadingSchema}</Header>;
   }
 
   const reviewStepContent = (
     <SpaceBetween size="l">
       {reviewError && (
-        <Alert type="error" header="Confirmation required">
+        <Alert type="error" header={labels.fillForm.review.confirmationRequiredHeader}>
           {reviewError}
         </Alert>
       )}
-      <Container header={<Header variant="h2">Session details</Header>}>
+      <Container header={<Header variant="h2">{labels.fillForm.review.sessionDetailsHeader}</Header>}>
         <SpaceBetween size="s">
           <Box>
-            <strong>Session Name:</strong> {session.name}
+            <strong>{labels.fillForm.sessionNameLabel}:</strong> {session.name}
           </Box>
           <Box>
-            <strong>Session ID:</strong> {session.id}
+            <strong>{labels.fillForm.sessionIdLabel}:</strong> {session.id}
           </Box>
           <Box>
-            <strong>Form Type:</strong> {FormTypeLabels[session.formType]}
+            <strong>{labels.fillForm.formTypeLabel}:</strong> {labels.formTypes[session.formType]}
           </Box>
         </SpaceBetween>
       </Container>
@@ -329,7 +331,7 @@ export function FillForm() {
           </SpaceBetween>
         </Container>
       ))}
-      <FormField label="Final confirmation">
+      <FormField label={labels.fillForm.review.finalConfirmationLabel}>
         <Checkbox
           checked={reviewConfirmed}
           onChange={(event) => {
@@ -339,7 +341,7 @@ export function FillForm() {
             }
           }}
         >
-          I confirm the details above are accurate and ready to submit.
+          {labels.fillForm.review.finalConfirmationText}
         </Checkbox>
       </FormField>
     </SpaceBetween>
@@ -351,20 +353,20 @@ export function FillForm() {
         <Header variant="h1">{formSchema.formName}</Header>
         <Container>
           <SpaceBetween size="m">
-            <FormField label="Session Name" stretch>
+            <FormField label={labels.fillForm.sessionNameLabel} stretch>
               <Input
                 id="field-sessionName"
                 value={session.name}
                 onChange={(event) => handleSessionNameChange(event.detail.value)}
-                placeholder="Enter a name for this inspection session"
+                placeholder={labels.fillForm.sessionNamePlaceholder}
               />
             </FormField>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
-                <strong>Session ID:</strong> {session.id}
+                <strong>{labels.fillForm.sessionIdLabel}:</strong> {session.id}
               </div>
               <div>
-                <strong>Form Type:</strong> {FormTypeLabels[session.formType]}
+                <strong>{labels.fillForm.formTypeLabel}:</strong> {labels.formTypes[session.formType]}
               </div>
             </div>
           </SpaceBetween>
@@ -373,7 +375,7 @@ export function FillForm() {
         {validationErrors.length > 0 && (
           <div ref={errorAlertRef}>
             <Container>
-              <Alert type="error" header="Form Validation Errors">
+              <Alert type="error" header={labels.fillForm.formValidationErrorsHeader}>
                 <SpaceBetween size="xs" direction="vertical">
                   {validationErrors.map((error, index) => (
                     <Box key={index}>
@@ -409,26 +411,26 @@ export function FillForm() {
               ),
             })),
             {
-              title: 'Review',
+              title: labels.fillForm.reviewStepTitle,
               content: reviewStepContent,
             },
           ]}
           i18nStrings={{
-            stepNumberLabel: (stepNumber) => `Step ${stepNumber}`,
+            stepNumberLabel: (stepNumber) => labels.fillForm.wizard.stepNumberLabel(stepNumber),
             collapsedStepsLabel: (stepNumber, stepsCount) =>
-              `Step ${stepNumber} of ${stepsCount}`,
+              labels.fillForm.wizard.collapsedStepsLabel(stepNumber, stepsCount),
             skipToButtonLabel: (step, stepNumber) =>
-              `Skip to ${step.title} (Step ${stepNumber})`,
-            navigationAriaLabel: 'Form steps',
-            cancelButton: 'Cancel',
-            previousButton: 'Previous',
-            nextButton: 'Next',
-            submitButton: 'Submit',
+              labels.fillForm.wizard.skipToButtonLabel(step.title, stepNumber),
+            navigationAriaLabel: labels.fillForm.wizard.navigationAriaLabel,
+            cancelButton: labels.fillForm.wizard.cancelButton,
+            previousButton: labels.fillForm.wizard.previousButton,
+            nextButton: labels.fillForm.wizard.nextButton,
+            submitButton: labels.fillForm.wizard.submitButton,
           }}
         />
         <Container>
           <SpaceBetween direction="horizontal" size="m">
-            <Link onFollow={handleReset}>Reset form</Link>
+            <Link onFollow={handleReset}>{labels.fillForm.resetForm}</Link>
           </SpaceBetween>
         </Container>
       </SpaceBetween>

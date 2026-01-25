@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, FormField, Input, Button, Box, Link } from '@cloudscape-design/components';
-import { getUserId, setUserId } from '../auth';
+import { setUserId } from '../auth';
 import { getLoginUrl } from '../config';
+import { useLocalization } from '../LocalizationContext';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -10,11 +11,12 @@ export function Login() {
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const navigate = useNavigate();
+  const { labels } = useLocalization();
 
   const handleEmailLookup = async () => {
     const trimmed = email.trim();
     if (!trimmed) {
-      setLookupError('Email is required.');
+      setLookupError(labels.login.emailRequired);
       return null;
     }
     setIsLookupLoading(true);
@@ -36,7 +38,7 @@ export function Login() {
       setUserId(resolvedUserId);
       return resolvedUserId;
     } catch (error) {
-      setLookupError('Unable to look up user ID. Check the email and try again.');
+      setLookupError(labels.login.lookupError);
       setUserIdInput('');
       console.error('Login lookup failed:', error);
       return null;
@@ -47,13 +49,13 @@ export function Login() {
 
   const handleLogin = async () => {
     if (!email.trim()) {
-      setLookupError('Email is required.');
+      setLookupError(labels.login.emailRequired);
       return;
     }
     const lookedUp = await handleEmailLookup();
     const resolvedUserId = lookedUp?.trim() || '';
     if (!resolvedUserId) {
-      setLookupError('Login lookup did not return a user ID.');
+      setLookupError(labels.login.lookupNoUserId);
       return;
     }
     navigate('/my-inspections', { replace: true });
@@ -62,15 +64,15 @@ export function Login() {
   return (
     <Box padding="l">
       <SpaceBetween size="l">
-        <Header variant="h1">Sign In</Header>
+        <Header variant="h1">{labels.login.title}</Header>
         <Container>
           <SpaceBetween size="m">
-            <FormField label="Email" errorText={lookupError || undefined}>
+            <FormField label={labels.login.emailLabel} errorText={lookupError || undefined}>
               <Input
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.detail.value)}
-                placeholder="you@example.com"
+                placeholder={labels.login.emailPlaceholder}
                 onKeyDown={(event) => {
                   if (event.detail.key === 'Enter') {
                     handleLogin();
@@ -82,9 +84,9 @@ export function Login() {
             
             <SpaceBetween size="s" direction="horizontal">
               <Button variant="primary" onClick={handleLogin} disabled={!email.trim() || isLookupLoading}>
-                Login
+                {labels.login.login}
               </Button>
-              <Link onFollow={() => navigate('/register')}>Create an account</Link>
+              <Link onFollow={() => navigate('/register')}>{labels.login.createAccount}</Link>
             </SpaceBetween>
           </SpaceBetween>
         </Container>

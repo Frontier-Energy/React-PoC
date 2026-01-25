@@ -1,5 +1,7 @@
 import { Header } from '@cloudscape-design/components';
+import { useLocalization } from '../LocalizationContext';
 
 export function Home() {
-  return <Header variant="h1">Inspection Forms</Header>;
+  const { labels } = useLocalization();
+  return <Header variant="h1">{labels.home.title}</Header>;
 }
