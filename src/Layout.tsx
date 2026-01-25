@@ -220,6 +220,8 @@ export function Layout() {
     document.documentElement.style.setProperty('--app-flyout-text-color', themeStyle.flyoutText);
     document.documentElement.style.setProperty('--app-flyout-border-color', themeStyle.flyoutBorder);
     document.documentElement.style.setProperty('--app-font-family', customization.font);
+    document.documentElement.style.setProperty('--font-family-base-gmnpzl', customization.font);
+    document.body.style.setProperty('--font-family-base-gmnpzl', customization.font);
     localStorage.setItem('appCustomization', JSON.stringify(customization));
     return () => {
       document.body.classList.remove('app-theme');

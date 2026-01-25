@@ -1,6 +1,7 @@
 /* Global customizations. Extend this file with additional variables and rules. */
 :root {
   --app-font-family: "Source Sans Pro", "Helvetica Neue", Arial, sans-serif;
+  --font-family-base-gmnpzl: var(--app-font-family);
   --app-text-color: #1a1a1a;
   --app-bg-color: #f7f8fa;
   --app-accent-color: #2b6cb0;
