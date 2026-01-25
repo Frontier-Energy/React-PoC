@@ -1,5 +1,6 @@
 export enum FormType {
   Electrical = 'electrical',
+  ElectricalSF = 'electrical-sf',
   HVAC = 'hvac',
 }
 
@@ -13,6 +14,7 @@ export enum UploadStatus {
 
 export const FormTypeLabels: Record<FormType, string> = {
   [FormType.Electrical]: 'Electrical',
+  [FormType.ElectricalSF]: 'Electrical SF',
   [FormType.HVAC]: 'HVAC'
 };
 
