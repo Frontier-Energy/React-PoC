@@ -1,14 +1,32 @@
-import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box, Table, Header, SpaceBetween } from '@cloudscape-design/components';
+import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box, Table, Header, SpaceBetween, FormField, Select } from '@cloudscape-design/components';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useConnectivity } from './ConnectivityContext';
 import { clearUserId } from './auth';
 import { InspectionSession, UploadStatus } from './types';
+import type { SelectProps } from '@cloudscape-design/components';
 
 export function Layout() {
   const navigate = useNavigate();
   const { status, lastCheckedAt } = useConnectivity();
   const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
+  const [customization, setCustomization] = useState(() => {
+    const defaults = {
+      theme: 'mist',
+      font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
+    };
+    const stored = localStorage.getItem('appCustomization');
+    if (!stored) {
+      return defaults;
+    }
+    try {
+      const parsed = JSON.parse(stored) as Partial<typeof defaults>;
+      return { ...defaults, ...parsed };
+    } catch (error) {
+      console.error('Failed to parse customization settings:', error);
+      return defaults;
+    }
+  });
   const [statusCounts, setStatusCounts] = useState<Record<UploadStatus, number>>(() => ({
     [UploadStatus.Local]: 0,
     [UploadStatus.InProgress]: 0,
@@ -79,6 +97,68 @@ export function Layout() {
     [UploadStatus.Uploaded]: 'Uploaded',
     [UploadStatus.Failed]: 'Failed',
   };
+
+  const themeOptions: SelectProps.Option[] = [
+    { label: 'Mist', value: 'mist', description: 'Soft light gray' },
+    { label: 'Harbor', value: 'harbor', description: 'Cool blue tint' },
+    { label: 'Sand', value: 'sand', description: 'Warm neutral' },
+  ];
+
+  const themeStyles: Record<
+    string,
+    { bgColor: string; textColor: string; footerBg: string; footerText: string; footerHover: string }
+  > = {
+    mist: {
+      bgColor: '#f7f8fa',
+      textColor: '#1a1a1a',
+      footerBg: '#1a1a1a',
+      footerText: '#f5f5f5',
+      footerHover: '#ffffff',
+    },
+    harbor: {
+      bgColor: '#eef3f9',
+      textColor: '#1b1f2a',
+      footerBg: '#1b2b3a',
+      footerText: '#f0f4f8',
+      footerHover: '#ffffff',
+    },
+    sand: {
+      bgColor: '#f7f2ea',
+      textColor: '#2b2118',
+      footerBg: '#3b2f24',
+      footerText: '#f6efe6',
+      footerHover: '#ffffff',
+    },
+  };
+
+  const fontOptions: SelectProps.Option[] = [
+    {
+      label: 'Source Sans Pro',
+      value: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
+      description: 'Clean sans-serif',
+    },
+    {
+      label: 'Georgia',
+      value: 'Georgia, "Times New Roman", serif',
+      description: 'Classic serif',
+    },
+    {
+      label: 'Tahoma',
+      value: 'Tahoma, "Trebuchet MS", Arial, sans-serif',
+      description: 'Compact sans-serif',
+    },
+  ];
+
+  useEffect(() => {
+    const themeStyle = themeStyles[customization.theme] ?? themeStyles.mist;
+    document.documentElement.style.setProperty('--app-bg-color', themeStyle.bgColor);
+    document.documentElement.style.setProperty('--app-text-color', themeStyle.textColor);
+    document.documentElement.style.setProperty('--app-footer-bg-color', themeStyle.footerBg);
+    document.documentElement.style.setProperty('--app-footer-text-color', themeStyle.footerText);
+    document.documentElement.style.setProperty('--app-footer-link-hover', themeStyle.footerHover);
+    document.documentElement.style.setProperty('--app-font-family', customization.font);
+    localStorage.setItem('appCustomization', JSON.stringify(customization));
+  }, [customization]);
 
   const statusOrder: UploadStatus[] = [
     UploadStatus.Local,
@@ -178,6 +258,61 @@ export function Layout() {
                   </Box>
                 }
               />
+            </SpaceBetween>
+          ),
+        },
+        {
+          id: 'customization',
+          ariaLabels: {
+            drawerName: 'Customization options',
+            triggerButton: 'Open customization options',
+          },
+          trigger: {
+            iconSvg: (
+              <span style={{ display: 'inline-flex' }}>
+                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+                  <circle cx="6" cy="5" r="2" fill="currentColor" />
+                  <circle cx="12" cy="13" r="2" fill="currentColor" />
+                  <rect x="8" y="4" width="6" height="2" fill="currentColor" />
+                  <rect x="4" y="12" width="6" height="2" fill="currentColor" />
+                </svg>
+              </span>
+            ),
+          },
+          content: (
+            <SpaceBetween size="s">
+              <Header variant="h3">Customization</Header>
+              <FormField label="Theme">
+                <Select
+                  selectedOption={
+                    themeOptions.find((option) => option.value === customization.theme) ?? themeOptions[0]
+                  }
+                  onChange={(event) =>
+                    setCustomization((prev) => ({
+                      ...prev,
+                      theme: event.detail.selectedOption.value ?? prev.theme,
+                    }))
+                  }
+                  options={themeOptions}
+                />
+              </FormField>
+              <FormField label="Font">
+                <Select
+                  selectedOption={
+                    fontOptions.find((option) => option.value === customization.font) ?? fontOptions[0]
+                  }
+                  onChange={(event) =>
+                    setCustomization((prev) => ({
+                      ...prev,
+                      font: event.detail.selectedOption.value ?? prev.font,
+                    }))
+                  }
+                  options={fontOptions}
+                />
+              </FormField>
+              <Box fontSize="body-s" color="text-body-secondary">
+                Preferences are saved locally on this device.
+              </Box>
             </SpaceBetween>
           ),
         },
