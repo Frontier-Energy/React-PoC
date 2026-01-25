@@ -150,6 +150,7 @@ export function Layout() {
   ];
 
   useEffect(() => {
+    document.body.classList.add('app-theme');
     const themeStyle = themeStyles[customization.theme] ?? themeStyles.mist;
     document.documentElement.style.setProperty('--app-bg-color', themeStyle.bgColor);
     document.documentElement.style.setProperty('--app-text-color', themeStyle.textColor);
@@ -158,6 +159,9 @@ export function Layout() {
     document.documentElement.style.setProperty('--app-footer-link-hover', themeStyle.footerHover);
     document.documentElement.style.setProperty('--app-font-family', customization.font);
     localStorage.setItem('appCustomization', JSON.stringify(customization));
+    return () => {
+      document.body.classList.remove('app-theme');
+    };
   }, [customization]);
 
   const statusOrder: UploadStatus[] = [
@@ -179,16 +183,8 @@ export function Layout() {
       breadcrumbs={
         <BreadcrumbGroup items={[]} onFollow={() => {}} />
       }
-      contentHeader={
-        <div
-          style={{
-            fontSize: '24px',
-            fontWeight: 'bold',
-            padding: '16px',
-            backgroundColor: 'var(--app-bg-color)',
-            color: 'var(--app-text-color)',
-          }}
-        >
+      header={
+        <div className="app-layout-header">
           QHVAC Inspection Tool
         </div>
       }
