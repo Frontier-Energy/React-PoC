@@ -72,6 +72,10 @@ export const es = {
         label: 'Arena',
         description: 'Neutro calido',
       },
+      night: {
+        label: 'Noche',
+        description: 'Carbon profundo',
+      },
     },
     fontOptions: {
       sourceSansPro: {
@@ -255,4 +259,3 @@ export const es = {
     },
   },
 } as const;
-

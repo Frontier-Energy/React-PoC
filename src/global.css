@@ -9,6 +9,9 @@
   --app-footer-bg-color: #1a1a1a;
   --app-footer-text-color: #f5f5f5;
   --app-footer-link-hover: #ffffff;
+  --app-flyout-bg-color: #ffffff;
+  --app-flyout-text-color: #1a1a1a;
+  --app-flyout-border-color: #d5dbe3;
   --color-background-layout-main-5ilwcb: var(--app-bg-color);
 }
 
@@ -79,6 +82,14 @@ body.app-theme {
 [class*="awsui_content-layout__content-header"],
 [class*="awsui_content-layout__main"] {
   background-color: var(--app-bg-color);
+}
+
+[class*="awsui_app-layout__navigation-container"],
+[class*="awsui_app-layout__tools"],
+[class*="awsui_app-layout__drawer"] {
+  background-color: var(--app-flyout-bg-color);
+  color: var(--app-flyout-text-color);
+  border-color: var(--app-flyout-border-color);
 }
 
 [class*="awsui_scrolling-background"] {

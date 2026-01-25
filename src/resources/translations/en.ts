@@ -72,6 +72,10 @@ export const en = {
         label: 'Sand',
         description: 'Warm neutral',
       },
+      night: {
+        label: 'Night',
+        description: 'Deep charcoal',
+      },
     },
     fontOptions: {
       sourceSansPro: {

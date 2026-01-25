@@ -117,11 +117,25 @@ export function Layout() {
       value: 'sand',
       description: labels.customization.themeOptions.sand.description,
     },
+    {
+      label: labels.customization.themeOptions.night.label,
+      value: 'night',
+      description: labels.customization.themeOptions.night.description,
+    },
   ];
 
   const themeStyles: Record<
     string,
-    { bgColor: string; textColor: string; footerBg: string; footerText: string; footerHover: string }
+    {
+      bgColor: string;
+      textColor: string;
+      footerBg: string;
+      footerText: string;
+      footerHover: string;
+      flyoutBg: string;
+      flyoutText: string;
+      flyoutBorder: string;
+    }
   > = {
     mist: {
       bgColor: '#f7f8fa',
@@ -129,6 +143,9 @@ export function Layout() {
       footerBg: '#1a1a1a',
       footerText: '#f5f5f5',
       footerHover: '#ffffff',
+      flyoutBg: '#ffffff',
+      flyoutText: '#1a1a1a',
+      flyoutBorder: '#d5dbe3',
     },
     harbor: {
       bgColor: '#eef3f9',
@@ -136,6 +153,9 @@ export function Layout() {
       footerBg: '#1b2b3a',
       footerText: '#f0f4f8',
       footerHover: '#ffffff',
+      flyoutBg: '#ffffff',
+      flyoutText: '#1b1f2a',
+      flyoutBorder: '#ccd5df',
     },
     sand: {
       bgColor: '#f7f2ea',
@@ -143,6 +163,19 @@ export function Layout() {
       footerBg: '#3b2f24',
       footerText: '#f6efe6',
       footerHover: '#ffffff',
+      flyoutBg: '#ffffff',
+      flyoutText: '#2b2118',
+      flyoutBorder: '#dccfbe',
+    },
+    night: {
+      bgColor: '#12161c',
+      textColor: '#e6e9ef',
+      footerBg: '#0b0f14',
+      footerText: '#cfd6df',
+      footerHover: '#ffffff',
+      flyoutBg: '#151b22',
+      flyoutText: '#e6e9ef',
+      flyoutBorder: '#2a3442',
     },
   };
 
@@ -177,6 +210,9 @@ export function Layout() {
     document.documentElement.style.setProperty('--app-footer-bg-color', themeStyle.footerBg);
     document.documentElement.style.setProperty('--app-footer-text-color', themeStyle.footerText);
     document.documentElement.style.setProperty('--app-footer-link-hover', themeStyle.footerHover);
+    document.documentElement.style.setProperty('--app-flyout-bg-color', themeStyle.flyoutBg);
+    document.documentElement.style.setProperty('--app-flyout-text-color', themeStyle.flyoutText);
+    document.documentElement.style.setProperty('--app-flyout-border-color', themeStyle.flyoutBorder);
     document.documentElement.style.setProperty('--app-font-family', customization.font);
     localStorage.setItem('appCustomization', JSON.stringify(customization));
     return () => {
