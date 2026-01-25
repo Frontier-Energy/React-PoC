@@ -6,15 +6,20 @@ import { clearUserId } from './auth';
 import { InspectionSession, UploadStatus } from './types';
 import type { SelectProps } from '@cloudscape-design/components';
 import { useLocalization } from './LocalizationContext';
-import type { LanguageCode } from './resources/translations';
+import { isLanguageCode, type LanguageCode } from './resources/translations';
 
 export function Layout() {
   const navigate = useNavigate();
   const { status, lastCheckedAt } = useConnectivity();
   const { labels, language, setLanguage } = useLocalization();
   const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
-  const [customization, setCustomization] = useState(() => {
-    const defaults = {
+  type Customization = {
+    theme: string;
+    font: string;
+    language: LanguageCode;
+  };
+  const [customization, setCustomization] = useState<Customization>(() => {
+    const defaults: Customization = {
       theme: 'mist',
       font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
       language,
@@ -24,8 +29,9 @@ export function Layout() {
       return defaults;
     }
     try {
-      const parsed = JSON.parse(stored) as Partial<typeof defaults>;
-      return { ...defaults, ...parsed };
+      const parsed = JSON.parse(stored) as Partial<Customization>;
+      const merged = { ...defaults, ...parsed };
+      return isLanguageCode(merged.language) ? merged : { ...merged, language: defaults.language };
     } catch (error) {
       console.error('Failed to parse customization settings:', error);
       return defaults;
@@ -243,7 +249,7 @@ export function Layout() {
       breadcrumbs={
         <BreadcrumbGroup items={[]} onFollow={() => {}} />
       }
-      header={
+      contentHeader={
         <div className="app-layout-header">
           {labels.app.title}
         </div>
@@ -384,8 +390,9 @@ export function Layout() {
                     languageOptions.find((option) => option.value === customization.language) ?? languageOptions[0]
                   }
                   onChange={(event) => {
-                    const nextLanguage = event.detail.selectedOption.value ?? customization.language;
-                    setLanguage(nextLanguage as LanguageCode);
+                    const selectedValue = event.detail.selectedOption.value;
+                    const nextLanguage = isLanguageCode(selectedValue) ? selectedValue : customization.language;
+                    setLanguage(nextLanguage);
                     setCustomization((prev) => ({
                       ...prev,
                       language: nextLanguage,
