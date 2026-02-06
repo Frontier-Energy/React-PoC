@@ -107,6 +107,7 @@ export const es = {
     [FormType.Electrical]: 'Electrico',
     [FormType.ElectricalSF]: 'Electrico SF',
     [FormType.HVAC]: 'HVAC',
+    [FormType.SafetyChecklist]: 'Lista de seguridad',
   },
   home: {
     title: 'Formularios de inspeccion',

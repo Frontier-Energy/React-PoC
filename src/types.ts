@@ -2,6 +2,7 @@ export enum FormType {
   Electrical = 'electrical',
   ElectricalSF = 'electrical-sf',
   HVAC = 'hvac',
+  SafetyChecklist = 'safety-checklist',
 }
 
 export enum UploadStatus {

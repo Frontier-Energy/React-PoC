@@ -1,0 +1,2281 @@
+{
+    "formName":  "Safety Checklist",
+    "sections":  [
+                     {
+                         "title":  "General Information",
+                         "fields":  [
+                                        {
+                                            "id":  "location",
+                                            "label":  "Location",
+                                            "type":  "text",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.location",
+                                            "placeholder":  "Enter location"
+                                        },
+                                        {
+                                            "id":  "inspectors",
+                                            "label":  "Inspectors",
+                                            "type":  "text",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.inspectors",
+                                            "placeholder":  "Enter inspector names"
+                                        },
+                                        {
+                                            "id":  "surveyDate",
+                                            "label":  "Survey Date",
+                                            "type":  "text",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.surveyDate",
+                                            "placeholder":  "MM/DD/YYYY"
+                                        },
+                                        {
+                                            "id":  "buildingRoomsCovered",
+                                            "label":  "Building/Rooms covered on this checklist",
+                                            "type":  "text",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.buildingRoomsCovered",
+                                            "placeholder":  "List rooms/areas"
+                                        }
+                                    ]
+                     },
+                     {
+                         "title":  "Basic Life Safety",
+                         "fields":  [
+                                        {
+                                            "id":  "exitSignsStatus",
+                                            "label":  "Exit signs illuminated and visible?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitSigns.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "exitSignsComments",
+                                            "label":  "Comments - Exit signs illuminated and visible?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitSigns.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "exitSignsCorrectiveAction",
+                                            "label":  "Corrective action - Exit signs illuminated and visible?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitSigns.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "exitSignsComplete",
+                                            "label":  "Corrective action complete - Exit signs illuminated and visible?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitSigns.complete"
+                                        },
+                                        {
+                                            "id":  "corridorsExitsClearStatus",
+                                            "label":  "Corridors and exits free from obstructions and unlocked?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.corridorsExitsClear.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "corridorsExitsClearComments",
+                                            "label":  "Comments - Corridors and exits free from obstructions and unlocked?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.corridorsExitsClear.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "corridorsExitsClearCorrectiveAction",
+                                            "label":  "Corrective action - Corridors and exits free from obstructions and unlocked?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.corridorsExitsClear.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "corridorsExitsClearComplete",
+                                            "label":  "Corrective action complete - Corridors and exits free from obstructions and unlocked?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.corridorsExitsClear.complete"
+                                        },
+                                        {
+                                            "id":  "exitAvoidsHazardStatus",
+                                            "label":  "Access to exit avoids travel through high hazard area?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitAvoidsHazard.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "exitAvoidsHazardComments",
+                                            "label":  "Comments - Access to exit avoids travel through high hazard area?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitAvoidsHazard.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "exitAvoidsHazardCorrectiveAction",
+                                            "label":  "Corrective action - Access to exit avoids travel through high hazard area?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitAvoidsHazard.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "exitAvoidsHazardComplete",
+                                            "label":  "Corrective action complete - Access to exit avoids travel through high hazard area?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitAvoidsHazard.complete"
+                                        },
+                                        {
+                                            "id":  "stairwaysGoodRepairStatus",
+                                            "label":  "Stairways are in good repair with handrails and non-slip tread?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwaysGoodRepair.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "stairwaysGoodRepairComments",
+                                            "label":  "Comments - Stairways are in good repair with handrails and non-slip tread?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwaysGoodRepair.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "stairwaysGoodRepairCorrectiveAction",
+                                            "label":  "Corrective action - Stairways are in good repair with handrails and non-slip tread?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwaysGoodRepair.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "stairwaysGoodRepairComplete",
+                                            "label":  "Corrective action complete - Stairways are in good repair with handrails and non-slip tread?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwaysGoodRepair.complete"
+                                        },
+                                        {
+                                            "id":  "stairwaysClearStatus",
+                                            "label":  "Stairways are clear, with no obstructions (storage items)?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwaysClear.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "stairwaysClearComments",
+                                            "label":  "Comments - Stairways are clear, with no obstructions (storage items)?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwaysClear.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "stairwaysClearCorrectiveAction",
+                                            "label":  "Corrective action - Stairways are clear, with no obstructions (storage items)?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwaysClear.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "stairwaysClearComplete",
+                                            "label":  "Corrective action complete - Stairways are clear, with no obstructions (storage items)?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwaysClear.complete"
+                                        },
+                                        {
+                                            "id":  "stairwayStepsUniformStatus",
+                                            "label":  "Stairway steps are uniform in size?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwayStepsUniform.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "stairwayStepsUniformComments",
+                                            "label":  "Comments - Stairway steps are uniform in size?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwayStepsUniform.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "stairwayStepsUniformCorrectiveAction",
+                                            "label":  "Corrective action - Stairway steps are uniform in size?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwayStepsUniform.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "stairwayStepsUniformComplete",
+                                            "label":  "Corrective action complete - Stairway steps are uniform in size?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.stairwayStepsUniform.complete"
+                                        },
+                                        {
+                                            "id":  "evacuationPlanPostedStatus",
+                                            "label":  "Emergency Evacuation Route \u0026 Action Plan is posted?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.evacuationPlanPosted.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "evacuationPlanPostedComments",
+                                            "label":  "Comments - Emergency Evacuation Route \u0026 Action Plan is posted?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.evacuationPlanPosted.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "evacuationPlanPostedCorrectiveAction",
+                                            "label":  "Corrective action - Emergency Evacuation Route \u0026 Action Plan is posted?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.evacuationPlanPosted.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "evacuationPlanPostedComplete",
+                                            "label":  "Corrective action complete - Emergency Evacuation Route \u0026 Action Plan is posted?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.evacuationPlanPosted.complete"
+                                        },
+                                        {
+                                            "id":  "exitDoorsClosedStatus",
+                                            "label":  "Exit doors are closed and not propped open?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitDoorsClosed.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "exitDoorsClosedComments",
+                                            "label":  "Comments - Exit doors are closed and not propped open?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitDoorsClosed.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "exitDoorsClosedCorrectiveAction",
+                                            "label":  "Corrective action - Exit doors are closed and not propped open?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitDoorsClosed.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "exitDoorsClosedComplete",
+                                            "label":  "Corrective action complete - Exit doors are closed and not propped open?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.exitDoorsClosed.complete"
+                                        },
+                                        {
+                                            "id":  "sprinklersNoDamageStatus",
+                                            "label":  "No obvious damage to sprinklers?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.sprinklersNoDamage.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "sprinklersNoDamageComments",
+                                            "label":  "Comments - No obvious damage to sprinklers?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.sprinklersNoDamage.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "sprinklersNoDamageCorrectiveAction",
+                                            "label":  "Corrective action - No obvious damage to sprinklers?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.sprinklersNoDamage.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "sprinklersNoDamageComplete",
+                                            "label":  "Corrective action complete - No obvious damage to sprinklers?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.sprinklersNoDamage.complete"
+                                        },
+                                        {
+                                            "id":  "fireExtinguishersAccessibleStatus",
+                                            "label":  "Fire extinguishers easily accessible, checked monthly, and operational?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.fireExtinguishersAccessible.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "fireExtinguishersAccessibleComments",
+                                            "label":  "Comments - Fire extinguishers easily accessible, checked monthly, and operational?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.fireExtinguishersAccessible.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "fireExtinguishersAccessibleCorrectiveAction",
+                                            "label":  "Corrective action - Fire extinguishers easily accessible, checked monthly, and operational?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.fireExtinguishersAccessible.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "fireExtinguishersAccessibleComplete",
+                                            "label":  "Corrective action complete - Fire extinguishers easily accessible, checked monthly, and operational?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.fireExtinguishersAccessible.complete"
+                                        },
+                                        {
+                                            "id":  "fireExtinguishersTravelDistanceStatus",
+                                            "label":  "Fire extinguishers mounted so that the travel distance from employees to any extinguisher is 75 feet or less?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.fireExtinguishersTravelDistance.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "fireExtinguishersTravelDistanceComments",
+                                            "label":  "Comments - Fire extinguishers mounted so that the travel distance from employees to any extinguisher is 75 feet or less?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.fireExtinguishersTravelDistance.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "fireExtinguishersTravelDistanceCorrectiveAction",
+                                            "label":  "Corrective action - Fire extinguishers mounted so that the travel distance from employees to any extinguisher is 75 feet or less?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.fireExtinguishersTravelDistance.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "fireExtinguishersTravelDistanceComplete",
+                                            "label":  "Corrective action complete - Fire extinguishers mounted so that the travel distance from employees to any extinguisher is 75 feet or less?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.basicLifeSafety.fireExtinguishersTravelDistance.complete"
+                                        }
+                                    ]
+                     },
+                     {
+                         "title":  "General Office Safety",
+                         "fields":  [
+                                        {
+                                            "id":  "aislesClearStatus",
+                                            "label":  "Aisles, doorways and corners free of obstructions to permit visibility and movement?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.aislesClear.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "aislesClearComments",
+                                            "label":  "Comments - Aisles, doorways and corners free of obstructions to permit visibility and movement?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.aislesClear.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "aislesClearCorrectiveAction",
+                                            "label":  "Corrective action - Aisles, doorways and corners free of obstructions to permit visibility and movement?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.aislesClear.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "aislesClearComplete",
+                                            "label":  "Corrective action complete - Aisles, doorways and corners free of obstructions to permit visibility and movement?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.aislesClear.complete"
+                                        },
+                                        {
+                                            "id":  "lightingAdequateStatus",
+                                            "label":  "Lighting in work areas and walkways is adequate?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.lightingAdequate.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "lightingAdequateComments",
+                                            "label":  "Comments - Lighting in work areas and walkways is adequate?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.lightingAdequate.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "lightingAdequateCorrectiveAction",
+                                            "label":  "Corrective action - Lighting in work areas and walkways is adequate?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.lightingAdequate.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "lightingAdequateComplete",
+                                            "label":  "Corrective action complete - Lighting in work areas and walkways is adequate?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.lightingAdequate.complete"
+                                        },
+                                        {
+                                            "id":  "chairsSafeStatus",
+                                            "label":  "Chairs are in safe condition and caster, rungs \u0026 legs are sturdy?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.chairsSafe.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "chairsSafeComments",
+                                            "label":  "Comments - Chairs are in safe condition and caster, rungs \u0026 legs are sturdy?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.chairsSafe.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "chairsSafeCorrectiveAction",
+                                            "label":  "Corrective action - Chairs are in safe condition and caster, rungs \u0026 legs are sturdy?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.chairsSafe.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "chairsSafeComplete",
+                                            "label":  "Corrective action complete - Chairs are in safe condition and caster, rungs \u0026 legs are sturdy?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.chairsSafe.complete"
+                                        },
+                                        {
+                                            "id":  "equipmentInPlaceStatus",
+                                            "label":  "All equipment and supplies are in their proper places?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.equipmentInPlace.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "equipmentInPlaceComments",
+                                            "label":  "Comments - All equipment and supplies are in their proper places?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.equipmentInPlace.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "equipmentInPlaceCorrectiveAction",
+                                            "label":  "Corrective action - All equipment and supplies are in their proper places?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.equipmentInPlace.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "equipmentInPlaceComplete",
+                                            "label":  "Corrective action complete - All equipment and supplies are in their proper places?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.equipmentInPlace.complete"
+                                        },
+                                        {
+                                            "id":  "egressClearanceStatus",
+                                            "label":  "Adequate walking and egress clearance?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.egressClearance.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ],
+                                            "description":  "44\" for corridors and stairways; 36\" for aisles; 32\" for doors."
+                                        },
+                                        {
+                                            "id":  "egressClearanceComments",
+                                            "label":  "Comments - Adequate walking and egress clearance?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.egressClearance.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "egressClearanceCorrectiveAction",
+                                            "label":  "Corrective action - Adequate walking and egress clearance?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.egressClearance.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "egressClearanceComplete",
+                                            "label":  "Corrective action complete - Adequate walking and egress clearance?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.egressClearance.complete"
+                                        },
+                                        {
+                                            "id":  "cartsAvailableStatus",
+                                            "label":  "Carts, dollies, etc. available for use in transporting heavy objects and boxes?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.cartsAvailable.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "cartsAvailableComments",
+                                            "label":  "Comments - Carts, dollies, etc. available for use in transporting heavy objects and boxes?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.cartsAvailable.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "cartsAvailableCorrectiveAction",
+                                            "label":  "Corrective action - Carts, dollies, etc. available for use in transporting heavy objects and boxes?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.cartsAvailable.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "cartsAvailableComplete",
+                                            "label":  "Corrective action complete - Carts, dollies, etc. available for use in transporting heavy objects and boxes?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.cartsAvailable.complete"
+                                        },
+                                        {
+                                            "id":  "housekeepingMaintainedStatus",
+                                            "label":  "Housekeeping being adequately maintained?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.housekeepingMaintained.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "housekeepingMaintainedComments",
+                                            "label":  "Comments - Housekeeping being adequately maintained?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.housekeepingMaintained.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "housekeepingMaintainedCorrectiveAction",
+                                            "label":  "Corrective action - Housekeeping being adequately maintained?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.housekeepingMaintained.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "housekeepingMaintainedComplete",
+                                            "label":  "Corrective action complete - Housekeeping being adequately maintained?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.housekeepingMaintained.complete"
+                                        },
+                                        {
+                                            "id":  "sdsAvailableStatus",
+                                            "label":  "SDS are available for office and housekeeping chemicals?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.sdsAvailable.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "sdsAvailableComments",
+                                            "label":  "Comments - SDS are available for office and housekeeping chemicals?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.sdsAvailable.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "sdsAvailableCorrectiveAction",
+                                            "label":  "Corrective action - SDS are available for office and housekeeping chemicals?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.sdsAvailable.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "sdsAvailableComplete",
+                                            "label":  "Corrective action complete - SDS are available for office and housekeeping chemicals?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.sdsAvailable.complete"
+                                        },
+                                        {
+                                            "id":  "oshaPostersDisplayedStatus",
+                                            "label":  "OSHA (CalOSHA, if applicable) posters prominently displayed?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.oshaPostersDisplayed.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "oshaPostersDisplayedComments",
+                                            "label":  "Comments - OSHA (CalOSHA, if applicable) posters prominently displayed?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.oshaPostersDisplayed.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "oshaPostersDisplayedCorrectiveAction",
+                                            "label":  "Corrective action - OSHA (CalOSHA, if applicable) posters prominently displayed?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.oshaPostersDisplayed.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "oshaPostersDisplayedComplete",
+                                            "label":  "Corrective action complete - OSHA (CalOSHA, if applicable) posters prominently displayed?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.generalOfficeSafety.oshaPostersDisplayed.complete"
+                                        }
+                                    ]
+                     },
+                     {
+                         "title":  "Trip/Fall Hazards",
+                         "fields":  [
+                                        {
+                                            "id":  "floorLevelStatus",
+                                            "label":  "Floor surface is level and undamaged?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.tripFallHazards.floorLevel.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "floorLevelComments",
+                                            "label":  "Comments - Floor surface is level and undamaged?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.floorLevel.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "floorLevelCorrectiveAction",
+                                            "label":  "Corrective action - Floor surface is level and undamaged?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.floorLevel.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "floorLevelComplete",
+                                            "label":  "Corrective action complete - Floor surface is level and undamaged?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.floorLevel.complete"
+                                        },
+                                        {
+                                            "id":  "floorNotWetStatus",
+                                            "label":  "Floor is not wet or slippery?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.tripFallHazards.floorNotWet.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "floorNotWetComments",
+                                            "label":  "Comments - Floor is not wet or slippery?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.floorNotWet.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "floorNotWetCorrectiveAction",
+                                            "label":  "Corrective action - Floor is not wet or slippery?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.floorNotWet.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "floorNotWetComplete",
+                                            "label":  "Corrective action complete - Floor is not wet or slippery?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.floorNotWet.complete"
+                                        },
+                                        {
+                                            "id":  "warningSignAvailableStatus",
+                                            "label":  "A warning sign is available in case of spills",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.tripFallHazards.warningSignAvailable.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "warningSignAvailableComments",
+                                            "label":  "Comments - A warning sign is available in case of spills",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.warningSignAvailable.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "warningSignAvailableCorrectiveAction",
+                                            "label":  "Corrective action - A warning sign is available in case of spills",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.warningSignAvailable.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "warningSignAvailableComplete",
+                                            "label":  "Corrective action complete - A warning sign is available in case of spills",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.warningSignAvailable.complete"
+                                        },
+                                        {
+                                            "id":  "cleanupSuppliesAvailableStatus",
+                                            "label":  "Cleanup supplies are readily available",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cleanupSuppliesAvailable.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "cleanupSuppliesAvailableComments",
+                                            "label":  "Comments - Cleanup supplies are readily available",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cleanupSuppliesAvailable.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "cleanupSuppliesAvailableCorrectiveAction",
+                                            "label":  "Corrective action - Cleanup supplies are readily available",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cleanupSuppliesAvailable.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "cleanupSuppliesAvailableComplete",
+                                            "label":  "Corrective action complete - Cleanup supplies are readily available",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cleanupSuppliesAvailable.complete"
+                                        },
+                                        {
+                                            "id":  "nonSlipMatsStatus",
+                                            "label":  "Non-slip mats are in entryways if needed",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.tripFallHazards.nonSlipMats.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "nonSlipMatsComments",
+                                            "label":  "Comments - Non-slip mats are in entryways if needed",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.nonSlipMats.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "nonSlipMatsCorrectiveAction",
+                                            "label":  "Corrective action - Non-slip mats are in entryways if needed",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.nonSlipMats.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "nonSlipMatsComplete",
+                                            "label":  "Corrective action complete - Non-slip mats are in entryways if needed",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.nonSlipMats.complete"
+                                        },
+                                        {
+                                            "id":  "carpetsCleanStatus",
+                                            "label":  "Carpeted areas are clean, carpets secured to floor and free of worn or frayed seams?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.tripFallHazards.carpetsClean.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "carpetsCleanComments",
+                                            "label":  "Comments - Carpeted areas are clean, carpets secured to floor and free of worn or frayed seams?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.carpetsClean.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "carpetsCleanCorrectiveAction",
+                                            "label":  "Corrective action - Carpeted areas are clean, carpets secured to floor and free of worn or frayed seams?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.carpetsClean.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "carpetsCleanComplete",
+                                            "label":  "Corrective action complete - Carpeted areas are clean, carpets secured to floor and free of worn or frayed seams?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.carpetsClean.complete"
+                                        },
+                                        {
+                                            "id":  "walkwaysFreeStatus",
+                                            "label":  "Walkways free of any equipment or supplies?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.tripFallHazards.walkwaysFree.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "walkwaysFreeComments",
+                                            "label":  "Comments - Walkways free of any equipment or supplies?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.walkwaysFree.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "walkwaysFreeCorrectiveAction",
+                                            "label":  "Corrective action - Walkways free of any equipment or supplies?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.walkwaysFree.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "walkwaysFreeComplete",
+                                            "label":  "Corrective action complete - Walkways free of any equipment or supplies?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.walkwaysFree.complete"
+                                        },
+                                        {
+                                            "id":  "cordsTripHazardFreeStatus",
+                                            "label":  "Area free of cords or cables causing a trip hazard?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cordsTripHazardFree.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "cordsTripHazardFreeComments",
+                                            "label":  "Comments - Area free of cords or cables causing a trip hazard?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cordsTripHazardFree.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "cordsTripHazardFreeCorrectiveAction",
+                                            "label":  "Corrective action - Area free of cords or cables causing a trip hazard?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cordsTripHazardFree.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "cordsTripHazardFreeComplete",
+                                            "label":  "Corrective action complete - Area free of cords or cables causing a trip hazard?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cordsTripHazardFree.complete"
+                                        },
+                                        {
+                                            "id":  "cordsCoveredStatus",
+                                            "label":  "Permanent use cords covered by cord-covers when crossing walkways?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cordsCovered.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "cordsCoveredComments",
+                                            "label":  "Comments - Permanent use cords covered by cord-covers when crossing walkways?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cordsCovered.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "cordsCoveredCorrectiveAction",
+                                            "label":  "Corrective action - Permanent use cords covered by cord-covers when crossing walkways?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cordsCovered.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "cordsCoveredComplete",
+                                            "label":  "Corrective action complete - Permanent use cords covered by cord-covers when crossing walkways?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.cordsCovered.complete"
+                                        },
+                                        {
+                                            "id":  "stepStoolAvailableStatus",
+                                            "label":  "Step stool or ladder available to eliminate the use of chairs for reaching high objects?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.tripFallHazards.stepStoolAvailable.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "stepStoolAvailableComments",
+                                            "label":  "Comments - Step stool or ladder available to eliminate the use of chairs for reaching high objects?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.stepStoolAvailable.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "stepStoolAvailableCorrectiveAction",
+                                            "label":  "Corrective action - Step stool or ladder available to eliminate the use of chairs for reaching high objects?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.stepStoolAvailable.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "stepStoolAvailableComplete",
+                                            "label":  "Corrective action complete - Step stool or ladder available to eliminate the use of chairs for reaching high objects?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.tripFallHazards.stepStoolAvailable.complete"
+                                        }
+                                    ]
+                     },
+                     {
+                         "title":  "Electrical",
+                         "fields":  [
+                                        {
+                                            "id":  "outletsGfciStatus",
+                                            "label":  "Outlets within 6 feet of a water source are GFCI protected?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.outletsGfci.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "outletsGfciComments",
+                                            "label":  "Comments - Outlets within 6 feet of a water source are GFCI protected?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.outletsGfci.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "outletsGfciCorrectiveAction",
+                                            "label":  "Corrective action - Outlets within 6 feet of a water source are GFCI protected?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.outletsGfci.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "outletsGfciComplete",
+                                            "label":  "Corrective action complete - Outlets within 6 feet of a water source are GFCI protected?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.outletsGfci.complete"
+                                        },
+                                        {
+                                            "id":  "panelAccessClearStatus",
+                                            "label":  "Access to electrical panels or electrical room unobstructed (at least 36\")?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.panelAccessClear.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "panelAccessClearComments",
+                                            "label":  "Comments - Access to electrical panels or electrical room unobstructed (at least 36\")?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.panelAccessClear.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "panelAccessClearCorrectiveAction",
+                                            "label":  "Corrective action - Access to electrical panels or electrical room unobstructed (at least 36\")?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.panelAccessClear.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "panelAccessClearComplete",
+                                            "label":  "Corrective action complete - Access to electrical panels or electrical room unobstructed (at least 36\")?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.panelAccessClear.complete"
+                                        },
+                                        {
+                                            "id":  "outletsNotOverloadedStatus",
+                                            "label":  "Outlets are not overloaded?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.outletsNotOverloaded.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "outletsNotOverloadedComments",
+                                            "label":  "Comments - Outlets are not overloaded?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.outletsNotOverloaded.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "outletsNotOverloadedCorrectiveAction",
+                                            "label":  "Corrective action - Outlets are not overloaded?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.outletsNotOverloaded.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "outletsNotOverloadedComplete",
+                                            "label":  "Corrective action complete - Outlets are not overloaded?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.outletsNotOverloaded.complete"
+                                        },
+                                        {
+                                            "id":  "noExtensionCordsStatus",
+                                            "label":  "Extension cords are not used in lieu of fixed wiring?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.noExtensionCords.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "noExtensionCordsComments",
+                                            "label":  "Comments - Extension cords are not used in lieu of fixed wiring?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.noExtensionCords.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "noExtensionCordsCorrectiveAction",
+                                            "label":  "Corrective action - Extension cords are not used in lieu of fixed wiring?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.noExtensionCords.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "noExtensionCordsComplete",
+                                            "label":  "Corrective action complete - Extension cords are not used in lieu of fixed wiring?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.noExtensionCords.complete"
+                                        },
+                                        {
+                                            "id":  "onePowerStripStatus",
+                                            "label":  "Maximum of one power strip per electrical receptacle?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.onePowerStrip.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "onePowerStripComments",
+                                            "label":  "Comments - Maximum of one power strip per electrical receptacle?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.onePowerStrip.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "onePowerStripCorrectiveAction",
+                                            "label":  "Corrective action - Maximum of one power strip per electrical receptacle?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.onePowerStrip.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "onePowerStripComplete",
+                                            "label":  "Corrective action complete - Maximum of one power strip per electrical receptacle?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.onePowerStrip.complete"
+                                        },
+                                        {
+                                            "id":  "cordsGoodConditionStatus",
+                                            "label":  "Electrical cords and plugs are in good condition? (i.e., not frayed, taped, spliced, or missing ground prongs)",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.cordsGoodCondition.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "cordsGoodConditionComments",
+                                            "label":  "Comments - Electrical cords and plugs are in good condition? (i.e., not frayed, taped, spliced, or missing ground prongs)",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.cordsGoodCondition.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "cordsGoodConditionCorrectiveAction",
+                                            "label":  "Corrective action - Electrical cords and plugs are in good condition? (i.e., not frayed, taped, spliced, or missing ground prongs)",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.cordsGoodCondition.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "cordsGoodConditionComplete",
+                                            "label":  "Corrective action complete - Electrical cords and plugs are in good condition? (i.e., not frayed, taped, spliced, or missing ground prongs)",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.cordsGoodCondition.complete"
+                                        },
+                                        {
+                                            "id":  "receptaclesGoodStatus",
+                                            "label":  "Electrical receptacles are in good working condition?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.receptaclesGood.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "receptaclesGoodComments",
+                                            "label":  "Comments - Electrical receptacles are in good working condition?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.receptaclesGood.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "receptaclesGoodCorrectiveAction",
+                                            "label":  "Corrective action - Electrical receptacles are in good working condition?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.receptaclesGood.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "receptaclesGoodComplete",
+                                            "label":  "Corrective action complete - Electrical receptacles are in good working condition?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.receptaclesGood.complete"
+                                        },
+                                        {
+                                            "id":  "equipmentGoodStatus",
+                                            "label":  "Electrical equipment is in good working condition?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.equipmentGood.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "equipmentGoodComments",
+                                            "label":  "Comments - Electrical equipment is in good working condition?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.equipmentGood.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "equipmentGoodCorrectiveAction",
+                                            "label":  "Corrective action - Electrical equipment is in good working condition?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.equipmentGood.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "equipmentGoodComplete",
+                                            "label":  "Corrective action complete - Electrical equipment is in good working condition?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.equipmentGood.complete"
+                                        },
+                                        {
+                                            "id":  "closetsFreeStorageStatus",
+                                            "label":  "Electrical closets are free of storage?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.closetsFreeStorage.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "closetsFreeStorageComments",
+                                            "label":  "Comments - Electrical closets are free of storage?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.closetsFreeStorage.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "closetsFreeStorageCorrectiveAction",
+                                            "label":  "Corrective action - Electrical closets are free of storage?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.closetsFreeStorage.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "closetsFreeStorageComplete",
+                                            "label":  "Corrective action complete - Electrical closets are free of storage?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.closetsFreeStorage.complete"
+                                        },
+                                        {
+                                            "id":  "personalAppliancesCompliantStatus",
+                                            "label":  "Personal appliances such as space heaters or coffee makers are compliant with the building\u0027s electrical circuit system?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.personalAppliancesCompliant.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "personalAppliancesCompliantComments",
+                                            "label":  "Comments - Personal appliances such as space heaters or coffee makers are compliant with the building\u0027s electrical circuit system?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.personalAppliancesCompliant.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "personalAppliancesCompliantCorrectiveAction",
+                                            "label":  "Corrective action - Personal appliances such as space heaters or coffee makers are compliant with the building\u0027s electrical circuit system?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.personalAppliancesCompliant.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "personalAppliancesCompliantComplete",
+                                            "label":  "Corrective action complete - Personal appliances such as space heaters or coffee makers are compliant with the building\u0027s electrical circuit system?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.personalAppliancesCompliant.complete"
+                                        },
+                                        {
+                                            "id":  "spaceHeaterTipOverStatus",
+                                            "label":  "Space heaters are equipped with a multi-directional tip-over switch?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.spaceHeaterTipOver.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "spaceHeaterTipOverComments",
+                                            "label":  "Comments - Space heaters are equipped with a multi-directional tip-over switch?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.spaceHeaterTipOver.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "spaceHeaterTipOverCorrectiveAction",
+                                            "label":  "Corrective action - Space heaters are equipped with a multi-directional tip-over switch?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.spaceHeaterTipOver.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "spaceHeaterTipOverComplete",
+                                            "label":  "Corrective action complete - Space heaters are equipped with a multi-directional tip-over switch?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.spaceHeaterTipOver.complete"
+                                        },
+                                        {
+                                            "id":  "spaceHeaterOverheatStatus",
+                                            "label":  "Space heaters are equipped with an overheat sensor?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.electrical.spaceHeaterOverheat.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "spaceHeaterOverheatComments",
+                                            "label":  "Comments - Space heaters are equipped with an overheat sensor?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.spaceHeaterOverheat.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "spaceHeaterOverheatCorrectiveAction",
+                                            "label":  "Corrective action - Space heaters are equipped with an overheat sensor?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.spaceHeaterOverheat.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "spaceHeaterOverheatComplete",
+                                            "label":  "Corrective action complete - Space heaters are equipped with an overheat sensor?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.electrical.spaceHeaterOverheat.complete"
+                                        }
+                                    ]
+                     },
+                     {
+                         "title":  "Maintenance (outside and inside)",
+                         "fields":  [
+                                        {
+                                            "id":  "doorsLocksGoodStatus",
+                                            "label":  "Doors and locks are in good working order?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.maintenance.doorsLocksGood.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "doorsLocksGoodComments",
+                                            "label":  "Comments - Doors and locks are in good working order?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.doorsLocksGood.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "doorsLocksGoodCorrectiveAction",
+                                            "label":  "Corrective action - Doors and locks are in good working order?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.doorsLocksGood.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "doorsLocksGoodComplete",
+                                            "label":  "Corrective action complete - Doors and locks are in good working order?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.doorsLocksGood.complete"
+                                        },
+                                        {
+                                            "id":  "ceilingTilesIntactStatus",
+                                            "label":  "Ceiling tiles are intact, undamaged and in place?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.maintenance.ceilingTilesIntact.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "ceilingTilesIntactComments",
+                                            "label":  "Comments - Ceiling tiles are intact, undamaged and in place?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.ceilingTilesIntact.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "ceilingTilesIntactCorrectiveAction",
+                                            "label":  "Corrective action - Ceiling tiles are intact, undamaged and in place?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.ceilingTilesIntact.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "ceilingTilesIntactComplete",
+                                            "label":  "Corrective action complete - Ceiling tiles are intact, undamaged and in place?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.ceilingTilesIntact.complete"
+                                        },
+                                        {
+                                            "id":  "noWeatherDamageStatus",
+                                            "label":  "Facility is free of any signs of weather damage or mold growth?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.maintenance.noWeatherDamage.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "noWeatherDamageComments",
+                                            "label":  "Comments - Facility is free of any signs of weather damage or mold growth?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.noWeatherDamage.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "noWeatherDamageCorrectiveAction",
+                                            "label":  "Corrective action - Facility is free of any signs of weather damage or mold growth?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.noWeatherDamage.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "noWeatherDamageComplete",
+                                            "label":  "Corrective action complete - Facility is free of any signs of weather damage or mold growth?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.noWeatherDamage.complete"
+                                        },
+                                        {
+                                            "id":  "windowsUnbrokenStatus",
+                                            "label":  "All windows are unbroken and free from any type of damage?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.maintenance.windowsUnbroken.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "windowsUnbrokenComments",
+                                            "label":  "Comments - All windows are unbroken and free from any type of damage?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.windowsUnbroken.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "windowsUnbrokenCorrectiveAction",
+                                            "label":  "Corrective action - All windows are unbroken and free from any type of damage?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.windowsUnbroken.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "windowsUnbrokenComplete",
+                                            "label":  "Corrective action complete - All windows are unbroken and free from any type of damage?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.windowsUnbroken.complete"
+                                        },
+                                        {
+                                            "id":  "ventsCleanStatus",
+                                            "label":  "Air conditioning vents and ducts appear to be clean upon visual inspection?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.maintenance.ventsClean.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "ventsCleanComments",
+                                            "label":  "Comments - Air conditioning vents and ducts appear to be clean upon visual inspection?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.ventsClean.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "ventsCleanCorrectiveAction",
+                                            "label":  "Corrective action - Air conditioning vents and ducts appear to be clean upon visual inspection?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.ventsClean.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "ventsCleanComplete",
+                                            "label":  "Corrective action complete - Air conditioning vents and ducts appear to be clean upon visual inspection?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.ventsClean.complete"
+                                        },
+                                        {
+                                            "id":  "outsideLightsGoodStatus",
+                                            "label":  "Outside lights are in good working order?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.maintenance.outsideLightsGood.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "outsideLightsGoodComments",
+                                            "label":  "Comments - Outside lights are in good working order?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.outsideLightsGood.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "outsideLightsGoodCorrectiveAction",
+                                            "label":  "Corrective action - Outside lights are in good working order?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.outsideLightsGood.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "outsideLightsGoodComplete",
+                                            "label":  "Corrective action complete - Outside lights are in good working order?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.outsideLightsGood.complete"
+                                        },
+                                        {
+                                            "id":  "exteriorFreeSafetyConcernsStatus",
+                                            "label":  "Exterior of the building is free of safety concerns?",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.maintenance.exteriorFreeSafetyConcerns.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "exteriorFreeSafetyConcernsComments",
+                                            "label":  "Comments - Exterior of the building is free of safety concerns?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.exteriorFreeSafetyConcerns.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "exteriorFreeSafetyConcernsCorrectiveAction",
+                                            "label":  "Corrective action - Exterior of the building is free of safety concerns?",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.exteriorFreeSafetyConcerns.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "exteriorFreeSafetyConcernsComplete",
+                                            "label":  "Corrective action complete - Exterior of the building is free of safety concerns?",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.exteriorFreeSafetyConcerns.complete"
+                                        },
+                                        {
+                                            "id":  "parkingLotFreeSafetyConcernsStatus",
+                                            "label":  "Parking lot area is free of any safety concerns? (i.e. overgrown landscaping, uneven pavement, traffic hazards)",
+                                            "type":  "radio",
+                                            "required":  true,
+                                            "externalID":  "safetyChecklist.maintenance.parkingLotFreeSafetyConcerns.status",
+                                            "options":  [
+                                                            {
+                                                                "value":  "yes",
+                                                                "label":  "Yes"
+                                                            },
+                                                            {
+                                                                "value":  "no",
+                                                                "label":  "No"
+                                                            },
+                                                            {
+                                                                "value":  "na",
+                                                                "label":  "N/A"
+                                                            }
+                                                        ]
+                                        },
+                                        {
+                                            "id":  "parkingLotFreeSafetyConcernsComments",
+                                            "label":  "Comments - Parking lot area is free of any safety concerns? (i.e. overgrown landscaping, uneven pavement, traffic hazards)",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.parkingLotFreeSafetyConcerns.comments",
+                                            "placeholder":  "Comments"
+                                        },
+                                        {
+                                            "id":  "parkingLotFreeSafetyConcernsCorrectiveAction",
+                                            "label":  "Corrective action - Parking lot area is free of any safety concerns? (i.e. overgrown landscaping, uneven pavement, traffic hazards)",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.parkingLotFreeSafetyConcerns.correctiveAction",
+                                            "placeholder":  "Corrective action"
+                                        },
+                                        {
+                                            "id":  "parkingLotFreeSafetyConcernsComplete",
+                                            "label":  "Corrective action complete - Parking lot area is free of any safety concerns? (i.e. overgrown landscaping, uneven pavement, traffic hazards)",
+                                            "type":  "checkbox",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.maintenance.parkingLotFreeSafetyConcerns.complete"
+                                        }
+                                    ]
+                     },
+                     {
+                         "title":  "Additional Comments",
+                         "fields":  [
+                                        {
+                                            "id":  "additionalComments",
+                                            "label":  "Additional comments",
+                                            "type":  "textarea",
+                                            "required":  false,
+                                            "externalID":  "safetyChecklist.additionalComments",
+                                            "placeholder":  "Add any additional comments"
+                                        }
+                                    ]
+                     }
+                 ]
+}
