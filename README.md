@@ -219,6 +219,14 @@ npm run preview   # Preview production build locally
 npm run lint      # Run ESLint (if configured)
 ```
 
+## Adding a Feature with specKit
+
+Use the `create-new-feature.ps1` helper to scaffold a new feature spec:
+
+```powershell
+.\.specify\scripts\powershell\create-new-feature.ps1 -SpecPath "specs\001-new-feature\spec.md"
+```
+
 ## Validation Rules
 
 Forms support these validation types:
