@@ -1,164 +1,46 @@
-# Plan: AI + Spec-Driven Development Website (v1)
+# Plan: Tenant Customization (Spec 001)
 
-## Architectural Priority
+## Scope
 
-Primary constraint: Long-term extensibility.
+Implement tenant awareness and tenant switching across authentication and in-app pages, aligned to `spec.md`.
 
-The system must be easy to evolve without large-scale refactoring. Clear
-boundaries and predictable structure are more important than short-term
-convenience.
+## Requirements Mapping
 
-------------------------------------------------------------------------
+- FR-001 predefined tenants: add a fixed tenant catalog in configuration.
+- FR-001 default tenant (`frontierDemo`): resolve from hostname with fallback.
+- FR-001 user can change tenant: expose tenant dropdown in customization drawer.
+- Scenario: show tenant on sign-in page.
+- Scenario: show tenant across app pages.
+- Scenario: tenant appears in customization flyout as selectable dropdown.
+- Edge case: invalid hostname format defaults to `frontierDemo`.
 
-## High-Level Architecture
+## Implementation Steps
 
-Static React application built with Vite, deployed via Azure Static apps.
+1. Tenant model and resolution
+- Define tenant catalog in `src/config.ts`.
+- Support hostname resolution for `xxx.qcontrol.frontierenergy.com`.
+- Persist/read selected tenant from local customization storage.
+- Keep API URL helpers tenant-aware.
 
-Design principles: - Clear separation of content, UI, infrastructure,
-and service integration. - No tightly coupled global state. -
-Feature-driven folder structure. - Offline capability isolated from
-application logic.
+2. Layout + customization integration
+- Extend layout customization state to include `tenantId`.
+- Render active tenant in app header.
+- Add tenant `Select` control in customization drawer.
+- On tenant change, apply tenant UI defaults (theme/font) for visible UI response.
 
-------------------------------------------------------------------------
+3. Authentication page visibility
+- Show active tenant on `Login` page.
+- Show active tenant on `Register` page.
 
-## Technology Stack
+4. Localization updates
+- Add localization labels for tenant field names in `en` and `es`.
 
-### Frontend
+5. Validation
+- Build app to verify TypeScript and bundling pass.
 
--   React 18
--   TypeScript
--   Vite (static build output)
--   React Router (client-side routing)
+## Definition of Done
 
-Rationale: - React provides long-term ecosystem stability. - TypeScript
-enforces structure as the project grows. - Vite keeps build system
-simple and fast. - Router enables future feature expansion without
-restructuring.
-
-------------------------------------------------------------------------
-
-## Project Structure
-
-    /src
-      /Mail.tsx
-      /Pages
-        /resources
-        /utils
-        /tools
-      /components
-      /layout
-      /utils
-    /public
-
-### Structure Rules
-
--   Each feature has its own folder.
--   Shared UI components live in /components.
--   Layout components live in /layout.
--   All API interactions go through /services.
--   Service worker and offline logic live in /pwa.
--   No cross-feature imports unless explicitly shared.
-
-This prevents entangled growth.
-
-------------------------------------------------------------------------
-
-## Routing Strategy
-
--   Client-side routing with React Router.
--   Top-level routes match Information Architecture.
--   Lazy-load feature routes to enable future performance scaling.
-
-Example:
-
-/ → Home\
-/learn → Learn Hub\
-/learn/intro → 30-minute intro\
-/tools → Tools\
-/templates → Templates
-
-------------------------------------------------------------------------
-
-## Content Strategy
-
-Content stored as: - Markdown files where possible. - MDX considered if
-interactive examples are required.
-
-------------------------------------------------------------------------
-
-## Offline Strategy (Feature 002)
-
-
-Design constraints: - Cache static assets. - Network-first for API
-calls. - Offline fallback page. - Versioned cache invalidation strategy.
-
-Service worker must remain isolated from core app logic.
-
-------------------------------------------------------------------------
-
-## Web Service Integration
-
-All external communication flows through:
-
-/src/services/api.ts
-
-Rules: - Centralized base URL configuration. - No direct fetch calls
-inside components. - Typed request/response models. - Future-compatible
-with backend introduction.
-
-------------------------------------------------------------------------
-
-## CI/CD
-
-GitHub Actions workflow:
-
-On push to main: 1. Install dependencies 2. Run lint 3. Run tests 4.
-Build 5. Deploy dist/ to Azure Static Pages
-
-Deployment must be deterministic and repeatable.
-
-------------------------------------------------------------------------
-
-## Extensibility Strategy
-
-Future-ready for:
-
--   Backend integration (APIM, connected to web service)
--   Search capability
--   Authentication (if required)
-
-All future features should be implementable without restructuring root
-folders.
-
-------------------------------------------------------------------------
-
-## Tradeoffs
-
--   No SSR 
--   No global state library (add only if required)
-
-------------------------------------------------------------------------
-
-## Definition of Architectural Done (v1)
-
--   Folder structure established
--   Routing implemented
--   Layout shell complete
--   Feature placeholders exist for all top-level pages
--   CI workflow runs successfully
--   Site deploys to GitHub Pages
-
-
-## Design System
-
-Cloudscape Design System (React components)
-
-Rationale:
-- Structured and accessible component library
-- Scales for future interactive features
-- Enforces consistency across features
-
-Rules:
-- All UI components use Cloudscape primitives.
-- No custom styling outside layout utilities.
-- Layout wrappers may be created, but must not duplicate Cloudscape components.
+- Tenant is always displayed on sign-in and routed app pages.
+- Customization drawer includes tenant dropdown and updates active tenant.
+- Invalid/non-matching hostname falls back to `frontierDemo`.
+- App compiles successfully.

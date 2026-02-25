@@ -55,6 +55,7 @@ export const es = {
   },
   customization: {
     header: 'Personalizacion',
+    tenantLabel: 'Tenant',
     themeLabel: 'Tema',
     fontLabel: 'Fuente',
     languageLabel: 'Idioma',
@@ -114,6 +115,7 @@ export const es = {
   },
   login: {
     title: 'Iniciar sesion',
+    tenantLabel: 'Tenant',
     emailLabel: 'Correo electronico',
     emailPlaceholder: 'tu@ejemplo.com',
     emailRequired: 'El correo electronico es obligatorio.',
@@ -124,6 +126,7 @@ export const es = {
   },
   register: {
     title: 'Registro',
+    tenantLabel: 'Tenant',
     backToLogin: 'Volver al inicio de sesion',
     emailLabel: 'Correo electronico',
     firstNameLabel: 'Nombre',
