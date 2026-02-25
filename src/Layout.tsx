@@ -7,37 +7,46 @@ import { InspectionSession, UploadStatus } from './types';
 import type { SelectProps } from '@cloudscape-design/components';
 import { useLocalization } from './LocalizationContext';
 import { isLanguageCode, type LanguageCode } from './resources/translations';
-import { activeTenant } from './config';
+import { CUSTOMIZATION_STORAGE_KEY, getActiveTenant, getTenantById, TENANTS } from './config';
 
 export function Layout() {
   const navigate = useNavigate();
   const { status, lastCheckedAt } = useConnectivity();
   const { labels, language, setLanguage } = useLocalization();
+  const resolvedTenant = getActiveTenant();
   const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
   type Customization = {
+    tenantId: string;
     theme: string;
     font: string;
     language: LanguageCode;
   };
   const [customization, setCustomization] = useState<Customization>(() => {
     const defaults: Customization = {
-      theme: 'mist',
-      font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
+      tenantId: resolvedTenant.tenantId,
+      theme: resolvedTenant.uiDefaults.theme,
+      font: resolvedTenant.uiDefaults.font,
       language,
     };
-    const stored = localStorage.getItem('appCustomization');
+    const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
     if (!stored) {
       return defaults;
     }
     try {
       const parsed = JSON.parse(stored) as Partial<Customization>;
       const merged = { ...defaults, ...parsed };
-      return isLanguageCode(merged.language) ? merged : { ...merged, language: defaults.language };
+      const validTenant = merged.tenantId ? getTenantById(merged.tenantId) : undefined;
+      return {
+        ...merged,
+        tenantId: validTenant?.tenantId ?? defaults.tenantId,
+        language: isLanguageCode(merged.language) ? merged.language : defaults.language,
+      };
     } catch (error) {
       console.error('Failed to parse customization settings:', error);
       return defaults;
     }
   });
+  const activeTenant = getTenantById(customization.tenantId) ?? resolvedTenant;
   const [statusCounts, setStatusCounts] = useState<Record<UploadStatus, number>>(() => ({
     [UploadStatus.Local]: 0,
     [UploadStatus.InProgress]: 0,
@@ -208,6 +217,10 @@ export function Layout() {
     { label: labels.customization.languageOptions.en, value: 'en' },
     { label: labels.customization.languageOptions.es, value: 'es' },
   ];
+  const tenantOptions: SelectProps.Option[] = TENANTS.map((tenant) => ({
+    label: tenant.displayName,
+    value: tenant.tenantId,
+  }));
 
   useEffect(() => {
     document.body.classList.add('app-theme');
@@ -223,7 +236,7 @@ export function Layout() {
     document.documentElement.style.setProperty('--app-font-family', customization.font);
     document.documentElement.style.setProperty('--font-family-base-gmnpzl', customization.font);
     document.body.style.setProperty('--font-family-base-gmnpzl', customization.font);
-    localStorage.setItem('appCustomization', JSON.stringify(customization));
+    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify(customization));
     return () => {
       document.body.classList.remove('app-theme');
     };
@@ -360,6 +373,29 @@ export function Layout() {
           content: (
             <SpaceBetween size="s">
               <Header variant="h3">{labels.customization.header}</Header>
+              <FormField label={labels.customization.tenantLabel}>
+                <Select
+                  selectedOption={
+                    tenantOptions.find((option) => option.value === customization.tenantId) ?? tenantOptions[0]
+                  }
+                  onChange={(event) =>
+                    setCustomization((prev) => {
+                      const selectedTenantId = event.detail.selectedOption.value;
+                      const nextTenant = selectedTenantId ? getTenantById(selectedTenantId) : undefined;
+                      if (!nextTenant) {
+                        return prev;
+                      }
+                      return {
+                        ...prev,
+                        tenantId: nextTenant.tenantId,
+                        theme: nextTenant.uiDefaults.theme,
+                        font: nextTenant.uiDefaults.font,
+                      };
+                    })
+                  }
+                  options={tenantOptions}
+                />
+              </FormField>
               <FormField label={labels.customization.themeLabel}>
                 <Select
                   selectedOption={

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, FormField, Input, Button, Box, Link } from '@cloudscape-design/components';
 import { setUserId } from '../auth';
-import { getLoginUrl } from '../config';
+import { getActiveTenant, getLoginUrl } from '../config';
 import { useLocalization } from '../LocalizationContext';
 
 export function Login() {
@@ -12,6 +12,7 @@ export function Login() {
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const navigate = useNavigate();
   const { labels } = useLocalization();
+  const tenant = getActiveTenant();
 
   const handleEmailLookup = async () => {
     const trimmed = email.trim();
@@ -64,6 +65,9 @@ export function Login() {
   return (
     <Box padding="l">
       <SpaceBetween size="l">
+        <Box variant="small" color="text-status-inactive">
+          {labels.login.tenantLabel}: {tenant.displayName}
+        </Box>
         <Header variant="h1">{labels.login.title}</Header>
         <Container>
           <SpaceBetween size="m">

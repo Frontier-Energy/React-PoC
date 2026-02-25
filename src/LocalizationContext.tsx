@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { defaultLanguage, getTranslations, isLanguageCode, type LanguageCode, type Labels } from './resources/translations';
+import { CUSTOMIZATION_STORAGE_KEY } from './config';
 
 interface LocalizationContextValue {
   language: LanguageCode;
@@ -14,7 +15,7 @@ const readStoredLanguage = (): LanguageCode => {
   if (typeof window === 'undefined') {
     return defaultLanguage;
   }
-  const stored = localStorage.getItem('appCustomization');
+  const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
   if (!stored) {
     return defaultLanguage;
   }
@@ -33,7 +34,7 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<LanguageCode>(() => readStoredLanguage());
 
   useEffect(() => {
-    const stored = localStorage.getItem('appCustomization');
+    const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
     let existing: Record<string, unknown> = {};
     if (stored) {
       try {
@@ -43,12 +44,12 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
       }
     }
     const updated = { ...existing, language };
-    localStorage.setItem('appCustomization', JSON.stringify(updated));
+    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify(updated));
   }, [language]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
-      if (event.key !== 'appCustomization' || !event.newValue) {
+      if (event.key !== CUSTOMIZATION_STORAGE_KEY || !event.newValue) {
         return;
       }
       try {
@@ -80,4 +81,3 @@ export function useLocalization() {
   }
   return context;
 }
-

@@ -55,6 +55,7 @@ export const en = {
   },
   customization: {
     header: 'Customization',
+    tenantLabel: 'Tenant',
     themeLabel: 'Theme',
     fontLabel: 'Font',
     languageLabel: 'Language',
@@ -114,6 +115,7 @@ export const en = {
   },
   login: {
     title: 'Sign In',
+    tenantLabel: 'Tenant',
     emailLabel: 'Email',
     emailPlaceholder: 'you@example.com',
     emailRequired: 'Email is required.',
@@ -124,6 +126,7 @@ export const en = {
   },
   register: {
     title: 'Register',
+    tenantLabel: 'Tenant',
     backToLogin: 'Back to Login',
     emailLabel: 'Email',
     firstNameLabel: 'First Name',

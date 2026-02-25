@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, FormField, Input, Button, Box } from '@cloudscape-design/components';
-import { getRegisterUrl } from '../config';
+import { getActiveTenant, getRegisterUrl } from '../config';
 import { setUserId } from '../auth';
 import { useLocalization } from '../LocalizationContext';
 
@@ -13,6 +13,7 @@ export function Register() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const { labels } = useLocalization();
+  const tenant = getActiveTenant();
 
   const handleRegister = async () => {
     if (!email.trim() || !firstName.trim() || !lastName.trim()) {
@@ -65,6 +66,9 @@ export function Register() {
   return (
     <Box padding="l">
       <SpaceBetween size="l">
+        <Box variant="small" color="text-status-inactive">
+          {labels.register.tenantLabel}: {tenant.displayName}
+        </Box>
         <Header
           variant="h1"
           actions={

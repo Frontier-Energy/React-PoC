@@ -9,18 +9,47 @@ export interface AppConfig {
 export interface TenantDefinition {
   tenantId: string;
   displayName: string;
+  servicePathPrefix: string;
+  uiDefaults: {
+    theme: string;
+    font: string;
+  };
 }
 
 export const DEFAULT_TENANT_NAME = 'frontierDemo';
+export const CUSTOMIZATION_STORAGE_KEY = 'appCustomization';
 const QCONTROL_DOMAIN_SUFFIX = ['qcontrol', 'frontierenergy', 'com'] as const;
 export const TENANTS: TenantDefinition[] = [
   {
     tenantId: DEFAULT_TENANT_NAME,
     displayName: 'Frontier Demo',
+    servicePathPrefix: '/QHVAC',
+    uiDefaults: {
+      theme: 'mist',
+      font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
+    },
+  },
+  {
+    tenantId: 'qhvac',
+    displayName: 'QHVAC',
+    servicePathPrefix: '/QHVAC',
+    uiDefaults: {
+      theme: 'harbor',
+      font: 'Tahoma, "Trebuchet MS", Arial, sans-serif',
+    },
+  },
+  {
+    tenantId: 'opscentral',
+    displayName: 'Ops Central',
+    servicePathPrefix: '/QHVAC',
+    uiDefaults: {
+      theme: 'sand',
+      font: 'Georgia, "Times New Roman", serif',
+    },
   },
 ];
 
-const getTenantById = (tenantId: string) =>
+export const getTenantById = (tenantId: string) =>
   TENANTS.find((tenant) => tenant.tenantId.toLowerCase() === tenantId.toLowerCase());
 
 export const resolveTenantNameFromHostname = (hostname: string): string => {
@@ -43,24 +72,60 @@ export const resolveTenantNameFromHostname = (hostname: string): string => {
   return getTenantById(parts[0])?.tenantId ?? DEFAULT_TENANT_NAME;
 };
 
-const resolvedTenantName = typeof window === 'undefined'
-  ? DEFAULT_TENANT_NAME
-  : resolveTenantNameFromHostname(window.location.hostname);
-export const activeTenant = getTenantById(resolvedTenantName) ?? TENANTS[0];
-
-export const appConfig: AppConfig = {
-  tenantName: activeTenant.tenantId,
-  apiBaseUrl: 'https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io',
-  uploadInspectionPath: `/QHVAC/ReceiveInspection`,
-  loginPath: `/QHVAC/login`,
-  registerPath: `/QHVAC/Register`,
+const readStoredTenantName = (): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
+  if (!stored) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(stored) as { tenantId?: string };
+    return parsed.tenantId && getTenantById(parsed.tenantId) ? parsed.tenantId : null;
+  } catch (error) {
+    return null;
+  }
 };
 
-export const getUploadInspectionUrl = () =>
-  `${appConfig.apiBaseUrl}${appConfig.uploadInspectionPath}`;
+const resolveActiveTenantName = (): string => {
+  const storedTenantName = readStoredTenantName();
+  if (storedTenantName) {
+    return storedTenantName;
+  }
+  if (typeof window === 'undefined') {
+    return DEFAULT_TENANT_NAME;
+  }
+  return resolveTenantNameFromHostname(window.location.hostname);
+};
 
-export const getLoginUrl = () =>
-  `${appConfig.apiBaseUrl}${appConfig.loginPath}`;
+export const getActiveTenant = (): TenantDefinition => {
+  const resolvedTenantName = resolveActiveTenantName();
+  return getTenantById(resolvedTenantName) ?? TENANTS[0];
+};
 
-export const getRegisterUrl = () =>
-  `${appConfig.apiBaseUrl}${appConfig.registerPath}`;
+const getAppConfig = (): AppConfig => {
+  const activeTenant = getActiveTenant();
+  return {
+    tenantName: activeTenant.tenantId,
+    apiBaseUrl: 'https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io',
+    uploadInspectionPath: `${activeTenant.servicePathPrefix}/ReceiveInspection`,
+    loginPath: `${activeTenant.servicePathPrefix}/login`,
+    registerPath: `${activeTenant.servicePathPrefix}/Register`,
+  };
+};
+
+export const getUploadInspectionUrl = () => {
+  const appConfig = getAppConfig();
+  return `${appConfig.apiBaseUrl}${appConfig.uploadInspectionPath}`;
+};
+
+export const getLoginUrl = () => {
+  const appConfig = getAppConfig();
+  return `${appConfig.apiBaseUrl}${appConfig.loginPath}`;
+};
+
+export const getRegisterUrl = () => {
+  const appConfig = getAppConfig();
+  return `${appConfig.apiBaseUrl}${appConfig.registerPath}`;
+};
