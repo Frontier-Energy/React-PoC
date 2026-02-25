@@ -60,6 +60,20 @@ body.app-theme {
   padding: 16px;
   background-color: var(--app-bg-color);
   color: var(--app-text-color);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.app-layout-tenant-label {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--app-flyout-border-color);
+  background-color: var(--app-flyout-bg-color);
+  color: var(--app-flyout-text-color);
 }
 
 /* Cloudscape AppLayout containers default to white; sync with theme background. */

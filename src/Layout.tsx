@@ -7,6 +7,7 @@ import { InspectionSession, UploadStatus } from './types';
 import type { SelectProps } from '@cloudscape-design/components';
 import { useLocalization } from './LocalizationContext';
 import { isLanguageCode, type LanguageCode } from './resources/translations';
+import { activeTenant } from './config';
 
 export function Layout() {
   const navigate = useNavigate();
@@ -253,7 +254,8 @@ export function Layout() {
       }
       contentHeader={
         <div className="app-layout-header">
-          {labels.app.title}
+          <span>{labels.app.title}</span>
+          <span className="app-layout-tenant-label">{activeTenant.displayName}</span>
         </div>
       }
       content={
