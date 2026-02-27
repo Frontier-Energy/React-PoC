@@ -3,11 +3,12 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useConnectivity } from './ConnectivityContext';
 import { clearUserId } from './auth';
-import { InspectionSession, UploadStatus } from './types';
+import { UploadStatus } from './types';
 import type { SelectProps } from '@cloudscape-design/components';
 import { useLocalization } from './LocalizationContext';
 import { isLanguageCode, type LanguageCode } from './resources/translations';
 import { CUSTOMIZATION_STORAGE_KEY, getActiveTenant, getTenantById, TENANTS } from './config';
+import { inspectionRepository } from './repositories/inspectionRepository';
 
 export function Layout() {
   const navigate = useNavigate();
@@ -66,22 +67,7 @@ export function Layout() {
 
   useEffect(() => {
     const loadStatusCounts = () => {
-      const sessionMap: Record<string, InspectionSession> = {};
-      const keys = Object.keys(localStorage);
-
-      keys.forEach((key) => {
-        if (key.startsWith('inspection_')) {
-          const sessionStr = localStorage.getItem(key);
-          if (sessionStr) {
-            try {
-              const session: InspectionSession = JSON.parse(sessionStr);
-              sessionMap[session.id] = session;
-            } catch (error) {
-              console.error(`Failed to parse session ${key}:`, error);
-            }
-          }
-        }
-      });
+      const inspections = inspectionRepository.loadAll();
 
       const counts: Record<UploadStatus, number> = {
         [UploadStatus.Local]: 0,
@@ -91,7 +77,7 @@ export function Layout() {
         [UploadStatus.Failed]: 0,
       };
 
-      Object.values(sessionMap).forEach((session) => {
+      inspections.forEach((session) => {
         const uploadStatus = session.uploadStatus || UploadStatus.Local;
         counts[uploadStatus] += 1;
       });

@@ -35,4 +35,9 @@ describe('translations', () => {
     expect(es.formTypes[FormType.SafetyChecklist]).toBe('Lista de seguridad');
     expect(es.uploadStatus[UploadStatus.Failed]).toBe('Fallido');
   });
+
+  it('falls back to English translations for unknown language values at runtime', () => {
+    const labels = getTranslations('unknown' as unknown as 'en');
+    expect(labels.home.title).toBe(en.home.title);
+  });
 });

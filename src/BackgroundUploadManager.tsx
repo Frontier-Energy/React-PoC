@@ -4,40 +4,23 @@ import { getUploadInspectionUrl } from './config';
 import { InspectionSession, UploadStatus, FormDataValue } from './types';
 import { getFileReferences, serializeFormValue } from './utils/formDataUtils';
 import { deleteFiles, getFile } from './utils/fileStorage';
+import { inspectionRepository } from './repositories/inspectionRepository';
 
 const CONNECTIVITY_CHECK_INTERVAL_MS = 30000;
 
 const loadInspectionsFromStorage = () => {
-  const sessionMap: Record<string, InspectionSession> = {};
-  const keys = Object.keys(localStorage);
-
-  keys.forEach((key) => {
-    if (key.startsWith('inspection_')) {
-      const sessionStr = localStorage.getItem(key);
-      if (sessionStr) {
-        try {
-          const session: InspectionSession = JSON.parse(sessionStr);
-          sessionMap[session.id] = session;
-        } catch (error) {
-          console.error(`Failed to parse session ${key}:`, error);
-        }
-      }
-    }
-  });
-
-  return Object.values(sessionMap);
+  return inspectionRepository.loadAll();
 };
 
 const updateInspectionStatus = (inspection: InspectionSession, status: UploadStatus) => {
   const updatedInspection: InspectionSession = { ...inspection, uploadStatus: status };
-  localStorage.setItem(`inspection_${inspection.id}`, JSON.stringify(updatedInspection));
-  localStorage.setItem('currentSession', JSON.stringify(updatedInspection));
+  inspectionRepository.update(updatedInspection);
+  inspectionRepository.saveCurrent(updatedInspection);
   window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedInspection }));
 };
 
 const uploadInspection = async (inspection: InspectionSession) => {
-  const storedData = localStorage.getItem(`formData_${inspection.id}`);
-  const formData: Record<string, FormDataValue> = storedData ? JSON.parse(storedData) : {};
+  const formData: Record<string, FormDataValue> = inspectionRepository.loadFormData(inspection.id) ?? {};
 
   const uploadForm = new FormData();
   const queryParams: Record<string, string> = {};

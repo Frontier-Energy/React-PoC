@@ -5,6 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { InspectionSession, UploadStatus, FormType } from '../types';
 import { TableProps } from '@cloudscape-design/components';
 import { useLocalization } from '../LocalizationContext';
+import { inspectionRepository } from '../repositories/inspectionRepository';
 
 export function MyInspections() {
   const navigate = useNavigate();
@@ -53,27 +54,7 @@ export function MyInspections() {
   }, [inspections, formTypeFilter, statusFilter]);
 
   const loadInspections = () => {
-    // Get all inspection sessions from localStorage
-    const sessionMap: Record<string, InspectionSession> = {};
-    const keys = Object.keys(localStorage);
-    
-    keys.forEach((key) => {
-      if (key.startsWith('inspection_')) {
-        const sessionStr = localStorage.getItem(key);
-        if (sessionStr) {
-          try {
-            const session: InspectionSession = JSON.parse(sessionStr);
-            sessionMap[session.id] = session;
-          } catch (error) {
-            console.error(`Failed to parse session ${key}:`, error);
-          }
-        }
-      }
-    });
-
-    // Convert map to array
-    const allInspections = Object.values(sessionMap);
-    setInspections(allInspections);
+    setInspections(inspectionRepository.loadAll());
   };
 
   const applyFilters = () => {
@@ -91,7 +72,7 @@ export function MyInspections() {
   };
 
   const handleOpenInspection = (inspection: InspectionSession) => {
-    localStorage.setItem('currentSession', JSON.stringify(inspection));
+    inspectionRepository.saveCurrent(inspection);
     navigate(`/fill-form/${inspection.id}`);
   };
 
@@ -100,21 +81,7 @@ export function MyInspections() {
   };
 
   const handleDeleteInspection = (inspection: InspectionSession) => {
-    const keys = Object.keys(localStorage);
-    keys.forEach((key) => {
-      const sessionStr = localStorage.getItem(key);
-      if (sessionStr) {
-        try {
-          const session: InspectionSession = JSON.parse(sessionStr);
-          if (session.id === inspection.id) {
-            localStorage.removeItem(key);
-            localStorage.removeItem(`formData_${inspection.id}`);
-          }
-        } catch (error) {
-          // Continue
-        }
-      }
-    });
+    inspectionRepository.delete(inspection.id);
     loadInspections();
   };
 
@@ -139,17 +106,10 @@ export function MyInspections() {
       ...inspection,
       uploadStatus: UploadStatus.Local,
     };
-    localStorage.setItem(`inspection_${inspection.id}`, JSON.stringify(updatedInspection));
-    const currentSession = localStorage.getItem('currentSession');
-    if (currentSession) {
-      try {
-        const parsedSession: InspectionSession = JSON.parse(currentSession);
-        if (parsedSession.id === inspection.id) {
-          localStorage.setItem('currentSession', JSON.stringify(updatedInspection));
-        }
-      } catch (error) {
-        // Ignore invalid session data
-      }
+    inspectionRepository.update(updatedInspection);
+    const currentSession = inspectionRepository.loadCurrent();
+    if (currentSession?.id === inspection.id) {
+      inspectionRepository.saveCurrent(updatedInspection);
     }
     window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedInspection }));
     loadInspections();
