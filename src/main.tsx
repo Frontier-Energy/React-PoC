@@ -7,6 +7,7 @@ import './global.css';
 import { ConnectivityProvider } from './ConnectivityContext';
 import { BackgroundUploadManager } from './BackgroundUploadManager';
 import { LocalizationProvider } from './LocalizationContext';
+import { TenantBootstrapProvider } from './TenantBootstrapContext';
 
 // Register Service Worker for offline support
 if ('serviceWorker' in navigator) {
@@ -20,10 +21,12 @@ if ('serviceWorker' in navigator) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <LocalizationProvider>
-      <ConnectivityProvider>
-        <BackgroundUploadManager />
-        <RouterProvider router={router} />
-      </ConnectivityProvider>
+      <TenantBootstrapProvider>
+        <ConnectivityProvider>
+          <BackgroundUploadManager />
+          <RouterProvider router={router} />
+        </ConnectivityProvider>
+      </TenantBootstrapProvider>
     </LocalizationProvider>
   </React.StrictMode>
 );

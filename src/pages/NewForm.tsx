@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Select, SelectProps, Container, SpaceBetween, Button } from '@cloudscape-design/components';
-import { FormType, InspectionSession, UploadStatus } from '../types';
+import { InspectionSession, UploadStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useLocalization } from '../LocalizationContext';
+import { useTenantBootstrap } from '../TenantBootstrapContext';
 
 export function NewForm() {
   const [selectedFormType, setSelectedFormType] = useState<SelectProps.Option | null>(null);
   const navigate = useNavigate();
   const { labels } = useLocalization();
+  const { config } = useTenantBootstrap();
 
-  const formTypeOptions: SelectProps.Option[] = Object.values(FormType).map((type) => ({
+  const formTypeOptions: SelectProps.Option[] = config.enabledForms.map((type) => ({
     label: labels.formTypes[type],
     value: type,
   }));
@@ -21,7 +23,7 @@ export function NewForm() {
     const session: InspectionSession = {
       id: uuidv4(),
       name: '',
-      formType: selectedFormType.value as FormType,
+      formType: selectedFormType.value as InspectionSession['formType'],
       uploadStatus: UploadStatus.Local,
     };
 

@@ -4,6 +4,7 @@ import {
   getActiveTenant,
   getLoginUrl,
   getRegisterUrl,
+  getTenantBootstrapUrl,
   getTenantById,
   getUploadInspectionUrl,
   resolveTenantNameFromHostname,
@@ -41,5 +42,6 @@ describe('config', () => {
     expect(getUploadInspectionUrl()).toContain('/QHVAC/ReceiveInspection');
     expect(getLoginUrl()).toContain('/QHVAC/login');
     expect(getRegisterUrl()).toContain('/QHVAC/Register');
+    expect(getTenantBootstrapUrl()).toContain('/QHVAC/tenant-config');
   });
 });

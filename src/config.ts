@@ -4,6 +4,7 @@ export interface AppConfig {
   uploadInspectionPath: string;
   loginPath: string;
   registerPath: string;
+  tenantBootstrapPath: string;
 }
 
 export interface TenantDefinition {
@@ -112,6 +113,7 @@ const getAppConfig = (): AppConfig => {
     uploadInspectionPath: `${activeTenant.servicePathPrefix}/ReceiveInspection`,
     loginPath: `${activeTenant.servicePathPrefix}/login`,
     registerPath: `${activeTenant.servicePathPrefix}/Register`,
+    tenantBootstrapPath: `${activeTenant.servicePathPrefix}/tenant-config`,
   };
 };
 
@@ -128,4 +130,9 @@ export const getLoginUrl = () => {
 export const getRegisterUrl = () => {
   const appConfig = getAppConfig();
   return `${appConfig.apiBaseUrl}${appConfig.registerPath}`;
+};
+
+export const getTenantBootstrapUrl = () => {
+  const appConfig = getAppConfig();
+  return `${appConfig.apiBaseUrl}${appConfig.tenantBootstrapPath}`;
 };

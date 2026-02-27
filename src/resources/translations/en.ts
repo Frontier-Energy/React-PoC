@@ -16,7 +16,7 @@ export const en = {
     notProvided: 'Not provided',
   },
   app: {
-    title: 'QHVAC Inspection Tool',
+    title: 'Data Intake Tool',
     poweredBy: 'Powered By',
     brand: 'QControl',
   },

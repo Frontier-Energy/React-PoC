@@ -9,9 +9,14 @@ import { DebugInspection } from './pages/DebugInspection';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { getUserId } from './auth';
+import { useTenantBootstrap } from './TenantBootstrapContext';
 
 function RequireUser({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const { config } = useTenantBootstrap();
+  if (!config.loginRequired) {
+    return <>{children}</>;
+  }
   const userId = getUserId();
   if (!userId) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;

@@ -19,6 +19,14 @@ vi.mock('../auth', () => ({
   setUserId: setUserIdMock,
 }));
 
+vi.mock('../TenantBootstrapContext', () => ({
+  useTenantBootstrap: () => ({
+    config: {
+      loginRequired: true,
+    },
+  }),
+}));
+
 vi.mock('@cloudscape-design/components', async () => {
   const React = await vi.importActual<typeof import('react')>('react');
   return {

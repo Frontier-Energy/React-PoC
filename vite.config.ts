@@ -8,7 +8,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'QHVAC Inspection Tool',
+        name: 'Data Intake tool',
         short_name: 'QHVAC',
         description: 'Offline-first HVAC inspection form application',
         theme_color: '#ffffff',
