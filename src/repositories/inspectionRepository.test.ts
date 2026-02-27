@@ -67,6 +67,15 @@ describe('inspectionRepository', () => {
     expect(localStorage.getItem('currentSession')).toBe(JSON.stringify(inspection));
   });
 
+  it('saves inspection as current in a single operation', () => {
+    const inspection = makeInspection('save-as-current-test', { uploadStatus: UploadStatus.InProgress });
+
+    inspectionRepository.saveAsCurrent(inspection);
+
+    expect(localStorage.getItem('inspection_save-as-current-test')).toBe(JSON.stringify(inspection));
+    expect(localStorage.getItem('currentSession')).toBe(JSON.stringify(inspection));
+  });
+
   it('updates inspection and returns the updated object', () => {
     const inspection = makeInspection('update-test', { uploadStatus: UploadStatus.Uploading });
 
@@ -137,4 +146,3 @@ describe('inspectionRepository', () => {
     expect(consoleSpy).toHaveBeenCalled();
   });
 });
-

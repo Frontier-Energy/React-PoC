@@ -5,6 +5,7 @@ import { InspectionSession, UploadStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useLocalization } from '../LocalizationContext';
 import { useTenantBootstrap } from '../TenantBootstrapContext';
+import { inspectionRepository } from '../repositories/inspectionRepository';
 
 export function NewForm() {
   const [selectedFormType, setSelectedFormType] = useState<SelectProps.Option | null>(null);
@@ -27,7 +28,7 @@ export function NewForm() {
       uploadStatus: UploadStatus.Local,
     };
 
-    localStorage.setItem('currentSession', JSON.stringify(session));
+    inspectionRepository.saveAsCurrent(session);
     navigate(`/fill-form/${session.id}`);
   };
 

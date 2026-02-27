@@ -64,6 +64,11 @@ export const inspectionRepository = {
     localStorage.setItem(CURRENT_SESSION_KEY, JSON.stringify(inspection));
   },
 
+  saveAsCurrent(inspection: InspectionSession): void {
+    this.save(inspection);
+    this.saveCurrent(inspection);
+  },
+
   update(inspection: InspectionSession): InspectionSession {
     this.save(inspection);
     return inspection;
@@ -99,4 +104,3 @@ export const inspectionRepository = {
     localStorage.setItem(getFormDataKey(inspectionId), JSON.stringify(formData));
   },
 };
-
