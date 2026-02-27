@@ -19,6 +19,7 @@ export interface TenantDefinition {
 
 export const DEFAULT_TENANT_NAME = 'frontierDemo';
 export const CUSTOMIZATION_STORAGE_KEY = 'appCustomization';
+const DEFAULT_API_BASE_URL = 'https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io';
 const QCONTROL_DOMAIN_SUFFIX = ['qcontrol', 'frontierenergy', 'com'] as const;
 export const TENANTS: TenantDefinition[] = [
   {
@@ -100,6 +101,12 @@ const resolveActiveTenantName = (): string => {
   return resolveTenantNameFromHostname(window.location.hostname);
 };
 
+const resolveApiBaseUrl = (): string => {
+  const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  const apiBaseUrl = configuredApiBaseUrl || DEFAULT_API_BASE_URL;
+  return apiBaseUrl.replace(/\/+$/, '');
+};
+
 export const getActiveTenant = (): TenantDefinition => {
   const resolvedTenantName = resolveActiveTenantName();
   return getTenantById(resolvedTenantName) ?? TENANTS[0];
@@ -109,7 +116,7 @@ const getAppConfig = (): AppConfig => {
   const activeTenant = getActiveTenant();
   return {
     tenantName: activeTenant.tenantId,
-    apiBaseUrl: 'https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io',
+    apiBaseUrl: resolveApiBaseUrl(),
     uploadInspectionPath: `${activeTenant.servicePathPrefix}/ReceiveInspection`,
     loginPath: `${activeTenant.servicePathPrefix}/login`,
     registerPath: `${activeTenant.servicePathPrefix}/Register`,
