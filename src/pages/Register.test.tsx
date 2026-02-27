@@ -82,6 +82,12 @@ vi.mock('@cloudscape-design/components', async () => {
 });
 
 describe('Register', () => {
+  const fillRequiredFields = () => {
+    fireEvent.change(screen.getByPlaceholderText('you@example.com'), { target: { value: 'me@example.com' } });
+    fireEvent.change(screen.getByPlaceholderText('First name'), { target: { value: 'Jane' } });
+    fireEvent.change(screen.getByPlaceholderText('Last name'), { target: { value: 'Doe' } });
+  };
+
   beforeEach(() => {
     navigateMock.mockReset();
     setUserIdMock.mockReset();
@@ -113,14 +119,130 @@ describe('Register', () => {
       </LocalizationProvider>
     );
 
-    fireEvent.change(screen.getByPlaceholderText('you@example.com'), { target: { value: 'me@example.com' } });
-    fireEvent.change(screen.getByPlaceholderText('First name'), { target: { value: 'Jane' } });
-    fireEvent.change(screen.getByPlaceholderText('Last name'), { target: { value: 'Doe' } });
+    fillRequiredFields();
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
     await waitFor(() => {
       expect(setUserIdMock).toHaveBeenCalledWith('registered-user');
       expect(navigateMock).toHaveBeenCalledWith('/my-inspections', { replace: true });
     });
+  });
+
+  it('navigates to login when registration succeeds without a user id', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
+
+    render(
+      <LocalizationProvider>
+        <Register />
+      </LocalizationProvider>
+    );
+
+    fillRequiredFields();
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    await waitFor(() => {
+      expect(setUserIdMock).not.toHaveBeenCalled();
+      expect(navigateMock).toHaveBeenCalledWith('/login', { replace: true });
+    });
+  });
+
+  it('handles successful response with non-JSON payload by warning and navigating to login', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new Error('not json');
+      },
+    } as Response);
+
+    render(
+      <LocalizationProvider>
+        <Register />
+      </LocalizationProvider>
+    );
+
+    fillRequiredFields();
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalled();
+      expect(navigateMock).toHaveBeenCalledWith('/login', { replace: true });
+    });
+  });
+
+  it('shows invalid-input message for 400 responses', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({}),
+    } as Response);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <LocalizationProvider>
+        <Register />
+      </LocalizationProvider>
+    );
+
+    fillRequiredFields();
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    const errors = await screen.findAllByText(
+      'Registration failed due to invalid input. Please check your details and try again.'
+    );
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('shows server-error message for non-400/422 failures', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    } as Response);
+
+    render(
+      <LocalizationProvider>
+        <Register />
+      </LocalizationProvider>
+    );
+
+    fillRequiredFields();
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    const errors = await screen.findAllByText(
+      'Registration failed due to a server error. Please try again later.'
+    );
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('falls back to generic registration error when thrown value is not an Error instance', async () => {
+    vi.spyOn(global, 'fetch').mockRejectedValue('network down');
+
+    render(
+      <LocalizationProvider>
+        <Register />
+      </LocalizationProvider>
+    );
+
+    fillRequiredFields();
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    const errors = await screen.findAllByText('Unable to register. Please try again.');
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('navigates to login when Back to Login is clicked', () => {
+    render(
+      <LocalizationProvider>
+        <Register />
+      </LocalizationProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Login' }));
+    expect(navigateMock).toHaveBeenCalledWith('/login');
   });
 });
