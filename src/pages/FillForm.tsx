@@ -122,7 +122,14 @@ export function FillForm() {
     if (sessionId) {
       const storageKey = externalID || fieldId;
       const storedData = localStorage.getItem(`formData_${sessionId}`);
-      const parsedData: PersistedFormData = storedData ? JSON.parse(storedData) : {};
+      let parsedData: PersistedFormData = {};
+      if (storedData) {
+        try {
+          parsedData = JSON.parse(storedData) as PersistedFormData;
+        } catch (error) {
+          console.error('Failed to parse stored form data during field update:', error);
+        }
+      }
       if (value === undefined) {
         delete parsedData[storageKey];
       } else {
