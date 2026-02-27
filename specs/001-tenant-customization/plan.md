@@ -17,26 +17,26 @@ Implement tenant awareness and tenant switching across authentication and in-app
 ## Implementation Steps
 
 1. Tenant model and resolution
-- Define tenant catalog in `src/config.ts`.
-- Support hostname resolution for `xxx.qcontrol.frontierenergy.com`.
-- Persist/read selected tenant from local customization storage.
-- Keep API URL helpers tenant-aware.
+- [x] Define tenant catalog in `src/config.ts`.
+- [x] Support hostname resolution for `xxx.qcontrol.frontierenergy.com`.
+- [x] Persist/read selected tenant from local customization storage.
+- [x] Keep API URL helpers tenant-aware.
 
 2. Layout + customization integration
-- Extend layout customization state to include `tenantId`.
-- Render active tenant in app header.
-- Add tenant `Select` control in customization drawer.
-- On tenant change, apply tenant UI defaults (theme/font) for visible UI response.
+- [x] Extend layout customization state to include `tenantId`.
+- [x] Render active tenant in app header.
+- [x] Add tenant `Select` control in customization drawer.
+- [x] On tenant change, apply tenant UI defaults (theme/font) for visible UI response.
 
 3. Authentication page visibility
-- Show active tenant on `Login` page.
-- Show active tenant on `Register` page.
+- [x] Show active tenant on `Login` page.
+- [x] Show active tenant on `Register` page.
 
 4. Localization updates
-- Add localization labels for tenant field names in `en` and `es`.
+- [x] Add localization labels for tenant field names in `en` and `es`.
 
 5. Validation
-- Build app to verify TypeScript and bundling pass.
+- [x] Build app to verify TypeScript and bundling pass.
 
 ## Definition of Done
 
