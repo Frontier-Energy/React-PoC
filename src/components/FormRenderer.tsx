@@ -6,6 +6,7 @@ import {
   RadioGroup,
   Select,
   Multiselect,
+  MultiselectProps,
   Textarea,
   Modal,
   Box,
@@ -282,8 +283,14 @@ export function FormRenderer({
     onChange(fieldId, value || '', externalID);
   };
 
-  const handleMultiselectChange = (fieldId: string, selectedOptions: readonly any[], externalID?: string) => {
-    const values = selectedOptions.map((opt) => opt.value);
+  const handleMultiselectChange = (
+    fieldId: string,
+    selectedOptions: ReadonlyArray<MultiselectProps.Option>,
+    externalID?: string
+  ) => {
+    const values = selectedOptions
+      .map((opt) => opt.value)
+      .filter((value): value is string => typeof value === 'string');
     onChange(fieldId, values, externalID);
   };
 

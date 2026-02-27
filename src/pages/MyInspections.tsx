@@ -16,7 +16,9 @@ export function MyInspections() {
   const [formTypeFilter, setFormTypeFilter] = useState<SelectProps.Option | null>(null);
   const [statusFilter, setStatusFilter] = useState<SelectProps.Option | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [sortingColumn, setSortingColumn] = useState<any>({ id: 'name', direction: 'asc' });
+  const [sortingColumn, setSortingColumn] = useState<TableProps.SortingColumn<InspectionSession>>({
+    sortingField: 'name',
+  });
   const [sortingDescending, setSortingDescending] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<InspectionSession | null>(null);
   const failedInspections = inspections.filter(
@@ -166,7 +168,7 @@ export function MyInspections() {
     return <Badge color={config.color}>{config.label}</Badge>;
   };
 
-  const handleSortingChange = (detail: any) => {
+  const handleSortingChange = (detail: TableProps.SortingState<InspectionSession>) => {
     setSortingColumn(detail.sortingColumn);
     setSortingDescending(detail.isDescending || false);
   };

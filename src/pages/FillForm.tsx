@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { Header, Container, SpaceBetween, Alert, Box, Link, Input, FormField, Wizard, Checkbox } from '@cloudscape-design/components';
-import { InspectionSession, FormSchema, FormType, FormData, FormDataValue, UploadStatus, ConditionalVisibility } from '../types';
+import { InspectionSession, FormSchema, FormType, FormData, FormDataValue, UploadStatus, ConditionalVisibility, ValidationRule, FormSection, FormField as SchemaField } from '../types';
 import { FormRenderer } from '../components/FormRenderer';
 import { FormValidator, ValidationError } from '../utils/FormValidator';
 import { formatFileValue, getFileReferences, isFormDataValueEmpty } from '../utils/formDataUtils';
@@ -73,8 +73,8 @@ export function FillForm() {
 
       // Build externalID to fieldId map and validation rules map
       const map: Record<string, string> = {};
-      schema.sections.forEach((section: any) => {
-        section.fields.forEach((field: any) => {
+      schema.sections.forEach((section: FormSection) => {
+        section.fields.forEach((field: SchemaField) => {
           if (field.externalID) {
             map[field.externalID] = field.id;
           }
@@ -163,7 +163,7 @@ export function FillForm() {
     if (!formSchema) return [];
 
     // Build validation rules map and required fields list
-    const validationRulesMap: Record<string, any[] | undefined> = {};
+    const validationRulesMap: Record<string, ValidationRule[] | undefined> = {};
     const requiredFields: string[] = [];
     const visibilityRulesMap: Record<string, ConditionalVisibility[] | undefined> = {};
 
