@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { Header, Container, SpaceBetween, Alert, Box, Link, Input, FormField, Wizard, Checkbox } from '@cloudscape-design/components';
-import { InspectionSession, FormSchema, FormType, FormData, FormDataValue, UploadStatus } from '../types';
+import { InspectionSession, FormSchema, FormType, FormData, FormDataValue, UploadStatus, ConditionalVisibility } from '../types';
 import { FormRenderer } from '../components/FormRenderer';
 import { FormValidator, ValidationError } from '../utils/FormValidator';
 import { formatFileValue, getFileReferences, isFormDataValueEmpty } from '../utils/formDataUtils';
@@ -144,6 +144,7 @@ export function FillForm() {
     // Build validation rules map and required fields list
     const validationRulesMap: Record<string, any[] | undefined> = {};
     const requiredFields: string[] = [];
+    const visibilityRulesMap: Record<string, ConditionalVisibility[] | undefined> = {};
 
     formSchema.sections.forEach((section) => {
       section.fields.forEach((field) => {
@@ -153,11 +154,19 @@ export function FillForm() {
         if (field.required) {
           requiredFields.push(field.id);
         }
+        if (field.visibleWhen) {
+          visibilityRulesMap[field.id] = field.visibleWhen;
+        }
       });
     });
 
     // Validate form
-    const validationErrors = FormValidator.validateForm(formData, validationRulesMap, requiredFields);
+    const validationErrors = FormValidator.validateForm(
+      formData,
+      validationRulesMap,
+      requiredFields,
+      visibilityRulesMap
+    );
     if (!session?.name.trim()) {
       validationErrors.unshift({
         fieldId: 'sessionName',

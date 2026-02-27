@@ -15,6 +15,7 @@ import {
 import { FormSchema, FormField as FormFieldType, FormData, FormDataValue } from '../types';
 import { formatFileValue, getFileReferences } from '../utils/formDataUtils';
 import { getFile } from '../utils/fileStorage';
+import { FormValidator } from '../utils/FormValidator';
 import './FormRenderer.css';
 import { useLocalization } from '../LocalizationContext';
 
@@ -458,7 +459,9 @@ export function FormRenderer({
         <div key={sectionIndex} className="form-section">
           {showSectionTitles && <h2 className="section-title">{section.title}</h2>}
           <div className="form-fields">
-            {section.fields.map((field) => (
+            {section.fields
+              .filter((field) => FormValidator.isFieldVisible(field.id, data, field.visibleWhen))
+              .map((field) => (
               <div key={field.id} className="form-field-wrapper" id={`field-${field.id}`}>
                 {field.type === 'checkbox' ? (
                   renderField(field)

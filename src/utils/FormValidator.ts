@@ -88,13 +88,18 @@ export class FormValidator {
   static validateForm(
     formData: FormData,
     validationRulesMap: Record<string, ValidationRule[] | undefined>,
-    requiredFields?: string[]
+    requiredFields?: string[],
+    visibilityRulesMap?: Record<string, ConditionalVisibility[] | undefined>
   ): ValidationError[] {
     const errors: ValidationError[] = [];
 
     // Check required fields
     if (requiredFields) {
       for (const fieldId of requiredFields) {
+        const isVisible = this.isFieldVisible(fieldId, formData, visibilityRulesMap?.[fieldId]);
+        if (!isVisible) {
+          continue;
+        }
         const value = formData[fieldId];
         if (isFormDataValueEmpty(value)) {
           errors.push({
@@ -107,6 +112,10 @@ export class FormValidator {
 
     // Check validation rules
     for (const [fieldId, rules] of Object.entries(validationRulesMap)) {
+      const isVisible = this.isFieldVisible(fieldId, formData, visibilityRulesMap?.[fieldId]);
+      if (!isVisible) {
+        continue;
+      }
       const value = formData[fieldId];
       if (!isFormDataValueEmpty(value)) {
         const error = this.validateField(fieldId, value, rules);
