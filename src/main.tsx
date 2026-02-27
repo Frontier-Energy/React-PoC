@@ -8,15 +8,9 @@ import { ConnectivityProvider } from './ConnectivityContext';
 import { BackgroundUploadManager } from './BackgroundUploadManager';
 import { LocalizationProvider } from './LocalizationContext';
 import { TenantBootstrapProvider } from './TenantBootstrapContext';
+import { registerSW } from 'virtual:pwa-register';
 
-// Register Service Worker for offline support
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // Service worker registration failed, app will still work online
-    });
-  });
-}
+registerSW({ immediate: true });
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
