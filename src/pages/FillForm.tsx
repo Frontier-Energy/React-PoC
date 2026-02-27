@@ -29,18 +29,39 @@ export function FillForm() {
   const errorAlertRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const storedSession = localStorage.getItem('currentSession');
-    if (storedSession) {
-      const parsedSession: InspectionSession = JSON.parse(storedSession);
-      if (parsedSession.id === sessionId) {
-        setSession(parsedSession);
-        loadFormSchema(parsedSession.formType);
-      } else {
-        navigate('/new-inspection');
+    if (!sessionId) {
+      navigate('/new-inspection');
+      setLoading(false);
+      return;
+    }
+
+    const loadSession = (): InspectionSession | null => {
+      const parseSession = (raw: string | null): InspectionSession | null => {
+        if (!raw) return null;
+        try {
+          return JSON.parse(raw) as InspectionSession;
+        } catch (error) {
+          console.error('Failed to parse stored inspection session:', error);
+          return null;
+        }
+      };
+
+      const currentSession = parseSession(localStorage.getItem('currentSession'));
+      if (currentSession?.id === sessionId) {
+        return currentSession;
       }
+
+      return parseSession(localStorage.getItem(`inspection_${sessionId}`));
+    };
+
+    const resolvedSession = loadSession();
+    if (resolvedSession) {
+      setSession(resolvedSession);
+      loadFormSchema(resolvedSession.formType);
     } else {
       navigate('/new-inspection');
     }
+
     setLoading(false);
   }, [sessionId, navigate]);
 
