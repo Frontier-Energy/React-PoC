@@ -77,11 +77,11 @@ export function MyInspections() {
   const applyFilters = () => {
     let filtered = inspections;
 
-    if (formTypeFilter) {
+    if (formTypeFilter?.value) {
       filtered = filtered.filter((inspection) => inspection.formType === formTypeFilter.value);
     }
 
-    if (statusFilter) {
+    if (statusFilter?.value) {
       filtered = filtered.filter((inspection) => (inspection.uploadStatus || UploadStatus.Local) === statusFilter.value);
     }
 
