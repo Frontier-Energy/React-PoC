@@ -8,8 +8,8 @@ import { formatFileValue, getFileReferences, isFormDataValueEmpty } from '../uti
 import { saveFiles, deleteFiles } from '../utils/fileStorage';
 import { useLocalization } from '../LocalizationContext';
 
-interface FormDataWithExternalID {
-  [externalID: string]: FormDataValue;
+interface PersistedFormData {
+  [key: string]: FormDataValue;
 }
 
 export function FillForm() {
@@ -95,14 +95,12 @@ export function FillForm() {
     const storedData = localStorage.getItem(`formData_${sessionId}`);
     if (storedData) {
       try {
-        const parsedData: FormDataWithExternalID = JSON.parse(storedData);
-        // Convert externalID keys back to fieldId keys for state
+        const parsedData: PersistedFormData = JSON.parse(storedData);
+        // Convert persisted keys to fieldId keys for state. Keys can be externalID or fieldId.
         const convertedData: FormData = {};
-        Object.entries(parsedData).forEach(([externalID, value]) => {
-          const fieldId = map[externalID];
-          if (fieldId) {
-            convertedData[fieldId] = value;
-          }
+        Object.entries(parsedData).forEach(([key, value]) => {
+          const fieldId = map[key] || key;
+          convertedData[fieldId] = value;
         });
         setFormData(convertedData);
       } catch (error) {
@@ -120,14 +118,15 @@ export function FillForm() {
     }
     setFormData(newFormData);
 
-    // Save to localStorage with externalID as key if available
-    if (sessionId && externalID) {
+    // Save to localStorage using externalID when available, otherwise fieldId.
+    if (sessionId) {
+      const storageKey = externalID || fieldId;
       const storedData = localStorage.getItem(`formData_${sessionId}`);
-      const parsedData: FormDataWithExternalID = storedData ? JSON.parse(storedData) : {};
+      const parsedData: PersistedFormData = storedData ? JSON.parse(storedData) : {};
       if (value === undefined) {
-        delete parsedData[externalID];
+        delete parsedData[storageKey];
       } else {
-        parsedData[externalID] = value;
+        parsedData[storageKey] = value;
       }
       localStorage.setItem(`formData_${sessionId}`, JSON.stringify(parsedData));
     }
