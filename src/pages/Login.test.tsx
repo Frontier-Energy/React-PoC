@@ -119,4 +119,57 @@ describe('Login', () => {
       expect(navigateMock).toHaveBeenCalledWith('/my-inspections', { replace: true });
     });
   });
+
+  it('shows missing-user-id error when lookup response has no user id', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
+
+    render(
+      <LocalizationProvider>
+        <Login />
+      </LocalizationProvider>
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
+      target: { value: 'me@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+
+    expect(await screen.findByText('Login lookup did not return a user ID.')).toBeInTheDocument();
+    expect(setUserIdMock).toHaveBeenCalledWith('');
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('shows lookup error when fetch fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('network error'));
+
+    render(
+      <LocalizationProvider>
+        <Login />
+      </LocalizationProvider>
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
+      target: { value: 'me@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+
+    expect(await screen.findByText('Login lookup did not return a user ID.')).toBeInTheDocument();
+    expect(errorSpy).toHaveBeenCalled();
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('navigates to register when create-account link is clicked', () => {
+    render(
+      <LocalizationProvider>
+        <Login />
+      </LocalizationProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create an account' }));
+    expect(navigateMock).toHaveBeenCalledWith('/register');
+  });
 });
