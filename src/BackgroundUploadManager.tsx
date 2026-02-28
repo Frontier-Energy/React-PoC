@@ -5,6 +5,7 @@ import { InspectionSession, UploadStatus, FormDataValue } from './types';
 import { getFileReferences, serializeFormValue } from './utils/formDataUtils';
 import { deleteFiles, getFile } from './utils/fileStorage';
 import { inspectionRepository } from './repositories/inspectionRepository';
+import { getUserId } from './auth';
 
 const CONNECTIVITY_CHECK_INTERVAL_MS = 30000;
 
@@ -47,13 +48,9 @@ const uploadInspection = async (inspection: InspectionSession) => {
   const payload = {
     sessionId: inspection.id,
     name: inspection.name,
-    userId: '',
+    userId: inspection.userId ?? getUserId() ?? '',
     queryParams,
   };
-
-  if ((inspection as { userId?: string }).userId) {
-    payload.userId = (inspection as { userId: string }).userId;
-  }
 
   uploadForm.append('payload', JSON.stringify(payload));
 

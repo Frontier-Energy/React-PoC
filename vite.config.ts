@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       manifest: {
         name: 'Data Intake tool',
-        short_name: 'QHVAC',
-        description: 'Offline-first HVAC inspection form application',
+        short_name: 'DIT',
+        description: 'Offline-first Data Intake tool',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
