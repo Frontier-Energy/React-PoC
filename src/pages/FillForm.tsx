@@ -17,7 +17,6 @@ export function FillForm() {
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [formData, setFormData] = useState<FormData>({});
   const [loading, setLoading] = useState(true);
-  const [externalIDMap, setExternalIDMap] = useState<Record<string, string>>({});
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
@@ -58,8 +57,6 @@ export function FillForm() {
           }
         });
       });
-      setExternalIDMap(map);
-
       // Load form data after schema is loaded so we can map externalIDs
       if (sessionId) {
         loadFormData(sessionId, map);

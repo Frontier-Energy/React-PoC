@@ -216,7 +216,8 @@ Once deployed:
 npm run dev       # Start development server
 npm run build     # Build for production
 npm run preview   # Preview production build locally
-npm run lint      # Run ESLint (if configured)
+npm run typecheck # Run TypeScript checks
+npm run lint      # Run type checks + ESLint
 ```
 
 ## Adding a Feature with specKit

@@ -132,7 +132,7 @@ export class FormValidator {
    * Checks if a field should be visible based on conditional visibility rules
    */
   static isFieldVisible(
-    fieldId: string,
+    _fieldId: string,
     formData: FormData,
     visibilityRules?: ConditionalVisibility[]
   ): boolean {

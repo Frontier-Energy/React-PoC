@@ -13,7 +13,6 @@ export function MyInspections() {
   const { labels } = useLocalization();
   const [inspections, setInspections] = useState<InspectionSession[]>([]);
   const [filteredInspections, setFilteredInspections] = useState<InspectionSession[]>([]);
-  const [selectedItems, setSelectedItems] = useState<InspectionSession[]>([]);
   const [formTypeFilter, setFormTypeFilter] = useState<SelectProps.Option | null>(null);
   const [statusFilter, setStatusFilter] = useState<SelectProps.Option | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);

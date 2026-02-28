@@ -8,7 +8,6 @@ import { useTenantBootstrap } from '../TenantBootstrapContext';
 
 export function Login() {
   const [email, setEmail] = useState('');
-  const [userId, setUserIdInput] = useState('');
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const navigate = useNavigate();
@@ -43,12 +42,10 @@ export function Login() {
       }
       const payload = (await response.json()) as { userID?: string; userId?: string; userid?: string };
       const resolvedUserId = payload.userID || payload.userId || payload.userid || '';
-      setUserIdInput(resolvedUserId);
       setUserId(resolvedUserId);
       return resolvedUserId;
     } catch (error) {
       setLookupError(labels.login.lookupError);
-      setUserIdInput('');
       console.error('Login lookup failed:', error);
       return null;
     } finally {
