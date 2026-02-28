@@ -49,6 +49,12 @@ describe('FormValidator', () => {
     });
   });
 
+  it('returns null when min/max and length rules pass', () => {
+    expect(FormValidator.validateField('f', 'abcd', [rule('maxLength', 4, 'too long')])).toBeNull();
+    expect(FormValidator.validateField('f', '5', [rule('min', 5, 'too small')])).toBeNull();
+    expect(FormValidator.validateField('f', '8', [rule('max', 8, 'too big')])).toBeNull();
+  });
+
   it('validates pattern rules and ignores custom rules', () => {
     expect(FormValidator.validateField('f', 'abc', [rule('pattern', '^\\d+$', 'digits only')])).toEqual({
       fieldId: 'f',

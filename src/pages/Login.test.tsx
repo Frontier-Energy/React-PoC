@@ -2,10 +2,17 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LocalizationProvider } from '../LocalizationContext';
 import { Login } from './Login';
 
-const { navigateMock, setUserIdMock } = vi.hoisted(() => ({
-  navigateMock: vi.fn(),
-  setUserIdMock: vi.fn(),
-}));
+const { navigateMock, setUserIdMock, getLoginRequired, setLoginRequired } = vi.hoisted(() => {
+  let loginRequired = true;
+  return {
+    navigateMock: vi.fn(),
+    setUserIdMock: vi.fn(),
+    getLoginRequired: () => loginRequired,
+    setLoginRequired: (value: boolean) => {
+      loginRequired = value;
+    },
+  };
+});
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -22,7 +29,7 @@ vi.mock('../auth', () => ({
 vi.mock('../TenantBootstrapContext', () => ({
   useTenantBootstrap: () => ({
     config: {
-      loginRequired: true,
+      loginRequired: getLoginRequired(),
     },
   }),
 }));
@@ -90,7 +97,22 @@ describe('Login', () => {
   beforeEach(() => {
     navigateMock.mockReset();
     setUserIdMock.mockReset();
+    setLoginRequired(true);
     vi.restoreAllMocks();
+  });
+
+  it('redirects to home when tenant does not require login', async () => {
+    setLoginRequired(false);
+
+    render(
+      <LocalizationProvider>
+        <Login />
+      </LocalizationProvider>
+    );
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith('/', { replace: true });
+    });
   });
 
   it('shows required-email validation when enter is pressed on empty value', async () => {
@@ -153,6 +175,29 @@ describe('Login', () => {
   it('shows lookup error when fetch fails', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(global, 'fetch').mockRejectedValue(new Error('network error'));
+
+    render(
+      <LocalizationProvider>
+        <Login />
+      </LocalizationProvider>
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
+      target: { value: 'me@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+
+    expect(await screen.findByText('Login lookup did not return a user ID.')).toBeInTheDocument();
+    expect(errorSpy).toHaveBeenCalled();
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('shows missing-user-id error when lookup returns non-ok response', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 401,
+    } as Response);
 
     render(
       <LocalizationProvider>

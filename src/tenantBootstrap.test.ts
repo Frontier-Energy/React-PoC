@@ -171,4 +171,90 @@ describe('tenantBootstrap', () => {
       font: 'Georgia',
     });
   });
+
+  it('falls back to defaults when both requested and default tenant ids are unknown', () => {
+    const config = mapTenantBootstrapResponse(
+      {
+        tenantId: 'missing-tenant',
+        displayName: 'Custom Name',
+        uiDefaults: {
+          theme: 'custom-theme',
+          font: 'custom-font',
+        },
+      },
+      {
+        tenantId: 'also-missing',
+        displayName: 'Default Name',
+        theme: 'default-theme',
+        font: 'default-font',
+        enabledForms: [FormType.HVAC],
+        loginRequired: true,
+      }
+    );
+
+    expect(config.tenantId).toBe('also-missing');
+    expect(config.displayName).toBe('Custom Name');
+    expect(config.theme).toBe('custom-theme');
+    expect(config.font).toBe('custom-font');
+  });
+
+  it('persists customization when no previous storage exists', () => {
+    persistTenantCustomization({
+      tenantId: 'qhvac',
+      displayName: 'QHVAC',
+      theme: 'harbor',
+      font: 'Tahoma',
+      enabledForms: [FormType.HVAC],
+      loginRequired: true,
+    });
+
+    expect(JSON.parse(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY) || '{}')).toEqual({
+      tenantId: 'qhvac',
+      theme: 'harbor',
+      font: 'Tahoma',
+    });
+  });
+
+  it('falls back to tenant catalog display/theme/font when payload values are blank', () => {
+    const defaults = getDefaultTenantBootstrapConfig();
+    const config = mapTenantBootstrapResponse(
+      {
+        tenantId: 'qhvac',
+        displayName: '   ',
+        uiDefaults: {
+          theme: '   ',
+          font: '   ',
+        },
+      },
+      defaults
+    );
+
+    expect(config.displayName).toBe('QHVAC');
+    expect(config.theme).toBe('harbor');
+    expect(config.font).toContain('Tahoma');
+  });
+
+  it('falls back to provided defaults when no tenant catalog match exists', () => {
+    const config = mapTenantBootstrapResponse(
+      {
+        displayName: '   ',
+        uiDefaults: {
+          theme: '   ',
+          font: '   ',
+        },
+      },
+      {
+        tenantId: 'unknown',
+        displayName: 'Default Name',
+        theme: 'default-theme',
+        font: 'default-font',
+        enabledForms: [FormType.Electrical],
+        loginRequired: false,
+      }
+    );
+
+    expect(config.displayName).toBe('Default Name');
+    expect(config.theme).toBe('default-theme');
+    expect(config.font).toBe('default-font');
+  });
 });

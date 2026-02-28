@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LocalizationProvider } from '../LocalizationContext';
 import { FillForm } from './FillForm';
 import { FormType, UploadStatus, type FileReference } from '../types';
+import { FormValidator } from '../utils/FormValidator';
 
 const {
   navigateMock,
@@ -95,6 +96,18 @@ vi.mock('../resources/hvac.json', () => ({
             type: 'text',
             required: true,
             externalID: 'ext.requiredField',
+            validationRules: [
+              { type: 'minLength', value: 3, message: 'Min 3 chars' },
+            ],
+          },
+          {
+            id: 'conditionalInfo',
+            label: 'Conditional Info',
+            type: 'text',
+            required: false,
+            visibleWhen: [
+              { fieldId: 'boolField', operator: 'equals', value: true },
+            ],
           },
           {
             id: 'multiSelect',
@@ -139,8 +152,17 @@ vi.mock('../components/FormRenderer', async () => {
         <button type="button" onClick={() => onChange('boolField', true, 'ext.boolField')}>
           Set Boolean
         </button>
+        <button type="button" onClick={() => onChange('boolField', false, 'ext.boolField')}>
+          Set Boolean False
+        </button>
         <button type="button" onClick={() => onChange('multiSelect', ['a', 'b'], 'ext.multiSelect')}>
           Set Multi
+        </button>
+        <button type="button" onClick={() => onChange('multiSelect', ['a', 'z'], 'ext.multiSelect')}>
+          Set Multi Unknown
+        </button>
+        <button type="button" onClick={() => onChange('fieldNoExternal', ['x', 'y'])}>
+          Set Array Value
         </button>
         <button
           type="button"
@@ -205,15 +227,28 @@ vi.mock('@cloudscape-design/components', async () => {
       onNavigate,
       onCancel,
       onSubmit,
+      i18nStrings,
     }: {
       steps: Array<{ title: string; content: React.ReactNode }>;
       activeStepIndex: number;
       onNavigate: (event: { detail: { requestedStepIndex: number } }) => void;
       onCancel: () => void;
       onSubmit: () => void;
+      i18nStrings: {
+        stepNumberLabel: (stepNumber: number) => string;
+        collapsedStepsLabel: (stepNumber: number, stepsCount: number) => string;
+        skipToButtonLabel: (step: { title: string }, stepNumber: number) => string;
+      };
     }) => (
       <div>
         <div data-testid="wizard-active-step">{activeStepIndex}</div>
+        <div data-testid="wizard-step-number-label">{i18nStrings.stepNumberLabel(activeStepIndex + 1)}</div>
+        <div data-testid="wizard-collapsed-label">
+          {i18nStrings.collapsedStepsLabel(activeStepIndex + 1, steps.length)}
+        </div>
+        <div data-testid="wizard-skip-label">
+          {i18nStrings.skipToButtonLabel(steps[activeStepIndex] ?? { title: 'Unknown' }, activeStepIndex + 1)}
+        </div>
         <div>{steps[activeStepIndex]?.content}</div>
         <button
           type="button"
@@ -310,6 +345,14 @@ describe('FillForm', () => {
     });
   });
 
+  it('shows schema load error when form type module cannot be loaded', async () => {
+    setSessionStorage('durability-session', { formType: 'missing-form' });
+
+    renderPage();
+
+    expect(await screen.findByText('Error loading form schema')).toBeInTheDocument();
+  });
+
   it('loads fallback inspection when currentSession does not match route id', async () => {
     localStorage.setItem(
       'currentSession',
@@ -399,6 +442,23 @@ describe('FillForm', () => {
     expect(scrollSpy).toHaveBeenCalled();
   });
 
+  it('adds a session-name validation error and routes error-click handling to the first step', async () => {
+    renderPage();
+
+    await screen.findByPlaceholderText('Enter a name for this inspection session');
+    fireEvent.change(screen.getByPlaceholderText('Enter a name for this inspection session'), {
+      target: { value: '' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Wizard' }));
+
+    const sessionNameErrorLink = await screen.findByRole('button', {
+      name: /sessionName: Session name is required/i,
+    });
+    expect(screen.getByTestId('wizard-active-step')).toHaveTextContent('0');
+    fireEvent.click(sessionNameErrorLink);
+    expect(screen.getByTestId('wizard-active-step')).toHaveTextContent('0');
+  });
+
   it('scrolls to the errored field when clicking an error link', async () => {
     const scrollIntoView = vi.fn();
     const focus = vi.fn();
@@ -465,6 +525,64 @@ describe('FillForm', () => {
     expect(saved.uploadStatus).toBe(UploadStatus.Local);
   });
 
+  it('formats review values for free-form arrays and wires wizard i18n labels', async () => {
+    renderPage();
+
+    await screen.findByRole('button', { name: 'Set Required' });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Required' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set Array Value' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go Review' }));
+
+    expect(await screen.findByText(/Field Without External ID:/)).toBeInTheDocument();
+    expect(screen.getByText(/x, y/)).toBeInTheDocument();
+    expect(screen.getByTestId('wizard-step-number-label')).toHaveTextContent('Step 3');
+    expect(screen.getByTestId('wizard-collapsed-label')).toHaveTextContent('Step 3 of 3');
+    expect(screen.getByTestId('wizard-skip-label')).toHaveTextContent('Skip to Review (Step 3)');
+  });
+
+  it('formats unknown option values and false boolean values in review', async () => {
+    renderPage();
+
+    await screen.findByRole('button', { name: 'Set Required' });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Required' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set Multi Unknown' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set Boolean False' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go Review' }));
+
+    expect(await screen.findByText(/A Label, z/)).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === 'Boolean Field: No')
+    ).toBeInTheDocument();
+  });
+
+  it('handles validation errors for fields not present in schema by falling back to step 0', async () => {
+    const validateSpy = vi
+      .spyOn(FormValidator, 'validateForm')
+      .mockReturnValue([{ fieldId: 'unknownField', message: 'Unknown error' }]);
+
+    renderPage();
+
+    await screen.findByRole('button', { name: 'Submit Wizard' });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Wizard' }));
+    fireEvent.click(await screen.findByRole('button', { name: /unknownField: Unknown error/i }));
+
+    expect(screen.getByTestId('wizard-active-step')).toHaveTextContent('0');
+    validateSpy.mockRestore();
+  });
+
+  it('executes both checkbox toggle paths in review confirmation', async () => {
+    renderPage();
+
+    await screen.findByRole('button', { name: 'Set Required' });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Required' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go Review' }));
+
+    const checkbox = screen.getByRole('checkbox');
+    fireEvent.click(checkbox);
+    fireEvent.click(checkbox);
+    expect(checkbox).not.toBeChecked();
+  });
+
   it('resets form and deletes saved files', async () => {
     saveFilesMock
       .mockResolvedValueOnce([
@@ -501,5 +619,18 @@ describe('FillForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel Wizard' }));
 
     expect(navigateMock).toHaveBeenCalledWith('/new-inspection');
+  });
+
+  it('resets form state without deleting files when no file references exist', async () => {
+    renderPage();
+
+    await screen.findByRole('button', { name: 'Set Value' });
+    fireEvent.click(screen.getByRole('button', { name: 'Set Value' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset form' }));
+
+    await waitFor(() => {
+      expect(deleteFilesMock).not.toHaveBeenCalled();
+      expect(localStorage.getItem('formData_durability-session')).toBeNull();
+    });
   });
 });

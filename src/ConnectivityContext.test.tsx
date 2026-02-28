@@ -40,4 +40,58 @@ describe('ConnectivityProvider', () => {
       expect(screen.getByText('offline')).toBeInTheDocument();
     });
   });
+
+  it('sets offline when check returns a non-ok response', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false } as Response);
+
+    render(
+      <ConnectivityProvider checkIntervalMs={60000}>
+        <ConnectivityStatusProbe />
+      </ConnectivityProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('offline')).toBeInTheDocument();
+    });
+  });
+
+  it('ignores in-flight connectivity result after unmount', async () => {
+    let resolveFetch: ((value: Response) => void) | undefined;
+    vi.spyOn(global, 'fetch').mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        })
+    );
+
+    const { unmount } = render(
+      <ConnectivityProvider checkIntervalMs={60000}>
+        <ConnectivityStatusProbe />
+      </ConnectivityProvider>
+    );
+
+    unmount();
+    resolveFetch?.({ ok: true } as Response);
+    await Promise.resolve();
+  });
+
+  it('does not set offline after unmount when in-flight request rejects', async () => {
+    let rejectFetch: ((reason?: unknown) => void) | undefined;
+    vi.spyOn(global, 'fetch').mockImplementation(
+      () =>
+        new Promise<Response>((_resolve, reject) => {
+          rejectFetch = reject;
+        })
+    );
+
+    const { unmount } = render(
+      <ConnectivityProvider checkIntervalMs={60000}>
+        <ConnectivityStatusProbe />
+      </ConnectivityProvider>
+    );
+
+    unmount();
+    rejectFetch?.(new Error('offline'));
+    await Promise.resolve();
+  });
 });

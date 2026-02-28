@@ -12,6 +12,7 @@ import {
 
 describe('config', () => {
   beforeEach(() => {
+    vi.unstubAllGlobals();
     localStorage.clear();
   });
 
@@ -43,5 +44,12 @@ describe('config', () => {
     expect(getLoginUrl()).toContain('/QHVAC/login');
     expect(getRegisterUrl()).toContain('/QHVAC/Register');
     expect(getTenantBootstrapUrl()).toContain('/QHVAC/tenant-config');
+  });
+
+  it('falls back to default tenant when window is unavailable', () => {
+    vi.stubGlobal('window', undefined);
+    expect(getActiveTenant().tenantId).toBe(DEFAULT_TENANT_NAME);
+    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ tenantId: 'qhvac' }));
+    expect(getActiveTenant().tenantId).toBe(DEFAULT_TENANT_NAME);
   });
 });

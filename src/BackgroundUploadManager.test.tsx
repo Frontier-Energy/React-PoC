@@ -6,8 +6,18 @@ import { FormType, type InspectionSession, UploadStatus } from './types';
 import { deleteFiles, getFile } from './utils/fileStorage';
 import { getUserId } from './auth';
 
+const { getConnectivityStatus, setConnectivityStatus } = vi.hoisted(() => {
+  let status: 'online' | 'offline' | 'checking' = 'online';
+  return {
+    getConnectivityStatus: () => status,
+    setConnectivityStatus: (next: 'online' | 'offline' | 'checking') => {
+      status = next;
+    },
+  };
+});
+
 vi.mock('./ConnectivityContext', () => ({
-  useConnectivity: () => ({ status: 'online' as const }),
+  useConnectivity: () => ({ status: getConnectivityStatus() }),
 }));
 
 vi.mock('./config', () => ({
@@ -33,6 +43,7 @@ const makeInspection = (id: string, overrides?: Partial<InspectionSession>): Ins
 
 describe('BackgroundUploadManager', () => {
   beforeEach(() => {
+    setConnectivityStatus('online');
     vi.restoreAllMocks();
     vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
     vi.mocked(getFile).mockResolvedValue(null);
@@ -170,6 +181,91 @@ describe('BackgroundUploadManager', () => {
         sessionId: 'local-auth-fallback',
         userId: 'auth-user-123',
       })
+    );
+  });
+
+  it('skips upload when connectivity is offline', async () => {
+    setConnectivityStatus('offline');
+    vi.spyOn(inspectionRepository, 'loadAll').mockReturnValue([makeInspection('offline-local')]);
+    vi.spyOn(inspectionRepository, 'update').mockImplementation((inspection) => inspection);
+
+    render(<BackgroundUploadManager />);
+
+    await waitFor(() => {
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+    expect(inspectionRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('warns when referenced files are missing from storage', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const local = makeInspection('local-missing-file');
+    vi.spyOn(inspectionRepository, 'loadAll').mockReturnValue([local]);
+    vi.spyOn(inspectionRepository, 'loadFormData').mockReturnValue({
+      'ext.fileSingle': {
+        id: 'missing-file',
+        name: 'missing.txt',
+        type: 'text/plain',
+        size: 1,
+        lastModified: 1,
+      },
+    });
+    vi.spyOn(inspectionRepository, 'update').mockImplementation((inspection) => inspection);
+    vi.spyOn(inspectionRepository, 'loadCurrent').mockReturnValue(null);
+    vi.spyOn(inspectionRepository, 'saveCurrent').mockImplementation(() => undefined);
+
+    render(<BackgroundUploadManager />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+    expect(console.warn).toHaveBeenCalledWith('Missing stored file for missing-file');
+  });
+
+  it('deletes uploaded files after a successful upload', async () => {
+    const local = makeInspection('local-file-delete');
+    vi.spyOn(inspectionRepository, 'loadAll').mockReturnValue([local]);
+    vi.spyOn(inspectionRepository, 'loadFormData').mockReturnValue({
+      'ext.fileMultiple': [
+        { id: 'file-a', name: 'a.txt', type: 'text/plain', size: 1, lastModified: 1 },
+        { id: 'file-b', name: 'b.txt', type: 'text/plain', size: 1, lastModified: 1 },
+      ],
+    });
+    vi.mocked(getFile).mockImplementation(async (id) => ({
+      id,
+      name: `${id}.txt`,
+      blob: new Blob(['content'], { type: 'text/plain' }),
+      type: 'text/plain',
+      size: 7,
+      lastModified: 1,
+    }));
+    vi.spyOn(inspectionRepository, 'update').mockImplementation((inspection) => inspection);
+    vi.spyOn(inspectionRepository, 'loadCurrent').mockReturnValue(null);
+    vi.spyOn(inspectionRepository, 'saveCurrent').mockImplementation(() => undefined);
+
+    render(<BackgroundUploadManager />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+    expect(deleteFiles).toHaveBeenCalledWith(['file-a', 'file-b']);
+  });
+
+  it('treats inspections without uploadStatus as local', async () => {
+    const localByDefault = makeInspection('implicit-local', { uploadStatus: undefined });
+    vi.spyOn(inspectionRepository, 'loadAll').mockReturnValue([localByDefault]);
+    vi.spyOn(inspectionRepository, 'loadFormData').mockReturnValue({});
+    vi.spyOn(inspectionRepository, 'update').mockImplementation((inspection) => inspection);
+    vi.spyOn(inspectionRepository, 'loadCurrent').mockReturnValue(null);
+    vi.spyOn(inspectionRepository, 'saveCurrent').mockImplementation(() => undefined);
+
+    render(<BackgroundUploadManager />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+    expect(inspectionRepository.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'implicit-local', uploadStatus: UploadStatus.Uploading })
     );
   });
 });

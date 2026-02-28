@@ -7,6 +7,8 @@ type IndexedDbMockOptions = {
   openError?: boolean;
   requestErrorOn?: Operation;
   abortOn?: Operation;
+  existingStore?: boolean;
+  forceUpgradeEvent?: boolean;
 };
 
 const flushAsync = async () => {
@@ -15,7 +17,7 @@ const flushAsync = async () => {
 
 const createIndexedDbMock = (options: IndexedDbMockOptions = {}) => {
   const records = new Map<string, unknown>();
-  let storeCreated = false;
+  let storeCreated = options.existingStore ?? false;
 
   const open = vi.fn(() => {
     const request = {} as IDBOpenDBRequest;
@@ -80,7 +82,7 @@ const createIndexedDbMock = (options: IndexedDbMockOptions = {}) => {
         return;
       }
 
-      if (!storeCreated) {
+      if (!storeCreated || options.forceUpgradeEvent) {
         (request as { result: IDBDatabase }).result = db;
         request.onupgradeneeded?.(new Event('upgradeneeded'));
       }
@@ -220,5 +222,14 @@ describe('fileStorage', () => {
     vi.stubGlobal('indexedDB', idb.indexedDB);
 
     await expect(deleteFile('any-id')).rejects.toThrow('delete failed');
+  });
+
+  it('skips creating object store when it already exists during upgrade event', async () => {
+    const idb = createIndexedDbMock({ existingStore: true, forceUpgradeEvent: true });
+    vi.stubGlobal('indexedDB', idb.indexedDB);
+    vi.stubGlobal('crypto', { randomUUID: () => 'existing-store-id' } as Crypto);
+
+    const saved = await saveFile(makeFile('existing.txt'));
+    expect(saved.id).toBe('existing-store-id');
   });
 });
