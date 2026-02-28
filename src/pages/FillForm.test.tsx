@@ -354,7 +354,7 @@ describe('FillForm', () => {
 
     await screen.findByText('Durability Test Form');
     expect(consoleSpy).toHaveBeenCalledWith(
-      'Failed to parse stored form data:',
+      'Failed to parse form data for session durability-session:',
       expect.any(SyntaxError)
     );
   });

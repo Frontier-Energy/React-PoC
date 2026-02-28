@@ -7,10 +7,7 @@ import { FormValidator, ValidationError } from '../utils/FormValidator';
 import { formatFileValue, getFileReferences, isFormDataValueEmpty } from '../utils/formDataUtils';
 import { saveFiles, deleteFiles } from '../utils/fileStorage';
 import { useLocalization } from '../LocalizationContext';
-
-interface PersistedFormData {
-  [key: string]: FormDataValue;
-}
+import { inspectionRepository } from '../repositories/inspectionRepository';
 
 export function FillForm() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -35,26 +32,7 @@ export function FillForm() {
       return;
     }
 
-    const loadSession = (): InspectionSession | null => {
-      const parseSession = (raw: string | null): InspectionSession | null => {
-        if (!raw) return null;
-        try {
-          return JSON.parse(raw) as InspectionSession;
-        } catch (error) {
-          console.error('Failed to parse stored inspection session:', error);
-          return null;
-        }
-      };
-
-      const currentSession = parseSession(localStorage.getItem('currentSession'));
-      if (currentSession?.id === sessionId) {
-        return currentSession;
-      }
-
-      return parseSession(localStorage.getItem(`inspection_${sessionId}`));
-    };
-
-    const resolvedSession = loadSession();
+    const resolvedSession = inspectionRepository.loadCurrentOrById(sessionId);
     if (resolvedSession) {
       setSession(resolvedSession);
       loadFormSchema(resolvedSession.formType);
@@ -92,20 +70,15 @@ export function FillForm() {
   };
 
   const loadFormData = (sessionId: string, map: Record<string, string>) => {
-    const storedData = localStorage.getItem(`formData_${sessionId}`);
-    if (storedData) {
-      try {
-        const parsedData: PersistedFormData = JSON.parse(storedData);
-        // Convert persisted keys to fieldId keys for state. Keys can be externalID or fieldId.
-        const convertedData: FormData = {};
-        Object.entries(parsedData).forEach(([key, value]) => {
-          const fieldId = map[key] || key;
-          convertedData[fieldId] = value;
-        });
-        setFormData(convertedData);
-      } catch (error) {
-        console.error('Failed to parse stored form data:', error);
-      }
+    const parsedData = inspectionRepository.loadFormData(sessionId);
+    if (parsedData) {
+      // Convert persisted keys to fieldId keys for state. Keys can be externalID or fieldId.
+      const convertedData: FormData = {};
+      Object.entries(parsedData).forEach(([key, value]) => {
+        const fieldId = map[key] || key;
+        convertedData[fieldId] = value;
+      });
+      setFormData(convertedData);
     }
   };
 
@@ -118,24 +91,10 @@ export function FillForm() {
     }
     setFormData(newFormData);
 
-    // Save to localStorage using externalID when available, otherwise fieldId.
+    // Save persisted data using externalID when available, otherwise fieldId.
     if (sessionId) {
       const storageKey = externalID || fieldId;
-      const storedData = localStorage.getItem(`formData_${sessionId}`);
-      let parsedData: PersistedFormData = {};
-      if (storedData) {
-        try {
-          parsedData = JSON.parse(storedData) as PersistedFormData;
-        } catch (error) {
-          console.error('Failed to parse stored form data during field update:', error);
-        }
-      }
-      if (value === undefined) {
-        delete parsedData[storageKey];
-      } else {
-        parsedData[storageKey] = value;
-      }
-      localStorage.setItem(`formData_${sessionId}`, JSON.stringify(parsedData));
+      inspectionRepository.updateFormDataEntry(sessionId, storageKey, value);
     }
 
     // Clear validation errors for this field
@@ -227,9 +186,7 @@ export function FillForm() {
         ...session,
         uploadStatus: UploadStatus.Local,
       };
-      // Store in both places for persistence
-      localStorage.setItem('currentSession', JSON.stringify(updatedSession));
-      localStorage.setItem(`inspection_${session.id}`, JSON.stringify(updatedSession));
+      inspectionRepository.saveAsCurrent(updatedSession);
 
       console.log('Form submitted:', formData);
 
@@ -252,7 +209,7 @@ export function FillForm() {
     setFormData({});
     setValidationErrors([]);
     if (sessionId) {
-      localStorage.removeItem(`formData_${sessionId}`);
+      inspectionRepository.clearFormData(sessionId);
     }
     setReviewConfirmed(false);
     setReviewError(null);
@@ -282,8 +239,7 @@ export function FillForm() {
         name,
       };
       setSession(updatedSession);
-      localStorage.setItem('currentSession', JSON.stringify(updatedSession));
-      localStorage.setItem(`inspection_${session.id}`, JSON.stringify(updatedSession));
+      inspectionRepository.saveAsCurrent(updatedSession);
     }
     setValidationErrors((prev) => prev.filter((err) => err.fieldId !== 'sessionName'));
   };

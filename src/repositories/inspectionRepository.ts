@@ -56,6 +56,14 @@ export const inspectionRepository = {
     );
   },
 
+  loadCurrentOrById(inspectionId: string): InspectionSession | null {
+    const currentSession = this.loadCurrent();
+    if (currentSession?.id === inspectionId) {
+      return currentSession;
+    }
+    return this.loadById(inspectionId);
+  },
+
   save(inspection: InspectionSession): void {
     localStorage.setItem(getInspectionKey(inspection.id), JSON.stringify(inspection));
   },
@@ -102,5 +110,19 @@ export const inspectionRepository = {
 
   saveFormData(inspectionId: string, formData: Record<string, FormDataValue>): void {
     localStorage.setItem(getFormDataKey(inspectionId), JSON.stringify(formData));
+  },
+
+  updateFormDataEntry(inspectionId: string, key: string, value: FormDataValue | undefined): void {
+    const currentFormData = this.loadFormData(inspectionId) ?? {};
+    if (value === undefined) {
+      delete currentFormData[key];
+    } else {
+      currentFormData[key] = value;
+    }
+    this.saveFormData(inspectionId, currentFormData);
+  },
+
+  clearFormData(inspectionId: string): void {
+    localStorage.removeItem(getFormDataKey(inspectionId));
   },
 };

@@ -97,6 +97,18 @@ describe('inspectionRepository', () => {
     expect(consoleSpy).toHaveBeenCalled();
   });
 
+  it('loads current session by id and falls back to inspection when current does not match', () => {
+    const current = makeInspection('current-session');
+    const fallback = makeInspection('fallback-session');
+
+    localStorage.setItem('currentSession', JSON.stringify(current));
+    localStorage.setItem('inspection_fallback-session', JSON.stringify(fallback));
+
+    expect(inspectionRepository.loadCurrentOrById('current-session')).toEqual(current);
+    expect(inspectionRepository.loadCurrentOrById('fallback-session')).toEqual(fallback);
+    expect(inspectionRepository.loadCurrentOrById('missing-session')).toBeNull();
+  });
+
   it('deletes inspection, form data, and current session when matching', () => {
     const inspection = makeInspection('delete-me');
 
@@ -144,5 +156,22 @@ describe('inspectionRepository', () => {
     localStorage.setItem('formData_bad-form', '{bad-json');
     expect(inspectionRepository.loadFormData('bad-form')).toBeNull();
     expect(consoleSpy).toHaveBeenCalled();
+  });
+
+  it('updates and clears individual form data entries', () => {
+    inspectionRepository.updateFormDataEntry('entry-session', 'ext.foo', 'value');
+    inspectionRepository.updateFormDataEntry('entry-session', 'ext.bar', true);
+    expect(inspectionRepository.loadFormData('entry-session')).toEqual({
+      'ext.foo': 'value',
+      'ext.bar': true,
+    });
+
+    inspectionRepository.updateFormDataEntry('entry-session', 'ext.foo', undefined);
+    expect(inspectionRepository.loadFormData('entry-session')).toEqual({
+      'ext.bar': true,
+    });
+
+    inspectionRepository.clearFormData('entry-session');
+    expect(inspectionRepository.loadFormData('entry-session')).toBeNull();
   });
 });
