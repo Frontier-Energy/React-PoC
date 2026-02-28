@@ -15,7 +15,10 @@ const loadInspectionsFromStorage = () => {
 const updateInspectionStatus = (inspection: InspectionSession, status: UploadStatus) => {
   const updatedInspection: InspectionSession = { ...inspection, uploadStatus: status };
   inspectionRepository.update(updatedInspection);
-  inspectionRepository.saveCurrent(updatedInspection);
+  const currentSession = inspectionRepository.loadCurrent();
+  if (currentSession?.id === inspection.id) {
+    inspectionRepository.saveCurrent(updatedInspection);
+  }
   window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedInspection }));
 };
 
