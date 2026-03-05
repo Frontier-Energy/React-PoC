@@ -257,53 +257,33 @@ export function Layout() {
     navigationItems.push({ type: 'link', text: labels.nav.logout, href: '#/logout' });
   }
 
-  return (
-    <AppLayout
-      breadcrumbs={
-        <BreadcrumbGroup items={[]} onFollow={() => {}} />
-      }
-      contentHeader={
-        <div className="app-layout-header">
-          <span>{labels.app.title}</span>
-          <span className="app-layout-tenant-label">{activeTenant.displayName}</span>
-        </div>
-      }
-      content={
-        <div className="app-content">
-          <Outlet />
-          <footer className="app-footer">
-            {labels.app.poweredBy}{' '}
-            <Link href="https://frontierenergy.com" external externalIconAriaLabel={labels.app.brand}>
-              {labels.app.brand}
-            </Link>
-          </footer>
-        </div>
-      }
-      drawers={[
-        {
-          id: 'connectivity',
-          ariaLabels: {
-            drawerName: labels.drawers.connectivity.name,
-            triggerButton: labels.drawers.connectivity.trigger,
-          },
-          trigger: {
-            iconSvg: (
-              <span style={{ color: iconFill, display: 'inline-flex' }}>
-                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
-                  <circle cx="9" cy="9" r="6" fill="currentColor" />
-                </svg>
-              </span>
-            ),
-          },
-          content: (
-            <Box>
-              <StatusIndicator type={statusType}>
-                {statusLabel}
-                {lastCheckedAt ? labels.connectivity.lastCheckedAt(lastCheckedAt.toLocaleTimeString()) : ''}
-              </StatusIndicator>
-            </Box>
-          ),
-        },
+  const drawers = [
+    {
+      id: 'connectivity',
+      ariaLabels: {
+        drawerName: labels.drawers.connectivity.name,
+        triggerButton: labels.drawers.connectivity.trigger,
+      },
+      trigger: {
+        iconSvg: (
+          <span style={{ color: iconFill, display: 'inline-flex' }}>
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+              <circle cx="9" cy="9" r="6" fill="currentColor" />
+            </svg>
+          </span>
+        ),
+      },
+      content: (
+        <Box>
+          <StatusIndicator type={statusType}>
+            {statusLabel}
+            {lastCheckedAt ? labels.connectivity.lastCheckedAt(lastCheckedAt.toLocaleTimeString()) : ''}
+          </StatusIndicator>
+        </Box>
+      ),
+    },
+    ...(config.showInspectionStatsButton
+      ? [
         {
           id: 'inspection-stats',
           ariaLabels: {
@@ -349,109 +329,135 @@ export function Layout() {
             </SpaceBetween>
           ),
         },
-        {
-          id: 'customization',
-          ariaLabels: {
-            drawerName: labels.drawers.customization.name,
-            triggerButton: labels.drawers.customization.trigger,
-          },
-          trigger: {
-            iconSvg: (
-              <span style={{ display: 'inline-flex' }}>
-                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
-                  <circle cx="6" cy="5" r="2" fill="currentColor" />
-                  <circle cx="12" cy="13" r="2" fill="currentColor" />
-                  <rect x="8" y="4" width="6" height="2" fill="currentColor" />
-                  <rect x="4" y="12" width="6" height="2" fill="currentColor" />
-                </svg>
-              </span>
-            ),
-          },
-          content: (
-            <SpaceBetween size="s">
-              <Header variant="h3">{labels.customization.header}</Header>
-              <Box fontWeight="bold">{labels.customization.userLevelHeader}</Box>
-              <FormField label={labels.customization.themeLabel}>
-                <Select
-                  selectedOption={
-                    themeOptions.find((option) => option.value === customization.theme) ?? themeOptions[0]
+      ]
+      : []),
+    {
+      id: 'customization',
+      ariaLabels: {
+        drawerName: labels.drawers.customization.name,
+        triggerButton: labels.drawers.customization.trigger,
+      },
+      trigger: {
+        iconSvg: (
+          <span style={{ display: 'inline-flex' }}>
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+              <circle cx="6" cy="5" r="2" fill="currentColor" />
+              <circle cx="12" cy="13" r="2" fill="currentColor" />
+              <rect x="8" y="4" width="6" height="2" fill="currentColor" />
+              <rect x="4" y="12" width="6" height="2" fill="currentColor" />
+            </svg>
+          </span>
+        ),
+      },
+      content: (
+        <SpaceBetween size="s">
+          <Header variant="h3">{labels.customization.header}</Header>
+          <Box fontWeight="bold">{labels.customization.userLevelHeader}</Box>
+          <FormField label={labels.customization.themeLabel}>
+            <Select
+              selectedOption={
+                themeOptions.find((option) => option.value === customization.theme) ?? themeOptions[0]
+              }
+              onChange={(event) =>
+                setCustomization((prev) => ({
+                  ...prev,
+                  theme: event.detail.selectedOption.value ?? prev.theme,
+                }))
+              }
+              options={themeOptions}
+            />
+          </FormField>
+          <FormField label={labels.customization.fontLabel}>
+            <Select
+              selectedOption={
+                fontOptions.find((option) => option.value === customization.font) ?? fontOptions[0]
+              }
+              onChange={(event) =>
+                setCustomization((prev) => ({
+                  ...prev,
+                  font: event.detail.selectedOption.value ?? prev.font,
+                }))
+              }
+              options={fontOptions}
+            />
+          </FormField>
+          <FormField label={labels.customization.languageLabel}>
+            <Select
+              selectedOption={
+                languageOptions.find((option) => option.value === customization.language) ?? languageOptions[0]
+              }
+              onChange={(event) => {
+                const selectedValue = event.detail.selectedOption.value;
+                const nextLanguage = isLanguageCode(selectedValue) ? selectedValue : customization.language;
+                setLanguage(nextLanguage);
+                setCustomization((prev) => ({
+                  ...prev,
+                  language: nextLanguage,
+                }));
+              }}
+              options={languageOptions}
+            />
+          </FormField>
+          <Box fontWeight="bold">{labels.customization.adminLevelHeader}</Box>
+          {canSelectTenant ? (
+            <FormField label={labels.customization.tenantLabel}>
+              <Select
+                selectedOption={
+                  tenantOptions.find((option) => option.value === customization.tenantId) ?? tenantOptions[0]
+                }
+                onChange={(event) => {
+                  const selectedTenantId = event.detail.selectedOption.value;
+                  const nextTenant = selectedTenantId ? getTenantById(selectedTenantId) : undefined;
+                  if (!nextTenant) {
+                    return;
                   }
-                  onChange={(event) =>
-                    setCustomization((prev) => ({
-                      ...prev,
-                      theme: event.detail.selectedOption.value ?? prev.theme,
-                    }))
-                  }
-                  options={themeOptions}
-                />
-              </FormField>
-              <FormField label={labels.customization.fontLabel}>
-                <Select
-                  selectedOption={
-                    fontOptions.find((option) => option.value === customization.font) ?? fontOptions[0]
-                  }
-                  onChange={(event) =>
-                    setCustomization((prev) => ({
-                      ...prev,
-                      font: event.detail.selectedOption.value ?? prev.font,
-                    }))
-                  }
-                  options={fontOptions}
-                />
-              </FormField>
-              <FormField label={labels.customization.languageLabel}>
-                <Select
-                  selectedOption={
-                    languageOptions.find((option) => option.value === customization.language) ?? languageOptions[0]
-                  }
-                  onChange={(event) => {
-                    const selectedValue = event.detail.selectedOption.value;
-                    const nextLanguage = isLanguageCode(selectedValue) ? selectedValue : customization.language;
-                    setLanguage(nextLanguage);
-                    setCustomization((prev) => ({
-                      ...prev,
-                      language: nextLanguage,
-                    }));
-                  }}
-                  options={languageOptions}
-                />
-              </FormField>
-              <Box fontWeight="bold">{labels.customization.adminLevelHeader}</Box>
-              {canSelectTenant ? (
-                <FormField label={labels.customization.tenantLabel}>
-                  <Select
-                    selectedOption={
-                      tenantOptions.find((option) => option.value === customization.tenantId) ?? tenantOptions[0]
-                    }
-                    onChange={(event) => {
-                      const selectedTenantId = event.detail.selectedOption.value;
-                      const nextTenant = selectedTenantId ? getTenantById(selectedTenantId) : undefined;
-                      if (!nextTenant) {
-                        return;
-                      }
-                      setCustomization((prev) => ({
-                        ...prev,
-                        tenantId: nextTenant.tenantId,
-                        theme: nextTenant.uiDefaults.theme,
-                        font: nextTenant.uiDefaults.font,
-                      }));
-                      void refreshConfig(nextTenant.tenantId);
-                    }}
-                    options={tenantOptions}
-                  />
-                </FormField>
-              ) : (
-                <Box fontSize="body-s" color="text-body-secondary">
-                  {labels.customization.adminTenantAccessNotice}
-                </Box>
-              )}
-              <Box fontSize="body-s" color="text-body-secondary">
-                {labels.customization.preferencesSaved}
-              </Box>
-            </SpaceBetween>
-          ),
-        },
-      ]}
+                  setCustomization((prev) => ({
+                    ...prev,
+                    tenantId: nextTenant.tenantId,
+                    theme: nextTenant.uiDefaults.theme,
+                    font: nextTenant.uiDefaults.font,
+                  }));
+                  void refreshConfig(nextTenant.tenantId);
+                }}
+                options={tenantOptions}
+              />
+            </FormField>
+          ) : (
+            <Box fontSize="body-s" color="text-body-secondary">
+              {labels.customization.adminTenantAccessNotice}
+            </Box>
+          )}
+          <Box fontSize="body-s" color="text-body-secondary">
+            {labels.customization.preferencesSaved}
+          </Box>
+        </SpaceBetween>
+      ),
+    },
+  ];
+
+  return (
+    <AppLayout
+      breadcrumbs={
+        <BreadcrumbGroup items={[]} onFollow={() => {}} />
+      }
+      contentHeader={
+        <div className="app-layout-header">
+          <span>{labels.app.title}</span>
+          <span className="app-layout-tenant-label">{activeTenant.displayName}</span>
+        </div>
+      }
+      content={
+        <div className="app-content">
+          <Outlet />
+          <footer className="app-footer">
+            {labels.app.poweredBy}{' '}
+            <Link href="https://frontierenergy.com" external externalIconAriaLabel={labels.app.brand}>
+              {labels.app.brand}
+            </Link>
+          </footer>
+        </div>
+      }
+      drawers={drawers}
       activeDrawerId={activeDrawerId}
       onDrawerChange={({ detail }) => setActiveDrawerId(detail.activeDrawerId)}
       navigationHide={!config.showLeftFlyout}

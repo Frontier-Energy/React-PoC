@@ -16,6 +16,7 @@ export interface TenantDefinition {
     font: string;
     showLeftFlyout: boolean;
     showRightFlyout: boolean;
+    showInspectionStatsButton: boolean;
   };
 }
 
@@ -33,6 +34,7 @@ export const TENANTS: TenantDefinition[] = [
       font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
       showLeftFlyout: true,
       showRightFlyout: true,
+      showInspectionStatsButton: false,
     },
   },
   {
@@ -44,6 +46,7 @@ export const TENANTS: TenantDefinition[] = [
       font: 'Tahoma, "Trebuchet MS", Arial, sans-serif',
       showLeftFlyout: true,
       showRightFlyout: true,
+      showInspectionStatsButton: false,
     },
   },
   {
@@ -55,6 +58,7 @@ export const TENANTS: TenantDefinition[] = [
       font: 'Georgia, "Times New Roman", serif',
       showLeftFlyout: true,
       showRightFlyout: true,
+      showInspectionStatsButton: false,
     },
   },
   {
@@ -66,6 +70,7 @@ export const TENANTS: TenantDefinition[] = [
       font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
       showLeftFlyout: false,
       showRightFlyout: true,
+      showInspectionStatsButton: false,
     },
   },
 ];

@@ -9,6 +9,7 @@ export interface TenantBootstrapConfig {
   font: string;
   showLeftFlyout: boolean;
   showRightFlyout: boolean;
+  showInspectionStatsButton: boolean;
   language?: LanguageCode;
   enabledForms: FormType[];
   loginRequired: boolean;
@@ -23,11 +24,15 @@ interface TenantBootstrapResponse {
     language?: string;
     showLeftFlyout?: boolean;
     showRightFlyout?: boolean;
+    showInspectionStatsButton?: boolean;
+    includeInspectionStatsButton?: boolean;
     includeLeftFlyout?: boolean;
     includeRightFlyout?: boolean;
   };
   showLeftFlyout?: boolean;
   showRightFlyout?: boolean;
+  showInspectionStatsButton?: boolean;
+  includeInspectionStatsButton?: boolean;
   includeLeftFlyout?: boolean;
   includeRightFlyout?: boolean;
   enabledForms?: string[];
@@ -52,6 +57,7 @@ export const getDefaultTenantBootstrapConfig = (): TenantBootstrapConfig => {
     font: activeTenant.uiDefaults.font,
     showLeftFlyout: activeTenant.uiDefaults.showLeftFlyout,
     showRightFlyout: activeTenant.uiDefaults.showRightFlyout,
+    showInspectionStatsButton: activeTenant.uiDefaults.showInspectionStatsButton,
     enabledForms: DEFAULT_ENABLED_FORMS,
     loginRequired: !LOGIN_OPTIONAL_TENANTS.has(activeTenant.tenantId.toLowerCase()),
   };
@@ -67,6 +73,7 @@ export const getDefaultTenantBootstrapConfigForTenant = (tenantId?: string): Ten
     font: activeTenant.uiDefaults.font,
     showLeftFlyout: activeTenant.uiDefaults.showLeftFlyout,
     showRightFlyout: activeTenant.uiDefaults.showRightFlyout,
+    showInspectionStatsButton: activeTenant.uiDefaults.showInspectionStatsButton,
     enabledForms: DEFAULT_ENABLED_FORMS,
     loginRequired: !LOGIN_OPTIONAL_TENANTS.has(activeTenant.tenantId.toLowerCase()),
   };
@@ -103,6 +110,14 @@ export const mapTenantBootstrapResponse = (
     baseTenant?.uiDefaults.showRightFlyout,
     defaults.showRightFlyout
   );
+  const showInspectionStatsButton = resolveOptionalBoolean(
+    payload.showInspectionStatsButton,
+    payload.includeInspectionStatsButton,
+    payload.uiDefaults?.showInspectionStatsButton,
+    payload.uiDefaults?.includeInspectionStatsButton,
+    baseTenant?.uiDefaults.showInspectionStatsButton,
+    defaults.showInspectionStatsButton
+  );
 
   return {
     tenantId: baseTenant?.tenantId ?? defaults.tenantId,
@@ -111,6 +126,7 @@ export const mapTenantBootstrapResponse = (
     font: payload.uiDefaults?.font?.trim() || baseTenant?.uiDefaults.font || defaults.font,
     showLeftFlyout: showLeftFlyout ?? defaults.showLeftFlyout,
     showRightFlyout: showRightFlyout ?? defaults.showRightFlyout,
+    showInspectionStatsButton: showInspectionStatsButton ?? defaults.showInspectionStatsButton,
     language: language && isLanguageCode(language) ? language : defaults.language,
     enabledForms: enabledForms.length > 0 ? enabledForms : defaults.enabledForms,
     loginRequired,

@@ -21,6 +21,7 @@ describe('tenantBootstrap', () => {
     expect(defaults.loginRequired).toBe(true);
     expect(defaults.showLeftFlyout).toBe(true);
     expect(defaults.showRightFlyout).toBe(true);
+    expect(defaults.showInspectionStatsButton).toBe(false);
   });
 
   it('defaults login to optional and hides left flyout for lire tenant', () => {
@@ -32,6 +33,7 @@ describe('tenantBootstrap', () => {
     expect(defaults.loginRequired).toBe(false);
     expect(defaults.showLeftFlyout).toBe(false);
     expect(defaults.showRightFlyout).toBe(true);
+    expect(defaults.showInspectionStatsButton).toBe(false);
   });
 
   it('maps upstream payload fields into normalized tenant config', () => {
@@ -56,6 +58,7 @@ describe('tenantBootstrap', () => {
     expect(config.loginRequired).toBe(false);
     expect(config.showLeftFlyout).toBe(true);
     expect(config.showRightFlyout).toBe(true);
+    expect(config.showInspectionStatsButton).toBe(false);
   });
 
   it('uses defaults/fallbacks for invalid mapped fields', () => {
@@ -86,6 +89,7 @@ describe('tenantBootstrap', () => {
     expect(config.loginRequired).toBe(defaults.loginRequired);
     expect(config.showLeftFlyout).toBe(defaults.showLeftFlyout);
     expect(config.showRightFlyout).toBe(defaults.showRightFlyout);
+    expect(config.showInspectionStatsButton).toBe(defaults.showInspectionStatsButton);
   });
 
   it('prefers loginRequired over requiresLogin and maps language/formTypes when valid', () => {
@@ -108,6 +112,7 @@ describe('tenantBootstrap', () => {
     expect(config.language).toBe('es');
     expect(config.showLeftFlyout).toBe(defaults.showLeftFlyout);
     expect(config.showRightFlyout).toBe(defaults.showRightFlyout);
+    expect(config.showInspectionStatsButton).toBe(defaults.showInspectionStatsButton);
   });
 
   it('uses requiresLogin when loginRequired is not provided', () => {
@@ -128,12 +133,14 @@ describe('tenantBootstrap', () => {
       {
         includeLeftFlyout: false,
         includeRightFlyout: true,
+        includeInspectionStatsButton: true,
       },
       defaults
     );
 
     expect(config.showLeftFlyout).toBe(false);
     expect(config.showRightFlyout).toBe(true);
+    expect(config.showInspectionStatsButton).toBe(true);
   });
 
   it('fetches tenant bootstrap config from upstream service', async () => {
@@ -153,6 +160,7 @@ describe('tenantBootstrap', () => {
     expect(config.loginRequired).toBe(true);
     expect(config.showLeftFlyout).toBe(true);
     expect(config.showRightFlyout).toBe(true);
+    expect(config.showInspectionStatsButton).toBe(false);
   });
 
   it('throws when upstream bootstrap request fails', async () => {
@@ -179,6 +187,7 @@ describe('tenantBootstrap', () => {
       loginRequired: true,
       showLeftFlyout: true,
       showRightFlyout: true,
+      showInspectionStatsButton: false,
     });
 
     expect(JSON.parse(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY) || '{}')).toEqual({
@@ -202,6 +211,7 @@ describe('tenantBootstrap', () => {
       loginRequired: false,
       showLeftFlyout: true,
       showRightFlyout: true,
+      showInspectionStatsButton: false,
     });
 
     expect(JSON.parse(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY) || '{}')).toEqual({
@@ -230,6 +240,7 @@ describe('tenantBootstrap', () => {
         loginRequired: true,
         showLeftFlyout: true,
         showRightFlyout: true,
+        showInspectionStatsButton: false,
       }
     );
 
@@ -249,6 +260,7 @@ describe('tenantBootstrap', () => {
       loginRequired: true,
       showLeftFlyout: true,
       showRightFlyout: true,
+      showInspectionStatsButton: false,
     });
 
     expect(JSON.parse(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY) || '{}')).toEqual({
@@ -295,6 +307,7 @@ describe('tenantBootstrap', () => {
         loginRequired: false,
         showLeftFlyout: true,
         showRightFlyout: true,
+        showInspectionStatsButton: false,
       }
     );
 
