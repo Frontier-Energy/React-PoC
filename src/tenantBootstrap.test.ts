@@ -3,6 +3,7 @@ import { CUSTOMIZATION_STORAGE_KEY } from './config';
 import {
   fetchTenantBootstrapConfig,
   getDefaultTenantBootstrapConfig,
+  getDefaultTenantBootstrapConfigForTenant,
   mapTenantBootstrapResponse,
   persistTenantCustomization,
 } from './tenantBootstrap';
@@ -30,10 +31,26 @@ describe('tenantBootstrap', () => {
     const defaults = getDefaultTenantBootstrapConfig();
 
     expect(defaults.tenantId).toBe('lire');
+    expect(defaults.enabledForms).toEqual([]);
     expect(defaults.loginRequired).toBe(false);
     expect(defaults.showLeftFlyout).toBe(false);
     expect(defaults.showRightFlyout).toBe(true);
     expect(defaults.showInspectionStatsButton).toBe(false);
+  });
+
+  it('returns tenant-specific default forms for known tenants', () => {
+    expect(getDefaultTenantBootstrapConfigForTenant('qhvac').enabledForms).toEqual([
+      FormType.Electrical,
+      FormType.ElectricalSF,
+      FormType.HVAC,
+    ]);
+    expect(getDefaultTenantBootstrapConfigForTenant('opscentral').enabledForms).toEqual([
+      FormType.SafetyChecklist,
+    ]);
+    expect(getDefaultTenantBootstrapConfigForTenant('lire').enabledForms).toEqual([]);
+    expect(getDefaultTenantBootstrapConfigForTenant('frontierDemo').enabledForms).toEqual(
+      Object.values(FormType)
+    );
   });
 
   it('maps upstream payload fields into normalized tenant config', () => {

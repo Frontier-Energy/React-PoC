@@ -43,10 +43,18 @@ interface TenantBootstrapResponse {
 
 const DEFAULT_ENABLED_FORMS = Object.values(FormType);
 const LOGIN_OPTIONAL_TENANTS = new Set(['lire']);
+const DEFAULT_ENABLED_FORMS_BY_TENANT: Partial<Record<string, FormType[]>> = {
+  frontierdemo: DEFAULT_ENABLED_FORMS,
+  qhvac: [FormType.Electrical, FormType.ElectricalSF, FormType.HVAC],
+  opscentral: [FormType.SafetyChecklist],
+  lire: [],
+};
 
 const isFormType = (value: string): value is FormType => DEFAULT_ENABLED_FORMS.includes(value as FormType);
 const resolveOptionalBoolean = (...values: Array<boolean | undefined>): boolean | undefined =>
   values.find((value) => typeof value === 'boolean');
+const resolveDefaultEnabledFormsForTenant = (tenantId: string): FormType[] =>
+  DEFAULT_ENABLED_FORMS_BY_TENANT[tenantId.toLowerCase()] ?? DEFAULT_ENABLED_FORMS;
 
 export const getDefaultTenantBootstrapConfig = (): TenantBootstrapConfig => {
   const activeTenant = getActiveTenant();
@@ -58,7 +66,7 @@ export const getDefaultTenantBootstrapConfig = (): TenantBootstrapConfig => {
     showLeftFlyout: activeTenant.uiDefaults.showLeftFlyout,
     showRightFlyout: activeTenant.uiDefaults.showRightFlyout,
     showInspectionStatsButton: activeTenant.uiDefaults.showInspectionStatsButton,
-    enabledForms: DEFAULT_ENABLED_FORMS,
+    enabledForms: resolveDefaultEnabledFormsForTenant(activeTenant.tenantId),
     loginRequired: !LOGIN_OPTIONAL_TENANTS.has(activeTenant.tenantId.toLowerCase()),
   };
 };
@@ -74,7 +82,7 @@ export const getDefaultTenantBootstrapConfigForTenant = (tenantId?: string): Ten
     showLeftFlyout: activeTenant.uiDefaults.showLeftFlyout,
     showRightFlyout: activeTenant.uiDefaults.showRightFlyout,
     showInspectionStatsButton: activeTenant.uiDefaults.showInspectionStatsButton,
-    enabledForms: DEFAULT_ENABLED_FORMS,
+    enabledForms: resolveDefaultEnabledFormsForTenant(activeTenant.tenantId),
     loginRequired: !LOGIN_OPTIONAL_TENANTS.has(activeTenant.tenantId.toLowerCase()),
   };
 };
