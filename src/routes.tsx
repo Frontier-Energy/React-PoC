@@ -11,6 +11,15 @@ import { Register } from './pages/Register';
 import { getUserId } from './auth';
 import { useTenantBootstrap } from './TenantBootstrapContext';
 
+function DefaultRouteRedirect() {
+  const { config } = useTenantBootstrap();
+  const userId = getUserId();
+  if (!config.loginRequired || userId) {
+    return <Navigate to="/home" replace />;
+  }
+  return <Navigate to="/login" replace />;
+}
+
 function RequireUser({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { config } = useTenantBootstrap();
@@ -25,6 +34,7 @@ function RequireUser({ children }: { children: ReactNode }) {
 }
 
 export const router = createBrowserRouter([
+  { path: '/', element: <DefaultRouteRedirect /> },
   { path: '/login', element: <Login /> },
   { path: '/register', element: <Register /> },
   {
@@ -34,7 +44,7 @@ export const router = createBrowserRouter([
       </RequireUser>
     ),
     children: [
-      { path: '/', element: <Home /> },
+      { path: '/home', element: <Home /> },
       { path: '/new-inspection', element: <NewInspection /> },
       { path: '/fill-form/:sessionId', element: <FillForm /> },
       { path: '/debug-inspection/:sessionId', element: <DebugInspection /> },

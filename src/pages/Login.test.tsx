@@ -2,17 +2,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LocalizationProvider } from '../LocalizationContext';
 import { Login } from './Login';
 
-const { navigateMock, setUserIdMock, getLoginRequired, setLoginRequired } = vi.hoisted(() => {
-  let loginRequired = true;
-  return {
-    navigateMock: vi.fn(),
-    setUserIdMock: vi.fn(),
-    getLoginRequired: () => loginRequired,
-    setLoginRequired: (value: boolean) => {
-      loginRequired = value;
-    },
-  };
-});
+const { navigateMock, setUserIdMock } = vi.hoisted(() => ({
+  navigateMock: vi.fn(),
+  setUserIdMock: vi.fn(),
+}));
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -25,14 +18,6 @@ vi.mock('react-router-dom', async () => {
 vi.mock('../auth', () => ({
   setUserId: setUserIdMock,
   parseRolesFromAuthPayload: () => ['user'],
-}));
-
-vi.mock('../TenantBootstrapContext', () => ({
-  useTenantBootstrap: () => ({
-    config: {
-      loginRequired: getLoginRequired(),
-    },
-  }),
 }));
 
 vi.mock('@cloudscape-design/components', async () => {
@@ -98,22 +83,18 @@ describe('Login', () => {
   beforeEach(() => {
     navigateMock.mockReset();
     setUserIdMock.mockReset();
-    setLoginRequired(true);
     vi.restoreAllMocks();
   });
 
-  it('redirects to home when tenant does not require login', async () => {
-    setLoginRequired(false);
-
+  it('keeps login page visible when opened directly', async () => {
     render(
       <LocalizationProvider>
         <Login />
       </LocalizationProvider>
     );
 
-    await waitFor(() => {
-      expect(navigateMock).toHaveBeenCalledWith('/', { replace: true });
-    });
+    expect(await screen.findByText('Login')).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it('shows required-email validation when enter is pressed on empty value', async () => {

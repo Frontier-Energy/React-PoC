@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, FormField, Input, Button, Box, Link } from '@cloudscape-design/components';
 import { parseRolesFromAuthPayload, setUserId } from '../auth';
 import { getActiveTenant, getLoginUrl } from '../config';
 import { useLocalization } from '../LocalizationContext';
-import { useTenantBootstrap } from '../TenantBootstrapContext';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -12,14 +11,7 @@ export function Login() {
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const navigate = useNavigate();
   const { labels } = useLocalization();
-  const { config } = useTenantBootstrap();
   const tenant = getActiveTenant();
-
-  useEffect(() => {
-    if (!config.loginRequired) {
-      navigate('/', { replace: true });
-    }
-  }, [config.loginRequired, navigate]);
 
   const handleEmailLookup = async () => {
     const trimmed = email.trim();
