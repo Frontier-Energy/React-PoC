@@ -24,6 +24,7 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../auth', () => ({
   setUserId: setUserIdMock,
+  parseRolesFromAuthPayload: () => ['user'],
 }));
 
 vi.mock('../TenantBootstrapContext', () => ({
@@ -145,7 +146,7 @@ describe('Login', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     await waitFor(() => {
-      expect(setUserIdMock).toHaveBeenCalledWith('abc-123');
+      expect(setUserIdMock).toHaveBeenCalledWith('abc-123', ['user']);
       expect(navigateMock).toHaveBeenCalledWith('/my-inspections', { replace: true });
     });
   });
@@ -168,7 +169,7 @@ describe('Login', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     expect(await screen.findByText('Login lookup did not return a user ID.')).toBeInTheDocument();
-    expect(setUserIdMock).toHaveBeenCalledWith('');
+    expect(setUserIdMock).toHaveBeenCalledWith('', ['user']);
     expect(navigateMock).not.toHaveBeenCalled();
   });
 

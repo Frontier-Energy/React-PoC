@@ -2,7 +2,7 @@ import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box, Table
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useConnectivity } from './ConnectivityContext';
-import { clearUserId } from './auth';
+import { clearUserId, hasPermission, isLoggedInAdmin } from './auth';
 import { UploadStatus } from './types';
 import type { SelectProps, SideNavigationProps } from '@cloudscape-design/components';
 import { useLocalization } from './LocalizationContext';
@@ -209,6 +209,7 @@ export function Layout() {
     label: tenant.displayName,
     value: tenant.tenantId,
   }));
+  const canSelectTenant = isLoggedInAdmin() && hasPermission('tenant.select');
 
   useEffect(() => {
     document.body.classList.add('app-theme');
@@ -369,28 +370,7 @@ export function Layout() {
           content: (
             <SpaceBetween size="s">
               <Header variant="h3">{labels.customization.header}</Header>
-              <FormField label={labels.customization.tenantLabel}>
-                <Select
-                  selectedOption={
-                    tenantOptions.find((option) => option.value === customization.tenantId) ?? tenantOptions[0]
-                  }
-                  onChange={(event) => {
-                    const selectedTenantId = event.detail.selectedOption.value;
-                    const nextTenant = selectedTenantId ? getTenantById(selectedTenantId) : undefined;
-                    if (!nextTenant) {
-                      return;
-                    }
-                    setCustomization((prev) => ({
-                      ...prev,
-                      tenantId: nextTenant.tenantId,
-                      theme: nextTenant.uiDefaults.theme,
-                      font: nextTenant.uiDefaults.font,
-                    }));
-                    void refreshConfig(nextTenant.tenantId);
-                  }}
-                  options={tenantOptions}
-                />
-              </FormField>
+              <Box fontWeight="bold">{labels.customization.userLevelHeader}</Box>
               <FormField label={labels.customization.themeLabel}>
                 <Select
                   selectedOption={
@@ -436,6 +416,35 @@ export function Layout() {
                   options={languageOptions}
                 />
               </FormField>
+              <Box fontWeight="bold">{labels.customization.adminLevelHeader}</Box>
+              {canSelectTenant ? (
+                <FormField label={labels.customization.tenantLabel}>
+                  <Select
+                    selectedOption={
+                      tenantOptions.find((option) => option.value === customization.tenantId) ?? tenantOptions[0]
+                    }
+                    onChange={(event) => {
+                      const selectedTenantId = event.detail.selectedOption.value;
+                      const nextTenant = selectedTenantId ? getTenantById(selectedTenantId) : undefined;
+                      if (!nextTenant) {
+                        return;
+                      }
+                      setCustomization((prev) => ({
+                        ...prev,
+                        tenantId: nextTenant.tenantId,
+                        theme: nextTenant.uiDefaults.theme,
+                        font: nextTenant.uiDefaults.font,
+                      }));
+                      void refreshConfig(nextTenant.tenantId);
+                    }}
+                    options={tenantOptions}
+                  />
+                </FormField>
+              ) : (
+                <Box fontSize="body-s" color="text-body-secondary">
+                  {labels.customization.adminTenantAccessNotice}
+                </Box>
+              )}
               <Box fontSize="body-s" color="text-body-secondary">
                 {labels.customization.preferencesSaved}
               </Box>

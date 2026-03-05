@@ -17,6 +17,7 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../auth', () => ({
   setUserId: setUserIdMock,
+  parseRolesFromAuthPayload: () => ['user'],
 }));
 
 vi.mock('@cloudscape-design/components', async () => {
@@ -123,7 +124,7 @@ describe('Register', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
 
     await waitFor(() => {
-      expect(setUserIdMock).toHaveBeenCalledWith('registered-user');
+      expect(setUserIdMock).toHaveBeenCalledWith('registered-user', ['user']);
       expect(navigateMock).toHaveBeenCalledWith('/my-inspections', { replace: true });
     });
   });

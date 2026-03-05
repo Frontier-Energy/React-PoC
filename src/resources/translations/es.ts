@@ -55,10 +55,13 @@ export const es = {
   },
   customization: {
     header: 'Personalizacion',
+    userLevelHeader: 'Nivel de usuario',
+    adminLevelHeader: 'Nivel de administrador',
     tenantLabel: 'Tenant',
     themeLabel: 'Tema',
     fontLabel: 'Fuente',
     languageLabel: 'Idioma',
+    adminTenantAccessNotice: 'La seleccion de tenant requiere una cuenta autenticada con rol de administrador.',
     preferencesSaved: 'Las preferencias se guardan localmente en este dispositivo.',
     themeOptions: {
       mist: {

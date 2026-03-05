@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, FormField, Input, Button, Box, Link } from '@cloudscape-design/components';
-import { setUserId } from '../auth';
+import { parseRolesFromAuthPayload, setUserId } from '../auth';
 import { getActiveTenant, getLoginUrl } from '../config';
 import { useLocalization } from '../LocalizationContext';
 import { useTenantBootstrap } from '../TenantBootstrapContext';
@@ -40,9 +40,15 @@ export function Login() {
       if (!response.ok) {
         throw new Error(`Login lookup failed with status ${response.status}`);
       }
-      const payload = (await response.json()) as { userID?: string; userId?: string; userid?: string };
+      const payload = (await response.json()) as {
+        userID?: string;
+        userId?: string;
+        userid?: string;
+        role?: string;
+        roles?: string[];
+      };
       const resolvedUserId = payload.userID || payload.userId || payload.userid || '';
-      setUserId(resolvedUserId);
+      setUserId(resolvedUserId, parseRolesFromAuthPayload(payload));
       return resolvedUserId;
     } catch (error) {
       setLookupError(labels.login.lookupError);
