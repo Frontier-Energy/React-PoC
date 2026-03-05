@@ -4,16 +4,18 @@ import { useEffect, useState } from 'react';
 import { useConnectivity } from './ConnectivityContext';
 import { clearUserId } from './auth';
 import { UploadStatus } from './types';
-import type { SelectProps } from '@cloudscape-design/components';
+import type { SelectProps, SideNavigationProps } from '@cloudscape-design/components';
 import { useLocalization } from './LocalizationContext';
 import { isLanguageCode, type LanguageCode } from './resources/translations';
 import { CUSTOMIZATION_STORAGE_KEY, getActiveTenant, getTenantById, TENANTS } from './config';
 import { inspectionRepository } from './repositories/inspectionRepository';
+import { useTenantBootstrap } from './TenantBootstrapContext';
 
 export function Layout() {
   const navigate = useNavigate();
   const { status, lastCheckedAt } = useConnectivity();
   const { labels, language, setLanguage } = useLocalization();
+  const { config, refreshConfig } = useTenantBootstrap();
   const resolvedTenant = getActiveTenant();
   const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
   type Customization = {
@@ -246,6 +248,14 @@ export function Layout() {
     count: statusCounts[statusValue],
   }));
 
+  const navigationItems: SideNavigationProps.Item[] = [
+    { type: 'link', text: labels.nav.newInspection, href: '#/new-inspection' },
+    { type: 'link', text: labels.nav.myInspections, href: '#/my-inspections' },
+  ];
+  if (config.loginRequired) {
+    navigationItems.push({ type: 'link', text: labels.nav.logout, href: '#/logout' });
+  }
+
   return (
     <AppLayout
       breadcrumbs={
@@ -364,21 +374,20 @@ export function Layout() {
                   selectedOption={
                     tenantOptions.find((option) => option.value === customization.tenantId) ?? tenantOptions[0]
                   }
-                  onChange={(event) =>
-                    setCustomization((prev) => {
-                      const selectedTenantId = event.detail.selectedOption.value;
-                      const nextTenant = selectedTenantId ? getTenantById(selectedTenantId) : undefined;
-                      if (!nextTenant) {
-                        return prev;
-                      }
-                      return {
-                        ...prev,
-                        tenantId: nextTenant.tenantId,
-                        theme: nextTenant.uiDefaults.theme,
-                        font: nextTenant.uiDefaults.font,
-                      };
-                    })
-                  }
+                  onChange={(event) => {
+                    const selectedTenantId = event.detail.selectedOption.value;
+                    const nextTenant = selectedTenantId ? getTenantById(selectedTenantId) : undefined;
+                    if (!nextTenant) {
+                      return;
+                    }
+                    setCustomization((prev) => ({
+                      ...prev,
+                      tenantId: nextTenant.tenantId,
+                      theme: nextTenant.uiDefaults.theme,
+                      font: nextTenant.uiDefaults.font,
+                    }));
+                    void refreshConfig(nextTenant.tenantId);
+                  }}
                   options={tenantOptions}
                 />
               </FormField>
@@ -438,11 +447,7 @@ export function Layout() {
       onDrawerChange={({ detail }) => setActiveDrawerId(detail.activeDrawerId)}
       navigation={
         <SideNavigation
-          items={[
-            { type: 'link', text: labels.nav.newInspection, href: '#/new-inspection' },
-            { type: 'link', text: labels.nav.myInspections, href: '#/my-inspections' },
-            { type: 'link', text: labels.nav.logout, href: '#/logout' },
-          ]}
+          items={navigationItems}
           onFollow={(event) => {
             event.preventDefault();
             if (event.detail.href === '#/logout') {

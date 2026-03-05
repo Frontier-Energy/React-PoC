@@ -1,9 +1,10 @@
 import { Box, Header } from '@cloudscape-design/components';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocalization } from './LocalizationContext';
 import {
   fetchTenantBootstrapConfig,
   getDefaultTenantBootstrapConfig,
+  getDefaultTenantBootstrapConfigForTenant,
   persistTenantCustomization,
   type TenantBootstrapConfig,
 } from './tenantBootstrap';
@@ -11,6 +12,7 @@ import {
 interface TenantBootstrapContextValue {
   loading: boolean;
   config: TenantBootstrapConfig;
+  refreshConfig: (tenantId?: string) => Promise<void>;
 }
 
 const TenantBootstrapContext = createContext<TenantBootstrapContextValue | undefined>(undefined);
@@ -19,13 +21,17 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
   const { labels, setLanguage } = useLocalization();
   const [config, setConfig] = useState<TenantBootstrapConfig>(() => getDefaultTenantBootstrapConfig());
   const [loading, setLoading] = useState(true);
+  const requestIdRef = useRef(0);
 
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
+  const refreshConfig = useCallback(
+    async (tenantId?: string) => {
+      const requestId = ++requestIdRef.current;
+      const fallbackConfig = getDefaultTenantBootstrapConfigForTenant(tenantId);
+      setConfig(fallbackConfig);
+      persistTenantCustomization(fallbackConfig);
       try {
-        const resolvedConfig = await fetchTenantBootstrapConfig();
-        if (!active) {
+        const resolvedConfig = await fetchTenantBootstrapConfig(tenantId);
+        if (requestId !== requestIdRef.current) {
           return;
         }
         setConfig(resolvedConfig);
@@ -33,13 +39,22 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
         if (resolvedConfig.language) {
           setLanguage(resolvedConfig.language);
         }
-      } catch (error) {
-        if (!active) {
+      } catch {
+        if (requestId !== requestIdRef.current) {
           return;
         }
-        const fallbackConfig = getDefaultTenantBootstrapConfig();
         setConfig(fallbackConfig);
         persistTenantCustomization(fallbackConfig);
+      }
+    },
+    [setLanguage]
+  );
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        await refreshConfig();
       } finally {
         if (active) {
           setLoading(false);
@@ -49,15 +64,17 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
     load();
     return () => {
       active = false;
+      requestIdRef.current += 1;
     };
-  }, [setLanguage]);
+  }, [refreshConfig]);
 
   const value = useMemo(
     () => ({
       loading,
       config,
+      refreshConfig,
     }),
-    [loading, config]
+    [loading, config, refreshConfig]
   );
 
   if (loading) {

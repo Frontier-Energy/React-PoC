@@ -43,6 +43,19 @@ export const getDefaultTenantBootstrapConfig = (): TenantBootstrapConfig => {
   };
 };
 
+export const getDefaultTenantBootstrapConfigForTenant = (tenantId?: string): TenantBootstrapConfig => {
+  const requestedTenant = tenantId ? getTenantById(tenantId) : undefined;
+  const activeTenant = requestedTenant ?? getActiveTenant();
+  return {
+    tenantId: activeTenant.tenantId,
+    displayName: activeTenant.displayName,
+    theme: activeTenant.uiDefaults.theme,
+    font: activeTenant.uiDefaults.font,
+    enabledForms: DEFAULT_ENABLED_FORMS,
+    loginRequired: !LOGIN_OPTIONAL_TENANTS.has(activeTenant.tenantId.toLowerCase()),
+  };
+};
+
 export const mapTenantBootstrapResponse = (
   payload: TenantBootstrapResponse,
   defaults: TenantBootstrapConfig
@@ -70,9 +83,9 @@ export const mapTenantBootstrapResponse = (
   };
 };
 
-export const fetchTenantBootstrapConfig = async (): Promise<TenantBootstrapConfig> => {
-  const defaults = getDefaultTenantBootstrapConfig();
-  const response = await fetch(getTenantBootstrapUrl());
+export const fetchTenantBootstrapConfig = async (tenantId?: string): Promise<TenantBootstrapConfig> => {
+  const defaults = getDefaultTenantBootstrapConfigForTenant(tenantId);
+  const response = await fetch(getTenantBootstrapUrl(defaults.tenantId));
   if (!response.ok) {
     throw new Error(`Tenant bootstrap request failed with status ${response.status}`);
   }

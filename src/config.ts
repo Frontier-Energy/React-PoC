@@ -121,8 +121,8 @@ export const getActiveTenant = (): TenantDefinition => {
   return getTenantById(resolvedTenantName) ?? TENANTS[0];
 };
 
-const getAppConfig = (): AppConfig => {
-  const activeTenant = getActiveTenant();
+const getAppConfig = (tenantId?: string): AppConfig => {
+  const activeTenant = tenantId ? getTenantById(tenantId) ?? getActiveTenant() : getActiveTenant();
   return {
     tenantName: activeTenant.tenantId,
     apiBaseUrl: resolveApiBaseUrl(),
@@ -148,7 +148,7 @@ export const getRegisterUrl = () => {
   return `${appConfig.apiBaseUrl}${appConfig.registerPath}`;
 };
 
-export const getTenantBootstrapUrl = () => {
-  const appConfig = getAppConfig();
+export const getTenantBootstrapUrl = (tenantId?: string) => {
+  const appConfig = getAppConfig(tenantId);
   return `${appConfig.apiBaseUrl}${appConfig.tenantBootstrapPath}`;
 };
