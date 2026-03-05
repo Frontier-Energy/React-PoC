@@ -49,6 +49,15 @@ export const TENANTS: TenantDefinition[] = [
       font: 'Georgia, "Times New Roman", serif',
     },
   },
+  {
+    tenantId: 'lire',
+    displayName: 'LIRE',
+    servicePathPrefix: '/QHVAC',
+    uiDefaults: {
+      theme: 'mist',
+      font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
+    },
+  },
 ];
 
 export const getTenantById = (tenantId: string) =>

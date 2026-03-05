@@ -23,6 +23,7 @@ describe('config', () => {
 
   it('resolves tenant name from expected host shape', () => {
     expect(resolveTenantNameFromHostname('qhvac.qcontrol.frontierenergy.com')).toBe('qhvac');
+    expect(resolveTenantNameFromHostname('lire.qcontrol.frontierenergy.com')).toBe('lire');
     expect(resolveTenantNameFromHostname('unknown.qcontrol.frontierenergy.com')).toBe(DEFAULT_TENANT_NAME);
     expect(resolveTenantNameFromHostname('localhost')).toBe(DEFAULT_TENANT_NAME);
     expect(resolveTenantNameFromHostname('')).toBe(DEFAULT_TENANT_NAME);

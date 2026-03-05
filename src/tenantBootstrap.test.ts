@@ -21,6 +21,15 @@ describe('tenantBootstrap', () => {
     expect(defaults.loginRequired).toBe(true);
   });
 
+  it('defaults login to optional for lire tenant', () => {
+    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ tenantId: 'lire' }));
+
+    const defaults = getDefaultTenantBootstrapConfig();
+
+    expect(defaults.tenantId).toBe('lire');
+    expect(defaults.loginRequired).toBe(false);
+  });
+
   it('maps upstream payload fields into normalized tenant config', () => {
     const defaults = getDefaultTenantBootstrapConfig();
     const config = mapTenantBootstrapResponse(

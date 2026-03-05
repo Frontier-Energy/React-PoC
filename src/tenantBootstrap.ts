@@ -27,6 +27,7 @@ interface TenantBootstrapResponse {
 }
 
 const DEFAULT_ENABLED_FORMS = Object.values(FormType);
+const LOGIN_OPTIONAL_TENANTS = new Set(['lire']);
 
 const isFormType = (value: string): value is FormType => DEFAULT_ENABLED_FORMS.includes(value as FormType);
 
@@ -38,7 +39,7 @@ export const getDefaultTenantBootstrapConfig = (): TenantBootstrapConfig => {
     theme: activeTenant.uiDefaults.theme,
     font: activeTenant.uiDefaults.font,
     enabledForms: DEFAULT_ENABLED_FORMS,
-    loginRequired: true,
+    loginRequired: !LOGIN_OPTIONAL_TENANTS.has(activeTenant.tenantId.toLowerCase()),
   };
 };
 
