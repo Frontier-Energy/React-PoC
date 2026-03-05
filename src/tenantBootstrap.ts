@@ -7,6 +7,8 @@ export interface TenantBootstrapConfig {
   displayName: string;
   theme: string;
   font: string;
+  showLeftFlyout: boolean;
+  showRightFlyout: boolean;
   language?: LanguageCode;
   enabledForms: FormType[];
   loginRequired: boolean;
@@ -19,7 +21,15 @@ interface TenantBootstrapResponse {
     theme?: string;
     font?: string;
     language?: string;
+    showLeftFlyout?: boolean;
+    showRightFlyout?: boolean;
+    includeLeftFlyout?: boolean;
+    includeRightFlyout?: boolean;
   };
+  showLeftFlyout?: boolean;
+  showRightFlyout?: boolean;
+  includeLeftFlyout?: boolean;
+  includeRightFlyout?: boolean;
   enabledForms?: string[];
   formTypes?: string[];
   loginRequired?: boolean;
@@ -30,6 +40,8 @@ const DEFAULT_ENABLED_FORMS = Object.values(FormType);
 const LOGIN_OPTIONAL_TENANTS = new Set(['lire']);
 
 const isFormType = (value: string): value is FormType => DEFAULT_ENABLED_FORMS.includes(value as FormType);
+const resolveOptionalBoolean = (...values: Array<boolean | undefined>): boolean | undefined =>
+  values.find((value) => typeof value === 'boolean');
 
 export const getDefaultTenantBootstrapConfig = (): TenantBootstrapConfig => {
   const activeTenant = getActiveTenant();
@@ -38,6 +50,8 @@ export const getDefaultTenantBootstrapConfig = (): TenantBootstrapConfig => {
     displayName: activeTenant.displayName,
     theme: activeTenant.uiDefaults.theme,
     font: activeTenant.uiDefaults.font,
+    showLeftFlyout: activeTenant.uiDefaults.showLeftFlyout,
+    showRightFlyout: activeTenant.uiDefaults.showRightFlyout,
     enabledForms: DEFAULT_ENABLED_FORMS,
     loginRequired: !LOGIN_OPTIONAL_TENANTS.has(activeTenant.tenantId.toLowerCase()),
   };
@@ -51,6 +65,8 @@ export const getDefaultTenantBootstrapConfigForTenant = (tenantId?: string): Ten
     displayName: activeTenant.displayName,
     theme: activeTenant.uiDefaults.theme,
     font: activeTenant.uiDefaults.font,
+    showLeftFlyout: activeTenant.uiDefaults.showLeftFlyout,
+    showRightFlyout: activeTenant.uiDefaults.showRightFlyout,
     enabledForms: DEFAULT_ENABLED_FORMS,
     loginRequired: !LOGIN_OPTIONAL_TENANTS.has(activeTenant.tenantId.toLowerCase()),
   };
@@ -71,12 +87,30 @@ export const mapTenantBootstrapResponse = (
       ? payload.requiresLogin
       : defaults.loginRequired;
   const language = payload.uiDefaults?.language;
+  const showLeftFlyout = resolveOptionalBoolean(
+    payload.showLeftFlyout,
+    payload.includeLeftFlyout,
+    payload.uiDefaults?.showLeftFlyout,
+    payload.uiDefaults?.includeLeftFlyout,
+    baseTenant?.uiDefaults.showLeftFlyout,
+    defaults.showLeftFlyout
+  );
+  const showRightFlyout = resolveOptionalBoolean(
+    payload.showRightFlyout,
+    payload.includeRightFlyout,
+    payload.uiDefaults?.showRightFlyout,
+    payload.uiDefaults?.includeRightFlyout,
+    baseTenant?.uiDefaults.showRightFlyout,
+    defaults.showRightFlyout
+  );
 
   return {
     tenantId: baseTenant?.tenantId ?? defaults.tenantId,
     displayName: payload.displayName?.trim() || baseTenant?.displayName || defaults.displayName,
     theme: payload.uiDefaults?.theme?.trim() || baseTenant?.uiDefaults.theme || defaults.theme,
     font: payload.uiDefaults?.font?.trim() || baseTenant?.uiDefaults.font || defaults.font,
+    showLeftFlyout: showLeftFlyout ?? defaults.showLeftFlyout,
+    showRightFlyout: showRightFlyout ?? defaults.showRightFlyout,
     language: language && isLanguageCode(language) ? language : defaults.language,
     enabledForms: enabledForms.length > 0 ? enabledForms : defaults.enabledForms,
     loginRequired,

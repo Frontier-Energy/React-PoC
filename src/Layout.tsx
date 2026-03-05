@@ -445,6 +445,8 @@ export function Layout() {
       ]}
       activeDrawerId={activeDrawerId}
       onDrawerChange={({ detail }) => setActiveDrawerId(detail.activeDrawerId)}
+      navigationHide={!config.showLeftFlyout}
+      toolsHide={!config.showRightFlyout}
       navigation={
         <SideNavigation
           items={navigationItems}

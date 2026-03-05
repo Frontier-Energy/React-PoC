@@ -19,15 +19,19 @@ describe('tenantBootstrap', () => {
     expect(defaults.tenantId).toBeTruthy();
     expect(defaults.enabledForms).toEqual(Object.values(FormType));
     expect(defaults.loginRequired).toBe(true);
+    expect(defaults.showLeftFlyout).toBe(true);
+    expect(defaults.showRightFlyout).toBe(true);
   });
 
-  it('defaults login to optional for lire tenant', () => {
+  it('defaults login to optional and hides left flyout for lire tenant', () => {
     localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ tenantId: 'lire' }));
 
     const defaults = getDefaultTenantBootstrapConfig();
 
     expect(defaults.tenantId).toBe('lire');
     expect(defaults.loginRequired).toBe(false);
+    expect(defaults.showLeftFlyout).toBe(false);
+    expect(defaults.showRightFlyout).toBe(true);
   });
 
   it('maps upstream payload fields into normalized tenant config', () => {
@@ -50,6 +54,8 @@ describe('tenantBootstrap', () => {
     expect(config.theme).toBe('harbor');
     expect(config.font).toBe('Tahoma');
     expect(config.loginRequired).toBe(false);
+    expect(config.showLeftFlyout).toBe(true);
+    expect(config.showRightFlyout).toBe(true);
   });
 
   it('uses defaults/fallbacks for invalid mapped fields', () => {
@@ -78,6 +84,8 @@ describe('tenantBootstrap', () => {
     expect(config.language).toBe('en');
     expect(config.enabledForms).toEqual(defaults.enabledForms);
     expect(config.loginRequired).toBe(defaults.loginRequired);
+    expect(config.showLeftFlyout).toBe(defaults.showLeftFlyout);
+    expect(config.showRightFlyout).toBe(defaults.showRightFlyout);
   });
 
   it('prefers loginRequired over requiresLogin and maps language/formTypes when valid', () => {
@@ -98,6 +106,8 @@ describe('tenantBootstrap', () => {
     expect(config.enabledForms).toEqual([FormType.Electrical]);
     expect(config.loginRequired).toBe(true);
     expect(config.language).toBe('es');
+    expect(config.showLeftFlyout).toBe(defaults.showLeftFlyout);
+    expect(config.showRightFlyout).toBe(defaults.showRightFlyout);
   });
 
   it('uses requiresLogin when loginRequired is not provided', () => {
@@ -110,6 +120,20 @@ describe('tenantBootstrap', () => {
     );
 
     expect(config.loginRequired).toBe(false);
+  });
+
+  it('maps flyout fields when provided by upstream payload', () => {
+    const defaults = getDefaultTenantBootstrapConfig();
+    const config = mapTenantBootstrapResponse(
+      {
+        includeLeftFlyout: false,
+        includeRightFlyout: true,
+      },
+      defaults
+    );
+
+    expect(config.showLeftFlyout).toBe(false);
+    expect(config.showRightFlyout).toBe(true);
   });
 
   it('fetches tenant bootstrap config from upstream service', async () => {
@@ -127,6 +151,8 @@ describe('tenantBootstrap', () => {
     expect(config.tenantId).toBe('opscentral');
     expect(config.enabledForms).toEqual([FormType.SafetyChecklist]);
     expect(config.loginRequired).toBe(true);
+    expect(config.showLeftFlyout).toBe(true);
+    expect(config.showRightFlyout).toBe(true);
   });
 
   it('throws when upstream bootstrap request fails', async () => {
@@ -151,6 +177,8 @@ describe('tenantBootstrap', () => {
       language: 'en',
       enabledForms: [FormType.HVAC],
       loginRequired: true,
+      showLeftFlyout: true,
+      showRightFlyout: true,
     });
 
     expect(JSON.parse(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY) || '{}')).toEqual({
@@ -172,6 +200,8 @@ describe('tenantBootstrap', () => {
       font: 'Georgia',
       enabledForms: [FormType.SafetyChecklist],
       loginRequired: false,
+      showLeftFlyout: true,
+      showRightFlyout: true,
     });
 
     expect(JSON.parse(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY) || '{}')).toEqual({
@@ -198,6 +228,8 @@ describe('tenantBootstrap', () => {
         font: 'default-font',
         enabledForms: [FormType.HVAC],
         loginRequired: true,
+        showLeftFlyout: true,
+        showRightFlyout: true,
       }
     );
 
@@ -215,6 +247,8 @@ describe('tenantBootstrap', () => {
       font: 'Tahoma',
       enabledForms: [FormType.HVAC],
       loginRequired: true,
+      showLeftFlyout: true,
+      showRightFlyout: true,
     });
 
     expect(JSON.parse(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY) || '{}')).toEqual({
@@ -259,6 +293,8 @@ describe('tenantBootstrap', () => {
         font: 'default-font',
         enabledForms: [FormType.Electrical],
         loginRequired: false,
+        showLeftFlyout: true,
+        showRightFlyout: true,
       }
     );
 

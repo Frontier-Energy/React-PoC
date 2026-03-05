@@ -14,6 +14,8 @@ export interface TenantDefinition {
   uiDefaults: {
     theme: string;
     font: string;
+    showLeftFlyout: boolean;
+    showRightFlyout: boolean;
   };
 }
 
@@ -29,6 +31,8 @@ export const TENANTS: TenantDefinition[] = [
     uiDefaults: {
       theme: 'mist',
       font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
+      showLeftFlyout: true,
+      showRightFlyout: true,
     },
   },
   {
@@ -38,6 +42,8 @@ export const TENANTS: TenantDefinition[] = [
     uiDefaults: {
       theme: 'harbor',
       font: 'Tahoma, "Trebuchet MS", Arial, sans-serif',
+      showLeftFlyout: true,
+      showRightFlyout: true,
     },
   },
   {
@@ -47,6 +53,8 @@ export const TENANTS: TenantDefinition[] = [
     uiDefaults: {
       theme: 'sand',
       font: 'Georgia, "Times New Roman", serif',
+      showLeftFlyout: true,
+      showRightFlyout: true,
     },
   },
   {
@@ -56,6 +64,8 @@ export const TENANTS: TenantDefinition[] = [
     uiDefaults: {
       theme: 'mist',
       font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
+      showLeftFlyout: false,
+      showRightFlyout: true,
     },
   },
 ];
