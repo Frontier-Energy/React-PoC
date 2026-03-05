@@ -62,6 +62,8 @@ export const es = {
     fontLabel: 'Fuente',
     languageLabel: 'Idioma',
     adminTenantAccessNotice: 'La seleccion de tenant requiere una cuenta autenticada con rol de administrador.',
+    registerLink: 'Registrarse',
+    loginLink: 'Iniciar sesion',
     preferencesSaved: 'Las preferencias se guardan localmente en este dispositivo.',
     themeOptions: {
       mist: {

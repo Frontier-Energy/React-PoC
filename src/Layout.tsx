@@ -2,7 +2,7 @@ import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box, Table
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useConnectivity } from './ConnectivityContext';
-import { clearUserId, hasPermission, isLoggedInAdmin } from './auth';
+import { clearUserId, getUserId, hasPermission, isLoggedInAdmin } from './auth';
 import { UploadStatus } from './types';
 import type { SelectProps, SideNavigationProps } from '@cloudscape-design/components';
 import { useLocalization } from './LocalizationContext';
@@ -210,6 +210,7 @@ export function Layout() {
     value: tenant.tenantId,
   }));
   const canSelectTenant = isLoggedInAdmin() && hasPermission('tenant.select');
+  const isLoggedIn = Boolean(getUserId());
 
   useEffect(() => {
     document.body.classList.add('app-theme');
@@ -423,9 +424,44 @@ export function Layout() {
               />
             </FormField>
           ) : (
-            <Box fontSize="body-s" color="text-body-secondary">
-              {labels.customization.adminTenantAccessNotice}
-            </Box>
+            <SpaceBetween size="xs">
+              <Box fontSize="body-s" color="text-body-secondary">
+                {labels.customization.adminTenantAccessNotice}
+              </Box>
+              {!isLoggedIn ? (
+                <SpaceBetween size="xxs">
+                  <Link
+                    href="/register"
+                    onFollow={(event) => {
+                      event.preventDefault();
+                      navigate('/register');
+                    }}
+                  >
+                    {labels.customization.registerLink}
+                  </Link>
+                  <Link
+                    href="/login"
+                    onFollow={(event) => {
+                      event.preventDefault();
+                      navigate('/login');
+                    }}
+                  >
+                    {labels.customization.loginLink}
+                  </Link>
+                </SpaceBetween>
+              ) : (
+                <Link
+                  href="#/logout"
+                  onFollow={(event) => {
+                    event.preventDefault();
+                    clearUserId();
+                    navigate('/login');
+                  }}
+                >
+                  {labels.nav.logout}
+                </Link>
+              )}
+            </SpaceBetween>
           )}
           <Box fontSize="body-s" color="text-body-secondary">
             {labels.customization.preferencesSaved}

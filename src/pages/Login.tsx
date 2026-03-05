@@ -48,7 +48,13 @@ export function Login() {
         roles?: string[];
       };
       const resolvedUserId = payload.userID || payload.userId || payload.userid || '';
-      setUserId(resolvedUserId, parseRolesFromAuthPayload(payload));
+      const resolvedRoles = parseRolesFromAuthPayload(payload);
+      // TODO: Remove email-domain based admin assignment and rely on backend-provided role claims.
+      const shouldAssignTempAdmin = trimmed.toLowerCase().endsWith('@frontierenergy.com');
+      const nextRoles = shouldAssignTempAdmin
+        ? Array.from(new Set([...resolvedRoles, 'admin']))
+        : resolvedRoles;
+      setUserId(resolvedUserId, nextRoles);
       return resolvedUserId;
     } catch (error) {
       setLookupError(labels.login.lookupError);

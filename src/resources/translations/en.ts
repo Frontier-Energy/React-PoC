@@ -62,6 +62,8 @@ export const en = {
     fontLabel: 'Font',
     languageLabel: 'Language',
     adminTenantAccessNotice: 'Tenant selection requires a logged-in account with the admin role.',
+    registerLink: 'Register',
+    loginLink: 'Log in',
     preferencesSaved: 'Preferences are saved locally on this device.',
     themeOptions: {
       mist: {

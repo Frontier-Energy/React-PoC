@@ -151,6 +151,29 @@ describe('Login', () => {
     });
   });
 
+  it('assigns admin role for @frontierenergy.com emails during login', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ userId: 'abc-123' }),
+    } as Response);
+
+    render(
+      <LocalizationProvider>
+        <Login />
+      </LocalizationProvider>
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
+      target: { value: 'admin@frontierEnergy.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+
+    await waitFor(() => {
+      expect(setUserIdMock).toHaveBeenCalledWith('abc-123', ['user', 'admin']);
+      expect(navigateMock).toHaveBeenCalledWith('/my-inspections', { replace: true });
+    });
+  });
+
   it('shows missing-user-id error when lookup response has no user id', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
