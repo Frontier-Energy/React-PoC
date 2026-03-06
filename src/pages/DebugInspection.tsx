@@ -31,7 +31,7 @@ export function DebugInspection() {
       };
     }
 
-    const formData = inspectionRepository.loadFormData(sessionId);
+    const formData = inspectionRepository.loadFormData(sessionId, inspection);
 
     return {
       inspection,
