@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { Header, Container, SpaceBetween, Alert, Box, Link, Input, FormField, Wizard, Checkbox } from '@cloudscape-design/components';
+import { fetchFormSchema } from '../apiContent';
 import { InspectionSession, FormSchema, FormType, FormData, FormDataValue, UploadStatus, ConditionalVisibility, ValidationRule, FormSection, FormField as SchemaField } from '../types';
 import { FormRenderer } from '../components/FormRenderer';
 import { FormValidator, ValidationError } from '../utils/FormValidator';
@@ -44,8 +45,7 @@ export function FillForm() {
 
   const loadFormSchema = async (formType: FormType) => {
     try {
-      const schemaModule = await import(`../resources/${formType}.json`);
-      const schema = schemaModule.default;
+      const schema = await fetchFormSchema(formType);
       setFormSchema(schema);
 
       // Build externalID to fieldId map and validation rules map

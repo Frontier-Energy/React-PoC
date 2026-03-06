@@ -1,3 +1,5 @@
 /node_modules
 /dist
 /coverage
+/.tmp-import-static
+/.tmp-tenant-import

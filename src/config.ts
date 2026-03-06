@@ -5,6 +5,8 @@ export interface AppConfig {
   loginPath: string;
   registerPath: string;
   tenantBootstrapPath: string;
+  formSchemasPath: string;
+  translationsPath: string;
 }
 
 export interface TenantDefinition {
@@ -145,6 +147,8 @@ const getAppConfig = (tenantId?: string): AppConfig => {
     loginPath: `${activeTenant.servicePathPrefix}/login`,
     registerPath: `${activeTenant.servicePathPrefix}/Register`,
     tenantBootstrapPath: `${activeTenant.servicePathPrefix}/tenant-config`,
+    formSchemasPath: `${activeTenant.servicePathPrefix}/form-schemas`,
+    translationsPath: `${activeTenant.servicePathPrefix}/translations`,
   };
 };
 
@@ -165,5 +169,17 @@ export const getRegisterUrl = () => {
 
 export const getTenantBootstrapUrl = (tenantId?: string) => {
   const appConfig = getAppConfig(tenantId);
-  return `${appConfig.apiBaseUrl}${appConfig.tenantBootstrapPath}`;
+  const requestTenantId = tenantId ?? appConfig.tenantName;
+  const query = requestTenantId ? `?tenantId=${encodeURIComponent(requestTenantId)}` : '';
+  return `${appConfig.apiBaseUrl}${appConfig.tenantBootstrapPath}${query}`;
+};
+
+export const getFormSchemaUrl = (formType: string, tenantId?: string) => {
+  const appConfig = getAppConfig(tenantId);
+  return `${appConfig.apiBaseUrl}${appConfig.formSchemasPath}/${encodeURIComponent(formType)}`;
+};
+
+export const getTranslationsUrl = (language: string, tenantId?: string) => {
+  const appConfig = getAppConfig(tenantId);
+  return `${appConfig.apiBaseUrl}${appConfig.translationsPath}/${encodeURIComponent(language)}`;
 };

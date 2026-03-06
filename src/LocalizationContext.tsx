@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { defaultLanguage, getTranslations, isLanguageCode, type LanguageCode, type Labels } from './resources/translations';
+import { fetchTranslations } from './apiContent';
+import { defaultLanguage, getLocalTranslations, isLanguageCode, type LanguageCode, type Labels } from './resources/translations';
 import { CUSTOMIZATION_STORAGE_KEY } from './config';
 
 interface LocalizationContextValue {
@@ -32,6 +33,7 @@ const readStoredLanguage = (): LanguageCode => {
 
 export function LocalizationProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<LanguageCode>(() => readStoredLanguage());
+  const [labels, setLabels] = useState<Labels>(() => getLocalTranslations(readStoredLanguage()));
 
   useEffect(() => {
     const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
@@ -45,6 +47,24 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
     }
     const updated = { ...existing, language };
     localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify(updated));
+  }, [language]);
+
+  useEffect(() => {
+    let active = true;
+    setLabels(getLocalTranslations(language));
+
+    const load = async () => {
+      const resolvedLabels = await fetchTranslations(language);
+      if (active) {
+        setLabels(resolvedLabels);
+      }
+    };
+
+    void load();
+
+    return () => {
+      active = false;
+    };
   }, [language]);
 
   useEffect(() => {
@@ -64,11 +84,11 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
-
-  const labels = useMemo(() => getTranslations(language), [language]);
+ 
+  const value = useMemo(() => ({ language, setLanguage, labels }), [language, labels]);
 
   return (
-    <LocalizationContext.Provider value={{ language, setLanguage, labels }}>
+    <LocalizationContext.Provider value={value}>
       {children}
     </LocalizationContext.Provider>
   );

@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, Container, Header, Modal, SpaceBetween } from '@cloudscape-design/components';
+import { fetchFormSchema } from '../apiContent';
 import type { FileReference, FormDataValue, FormSchema, InspectionSession } from '../types';
 import { getFile } from '../utils/fileStorage';
 import { getFileReferences } from '../utils/formDataUtils';
@@ -54,8 +55,8 @@ export function DebugInspection() {
         return;
       }
       try {
-        const schemaModule = await import(`../resources/${inspectionData.inspection.formType}.json`);
-        setFormSchema(schemaModule.default as FormSchema);
+        const schema = await fetchFormSchema(inspectionData.inspection.formType);
+        setFormSchema(schema as FormSchema);
         setSchemaError(null);
       } catch (error) {
         setSchemaError(labels.debugInspection.schemaLoadError);

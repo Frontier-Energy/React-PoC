@@ -1,14 +1,17 @@
 import { en } from './en';
 import { es } from './es';
 
-export const translations = { en, es };
+export const localTranslations = { en, es };
 
-export type LanguageCode = keyof typeof translations;
+export type LanguageCode = keyof typeof localTranslations;
 export type Labels = typeof en | typeof es;
 
 export const defaultLanguage: LanguageCode = 'en';
 
 export const isLanguageCode = (value: unknown): value is LanguageCode =>
-  typeof value === 'string' && Object.prototype.hasOwnProperty.call(translations, value);
+  typeof value === 'string' && Object.prototype.hasOwnProperty.call(localTranslations, value);
 
-export const getTranslations = (language: LanguageCode): Labels => translations[language] ?? translations.en;
+export const getLocalTranslations = (language: LanguageCode): Labels =>
+  localTranslations[language] ?? localTranslations.en;
+
+export const getTranslations = getLocalTranslations;
