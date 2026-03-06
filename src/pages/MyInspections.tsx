@@ -12,6 +12,7 @@ export function MyInspections() {
   const navigate = useNavigate();
   const location = useLocation();
   const { labels } = useLocalization();
+  const inspectionStorageScopeKey = inspectionRepository.getStorageScopeKey();
   const [inspections, setInspections] = useState<InspectionSession[]>([]);
   const [filteredInspections, setFilteredInspections] = useState<InspectionSession[]>([]);
   const [formTypeFilter, setFormTypeFilter] = useState<SelectProps.Option | null>(null);
@@ -28,7 +29,7 @@ export function MyInspections() {
 
   useEffect(() => {
     loadInspections();
-  }, []);
+  }, [inspectionStorageScopeKey]);
 
   useEffect(() => {
     const handleStatusChange = () => {

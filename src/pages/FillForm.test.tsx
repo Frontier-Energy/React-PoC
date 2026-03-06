@@ -528,6 +528,11 @@ const renderPage = () =>
     </LocalizationProvider>
   );
 
+const STORAGE_SCOPE_PREFIX = 'frontierDemo:anonymous';
+const getCurrentSessionStorageKey = () => `${STORAGE_SCOPE_PREFIX}:currentSession`;
+const getInspectionStorageKey = (sessionId: string) => `${STORAGE_SCOPE_PREFIX}:inspection_${sessionId}`;
+const getFormDataStorageKey = (sessionId: string) => `${STORAGE_SCOPE_PREFIX}:formData_${sessionId}`;
+
 const setSessionStorage = (sessionId: string, overrides?: Record<string, unknown>) => {
   const session = {
     id: sessionId,
@@ -536,7 +541,7 @@ const setSessionStorage = (sessionId: string, overrides?: Record<string, unknown
     uploadStatus: UploadStatus.InProgress,
     ...overrides,
   };
-  localStorage.setItem('currentSession', JSON.stringify(session));
+  localStorage.setItem(getCurrentSessionStorageKey(), JSON.stringify(session));
   return session;
 };
 
@@ -569,7 +574,7 @@ describe('FillForm', () => {
   });
 
   it('navigates when no matching session is found', async () => {
-    localStorage.removeItem('currentSession');
+    localStorage.removeItem(getCurrentSessionStorageKey());
 
     renderPage();
 
@@ -588,11 +593,11 @@ describe('FillForm', () => {
 
   it('loads fallback inspection when currentSession does not match route id', async () => {
     localStorage.setItem(
-      'currentSession',
+      getCurrentSessionStorageKey(),
       JSON.stringify({ id: 'other-session', name: 'Other', formType: FormType.HVAC })
     );
     localStorage.setItem(
-      'inspection_durability-session',
+      getInspectionStorageKey('durability-session'),
       JSON.stringify({ id: 'durability-session', name: 'From Repo', formType: FormType.HVAC })
     );
 
@@ -607,13 +612,13 @@ describe('FillForm', () => {
     await screen.findByRole('button', { name: 'Set Value' });
     fireEvent.click(screen.getByRole('button', { name: 'Set Value' }));
 
-    const savedRaw = localStorage.getItem('formData_durability-session');
+    const savedRaw = localStorage.getItem(getFormDataStorageKey('durability-session'));
     expect(savedRaw).not.toBeNull();
     expect(JSON.parse(savedRaw ?? '{}')).toMatchObject({ fieldNoExternal: 'saved value' });
   });
 
   it('loads persisted values stored by fieldId when externalID is missing', async () => {
-    localStorage.setItem('formData_durability-session', JSON.stringify({ fieldNoExternal: 'restored value' }));
+    localStorage.setItem(getFormDataStorageKey('durability-session'), JSON.stringify({ fieldNoExternal: 'restored value' }));
 
     renderPage();
 
@@ -624,7 +629,7 @@ describe('FillForm', () => {
 
   it('handles malformed stored form data without crashing', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    localStorage.setItem('formData_durability-session', '{bad-json');
+    localStorage.setItem(getFormDataStorageKey('durability-session'), '{bad-json');
 
     renderPage();
 
@@ -656,7 +661,7 @@ describe('FillForm', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear Single' }));
     await waitFor(() => {
-      const stored = JSON.parse(localStorage.getItem('formData_durability-session') ?? '{}');
+      const stored = JSON.parse(localStorage.getItem(getFormDataStorageKey('durability-session')) ?? '{}');
       expect(stored.ext?.fileSingle).toBeUndefined();
       expect(deleteFilesMock).toHaveBeenCalledWith(['file-2']);
     });
@@ -751,8 +756,8 @@ describe('FillForm', () => {
       });
     });
 
-    const current = JSON.parse(localStorage.getItem('currentSession') ?? '{}');
-    const saved = JSON.parse(localStorage.getItem('inspection_durability-session') ?? '{}');
+    const current = JSON.parse(localStorage.getItem(getCurrentSessionStorageKey()) ?? '{}');
+    const saved = JSON.parse(localStorage.getItem(getInspectionStorageKey('durability-session')) ?? '{}');
     expect(current.name).toBe('Updated Session Name');
     expect(current.uploadStatus).toBe(UploadStatus.Local);
     expect(saved.uploadStatus).toBe(UploadStatus.Local);
@@ -831,7 +836,7 @@ describe('FillForm', () => {
     await screen.findByRole('button', { name: 'Upload Single' });
     fireEvent.click(screen.getByRole('button', { name: 'Upload Single' }));
     await waitFor(() => {
-      const stored = JSON.parse(localStorage.getItem('formData_durability-session') ?? '{}');
+      const stored = JSON.parse(localStorage.getItem(getFormDataStorageKey('durability-session')) ?? '{}');
       expect(stored['ext.fileSingle']?.id).toBe('single-id');
     });
     fireEvent.click(screen.getByRole('button', { name: 'Upload Multiple' }));
@@ -841,7 +846,7 @@ describe('FillForm', () => {
 
     await waitFor(() => {
       expect(deleteFilesMock).toHaveBeenCalledWith(['single-id', 'multi-a', 'multi-b']);
-      expect(localStorage.getItem('formData_durability-session')).toBeNull();
+      expect(localStorage.getItem(getFormDataStorageKey('durability-session'))).toBeNull();
     });
   });
 
@@ -863,7 +868,7 @@ describe('FillForm', () => {
 
     await waitFor(() => {
       expect(deleteFilesMock).not.toHaveBeenCalled();
-      expect(localStorage.getItem('formData_durability-session')).toBeNull();
+      expect(localStorage.getItem(getFormDataStorageKey('durability-session'))).toBeNull();
     });
   });
 });

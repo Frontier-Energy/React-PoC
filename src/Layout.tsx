@@ -50,6 +50,7 @@ export function Layout() {
     }
   });
   const activeTenant = getTenantById(customization.tenantId) ?? resolvedTenant;
+  const inspectionStorageScopeKey = inspectionRepository.getStorageScopeKey();
   const [statusCounts, setStatusCounts] = useState<Record<UploadStatus, number>>(() => ({
     [UploadStatus.Local]: 0,
     [UploadStatus.InProgress]: 0,
@@ -89,7 +90,7 @@ export function Layout() {
 
     const handleStatusChange = () => loadStatusCounts();
     const handleStorage = (event: StorageEvent) => {
-      if (!event.key || event.key.startsWith('inspection_')) {
+      if (!event.key || inspectionRepository.isInspectionStorageKey(event.key)) {
         loadStatusCounts();
       }
     };
@@ -101,7 +102,7 @@ export function Layout() {
       window.removeEventListener('inspection-status-changed', handleStatusChange as EventListener);
       window.removeEventListener('storage', handleStorage);
     };
-  }, []);
+  }, [inspectionStorageScopeKey]);
 
   const statusLabels: Record<UploadStatus, string> = labels.uploadStatus;
 

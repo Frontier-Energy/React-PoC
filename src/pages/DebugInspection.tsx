@@ -2,10 +2,11 @@ import { useMemo, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, Container, Header, Modal, SpaceBetween } from '@cloudscape-design/components';
 import { fetchFormSchema } from '../apiContent';
-import type { FileReference, FormDataValue, FormSchema, InspectionSession } from '../types';
+import type { FileReference, FormSchema } from '../types';
 import { getFile } from '../utils/fileStorage';
 import { getFileReferences } from '../utils/formDataUtils';
 import { useLocalization } from '../LocalizationContext';
+import { inspectionRepository } from '../repositories/inspectionRepository';
 
 export function DebugInspection() {
   const { sessionId } = useParams();
@@ -22,26 +23,15 @@ export function DebugInspection() {
       return { error: labels.debugInspection.errors.missingInspectionId };
     }
 
-    const sessionStr = localStorage.getItem(`inspection_${sessionId}`);
-    const formDataStr = localStorage.getItem(`formData_${sessionId}`);
-
-    let inspection: InspectionSession | null = null;
-    if (sessionStr) {
-      try {
-        inspection = JSON.parse(sessionStr) as InspectionSession;
-      } catch (error) {
-        return { error: labels.debugInspection.errors.parseInspection };
-      }
+    const inspection = inspectionRepository.loadById(sessionId);
+    if (!inspection) {
+      return {
+        inspection: null,
+        formData: null,
+      };
     }
 
-    let formData: Record<string, FormDataValue> | null = null;
-    if (formDataStr) {
-      try {
-        formData = JSON.parse(formDataStr) as Record<string, FormDataValue>;
-      } catch (error) {
-        formData = { error: labels.debugInspection.errors.parseFormData };
-      }
-    }
+    const formData = inspectionRepository.loadFormData(sessionId);
 
     return {
       inspection,

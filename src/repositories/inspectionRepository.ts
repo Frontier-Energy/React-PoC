@@ -1,11 +1,39 @@
 import { FormDataValue, InspectionSession } from '../types';
+import { getUserId } from '../auth';
+import { getActiveTenant } from '../config';
 
 const INSPECTION_PREFIX = 'inspection_';
 const CURRENT_SESSION_KEY = 'currentSession';
 const FORM_DATA_PREFIX = 'formData_';
 
-const getInspectionKey = (inspectionId: string) => `${INSPECTION_PREFIX}${inspectionId}`;
-const getFormDataKey = (inspectionId: string) => `${FORM_DATA_PREFIX}${inspectionId}`;
+type StorageScope = {
+  tenantId: string;
+  userId: string;
+};
+
+const ANONYMOUS_USER_SCOPE = 'anonymous';
+
+const getStorageScope = (): StorageScope => ({
+  tenantId: getActiveTenant().tenantId,
+  userId: getUserId()?.trim() || ANONYMOUS_USER_SCOPE,
+});
+
+const getScopeKey = (scope: StorageScope = getStorageScope()) => `${scope.tenantId}:${scope.userId}`;
+const getInspectionKeyPrefix = (scope: StorageScope = getStorageScope()) => `${getScopeKey(scope)}:${INSPECTION_PREFIX}`;
+const getInspectionKey = (inspectionId: string, scope: StorageScope = getStorageScope()) =>
+  `${getInspectionKeyPrefix(scope)}${inspectionId}`;
+const getFormDataKey = (inspectionId: string, scope: StorageScope = getStorageScope()) =>
+  `${getScopeKey(scope)}:${FORM_DATA_PREFIX}${inspectionId}`;
+const getCurrentSessionKey = (scope: StorageScope = getStorageScope()) => `${getScopeKey(scope)}:${CURRENT_SESSION_KEY}`;
+
+const normalizeInspectionForScope = (
+  inspection: InspectionSession,
+  scope: StorageScope = getStorageScope()
+): InspectionSession => ({
+  ...inspection,
+  tenantId: scope.tenantId,
+  userId: inspection.userId ?? (scope.userId === ANONYMOUS_USER_SCOPE ? undefined : scope.userId),
+});
 
 const parseJson = <T>(raw: string | null, errorMessage: string): T | null => {
   if (!raw) {
@@ -21,12 +49,22 @@ const parseJson = <T>(raw: string | null, errorMessage: string): T | null => {
 };
 
 export const inspectionRepository = {
+  getStorageScopeKey(): string {
+    return getScopeKey();
+  },
+
+  isInspectionStorageKey(key: string): boolean {
+    return key.startsWith(getInspectionKeyPrefix());
+  },
+
   loadAll(): InspectionSession[] {
     const sessionMap: Record<string, InspectionSession> = {};
+    const scope = getStorageScope();
+    const inspectionKeyPrefix = getInspectionKeyPrefix(scope);
     const keys = Object.keys(localStorage);
 
     keys.forEach((key) => {
-      if (!key.startsWith(INSPECTION_PREFIX)) {
+      if (!key.startsWith(inspectionKeyPrefix)) {
         return;
       }
 
@@ -35,7 +73,8 @@ export const inspectionRepository = {
         `Failed to parse session ${key}:`
       );
       if (session) {
-        sessionMap[session.id] = session;
+        const normalizedSession = normalizeInspectionForScope(session, scope);
+        sessionMap[normalizedSession.id] = normalizedSession;
       }
     });
 
@@ -43,17 +82,19 @@ export const inspectionRepository = {
   },
 
   loadById(inspectionId: string): InspectionSession | null {
-    return parseJson<InspectionSession>(
+    const session = parseJson<InspectionSession>(
       localStorage.getItem(getInspectionKey(inspectionId)),
       `Failed to parse session ${inspectionId}:`
     );
+    return session ? normalizeInspectionForScope(session) : null;
   },
 
   loadCurrent(): InspectionSession | null {
-    return parseJson<InspectionSession>(
-      localStorage.getItem(CURRENT_SESSION_KEY),
+    const session = parseJson<InspectionSession>(
+      localStorage.getItem(getCurrentSessionKey()),
       'Failed to parse current inspection session:'
     );
+    return session ? normalizeInspectionForScope(session) : null;
   },
 
   loadCurrentOrById(inspectionId: string): InspectionSession | null {
@@ -65,11 +106,13 @@ export const inspectionRepository = {
   },
 
   save(inspection: InspectionSession): void {
-    localStorage.setItem(getInspectionKey(inspection.id), JSON.stringify(inspection));
+    const normalizedInspection = normalizeInspectionForScope(inspection);
+    localStorage.setItem(getInspectionKey(normalizedInspection.id), JSON.stringify(normalizedInspection));
   },
 
   saveCurrent(inspection: InspectionSession): void {
-    localStorage.setItem(CURRENT_SESSION_KEY, JSON.stringify(inspection));
+    const normalizedInspection = normalizeInspectionForScope(inspection);
+    localStorage.setItem(getCurrentSessionKey(), JSON.stringify(normalizedInspection));
   },
 
   saveAsCurrent(inspection: InspectionSession): void {
@@ -97,7 +140,7 @@ export const inspectionRepository = {
 
     const currentSession = this.loadCurrent();
     if (currentSession?.id === inspectionId) {
-      localStorage.removeItem(CURRENT_SESSION_KEY);
+      localStorage.removeItem(getCurrentSessionKey());
     }
   },
 
