@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, Container, Header, Modal, SpaceBetween } from '@cloudscape-design/components';
 import { fetchFormSchema } from '../apiContent';
 import type { FileReference, FormSchema } from '../types';
@@ -10,6 +10,7 @@ import { inspectionRepository } from '../repositories/inspectionRepository';
 
 export function DebugInspection() {
   const { sessionId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { labels } = useLocalization();
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
@@ -17,13 +18,21 @@ export function DebugInspection() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const inspectionScope =
+    location.state &&
+    typeof location.state === 'object' &&
+    'inspectionScope' in location.state &&
+    location.state.inspectionScope &&
+    typeof location.state.inspectionScope === 'object'
+      ? (location.state.inspectionScope as { tenantId: string; userId?: string })
+      : undefined;
 
   const inspectionData = useMemo(() => {
     if (!sessionId) {
       return { error: labels.debugInspection.errors.missingInspectionId };
     }
 
-    const inspection = inspectionRepository.loadById(sessionId);
+    const inspection = inspectionRepository.loadById(sessionId, inspectionScope);
     if (!inspection) {
       return {
         inspection: null,
@@ -37,7 +46,7 @@ export function DebugInspection() {
       inspection,
       formData,
     };
-  }, [sessionId, labels]);
+  }, [inspectionScope, sessionId, labels]);
 
   useEffect(() => {
     const loadSchema = async () => {

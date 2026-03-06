@@ -77,7 +77,14 @@ export function MyInspections() {
   };
 
   const handleViewInspection = (inspection: InspectionSession) => {
-    navigate(`/debug-inspection/${inspection.id}`);
+    navigate(`/debug-inspection/${inspection.id}`, {
+      state: {
+        inspectionScope: {
+          tenantId: inspection.tenantId,
+          userId: inspection.userId,
+        },
+      },
+    });
   };
 
   const handleDeleteInspection = (inspection: InspectionSession) => {

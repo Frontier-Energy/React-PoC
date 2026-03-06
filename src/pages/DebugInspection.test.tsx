@@ -41,6 +41,14 @@ vi.mock('react-router-dom', async () => {
     ...actual,
     useNavigate: () => navigateMock,
     useParams: () => ({ sessionId: getSessionId() }),
+    useLocation: () => ({
+      state: {
+        inspectionScope: {
+          tenantId: scopedInspection.tenantId,
+          userId: scopedInspection.userId,
+        },
+      },
+    }),
   };
 });
 
@@ -310,7 +318,10 @@ describe('DebugInspection', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(loadByIdMock).toHaveBeenCalledWith('scoped-session');
+      expect(loadByIdMock).toHaveBeenCalledWith('scoped-session', {
+        tenantId: 'tenant-a',
+        userId: 'impersonated-user',
+      });
       expect(loadFormDataMock).toHaveBeenCalledWith('scoped-session', scopedInspection);
     });
   });

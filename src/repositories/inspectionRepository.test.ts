@@ -101,6 +101,32 @@ describe('inspectionRepository', () => {
     expect(consoleSpy).toHaveBeenCalled();
   });
 
+  it('loads inspection by id from an explicit inspection scope', () => {
+    const inspection = makeInspection('scoped-id', {
+      tenantId: 'tenant-a',
+      userId: 'impersonated-user',
+    });
+
+    localStorage.setItem(
+      getInspectionStorageKey('scoped-id', 'tenant-a', 'impersonated-user'),
+      JSON.stringify(inspection)
+    );
+
+    setActiveTenantId('tenant-b');
+
+    expect(
+      inspectionRepository.loadById('scoped-id', {
+        tenantId: 'tenant-a',
+        userId: 'impersonated-user',
+      })
+    ).toEqual({
+      ...inspection,
+      tenantId: 'tenant-a',
+      userId: 'impersonated-user',
+    });
+    expect(inspectionRepository.loadById('scoped-id')).toBeNull();
+  });
+
   it('saves inspection and current session records', () => {
     const inspection = makeInspection('save-test', { uploadStatus: UploadStatus.InProgress });
     const normalizedInspection = { ...inspection, tenantId: 'tenant-a', userId: 'user-123' };
@@ -192,6 +218,31 @@ describe('inspectionRepository', () => {
     expect(inspectionRepository.loadCurrentOrById('current-session')).toEqual(normalizedCurrent);
     expect(inspectionRepository.loadCurrentOrById('fallback-session')).toEqual(normalizedFallback);
     expect(inspectionRepository.loadCurrentOrById('missing-session')).toBeNull();
+  });
+
+  it('loads inspection by id from explicit scope when current scope differs', () => {
+    const scopedInspection = makeInspection('scoped-fallback', {
+      tenantId: 'tenant-a',
+      userId: 'impersonated-user',
+    });
+
+    localStorage.setItem(
+      getInspectionStorageKey('scoped-fallback', 'tenant-a', 'impersonated-user'),
+      JSON.stringify(scopedInspection)
+    );
+
+    setActiveTenantId('tenant-b');
+
+    expect(
+      inspectionRepository.loadCurrentOrById('scoped-fallback', {
+        tenantId: 'tenant-a',
+        userId: 'impersonated-user',
+      })
+    ).toEqual({
+      ...scopedInspection,
+      tenantId: 'tenant-a',
+      userId: 'impersonated-user',
+    });
   });
 
   it('deletes inspection, form data, and current session when matching', () => {

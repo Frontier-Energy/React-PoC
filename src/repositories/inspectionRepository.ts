@@ -86,12 +86,16 @@ export const inspectionRepository = {
     return Object.values(sessionMap);
   },
 
-  loadById(inspectionId: string): InspectionSession | null {
+  loadById(
+    inspectionId: string,
+    inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
+  ): InspectionSession | null {
+    const scope = inspection ? getScopeForInspection(inspection) : getStorageScope();
     const session = parseJson<InspectionSession>(
-      localStorage.getItem(getInspectionKey(inspectionId)),
+      localStorage.getItem(getInspectionKey(inspectionId, scope)),
       `Failed to parse session ${inspectionId}:`
     );
-    return session ? normalizeInspectionForScope(session) : null;
+    return session ? normalizeInspectionForScope(session, scope) : null;
   },
 
   loadCurrent(): InspectionSession | null {
@@ -102,12 +106,15 @@ export const inspectionRepository = {
     return session ? normalizeInspectionForScope(session) : null;
   },
 
-  loadCurrentOrById(inspectionId: string): InspectionSession | null {
+  loadCurrentOrById(
+    inspectionId: string,
+    inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
+  ): InspectionSession | null {
     const currentSession = this.loadCurrent();
     if (currentSession?.id === inspectionId) {
       return currentSession;
     }
-    return this.loadById(inspectionId);
+    return this.loadById(inspectionId, inspection);
   },
 
   save(inspection: InspectionSession): void {
