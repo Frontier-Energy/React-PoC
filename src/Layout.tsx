@@ -6,7 +6,7 @@ import { clearUserId, getUserId, hasPermission, isLoggedInAdmin } from './auth';
 import { UploadStatus } from './types';
 import type { SelectProps, SideNavigationProps } from '@cloudscape-design/components';
 import { useLocalization } from './LocalizationContext';
-import { isLanguageCode, type LanguageCode } from './resources/translations';
+import { formatTemplate, isLanguageCode, type LanguageCode } from './resources/translations';
 import { CUSTOMIZATION_STORAGE_KEY, getActiveTenant, getTenantById, TENANTS } from './config';
 import { inspectionRepository } from './repositories/inspectionRepository';
 import { useTenantBootstrap } from './TenantBootstrapContext';
@@ -278,7 +278,11 @@ export function Layout() {
         <Box>
           <StatusIndicator type={statusType}>
             {statusLabel}
-            {lastCheckedAt ? labels.connectivity.lastCheckedAt(lastCheckedAt.toLocaleTimeString()) : ''}
+            {lastCheckedAt
+              ? formatTemplate(labels.connectivity.lastCheckedAt, {
+                time: lastCheckedAt.toLocaleTimeString(),
+              })
+              : ''}
           </StatusIndicator>
         </Box>
       ),

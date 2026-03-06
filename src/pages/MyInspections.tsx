@@ -6,6 +6,7 @@ import { InspectionSession, UploadStatus, FormType } from '../types';
 import { TableProps } from '@cloudscape-design/components';
 import { useLocalization } from '../LocalizationContext';
 import { inspectionRepository } from '../repositories/inspectionRepository';
+import { formatPluralTemplate } from '../resources/translations';
 
 export function MyInspections() {
   const navigate = useNavigate();
@@ -191,7 +192,7 @@ export function MyInspections() {
 
       {failedInspections.length > 0 && (
         <Alert type="error">
-          {labels.myInspections.failedUploadMessage(failedInspections.length)}
+          {formatPluralTemplate(labels.myInspections.failedUploadMessage, failedInspections.length)}
         </Alert>
       )}
 

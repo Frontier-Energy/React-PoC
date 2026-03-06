@@ -1,6 +1,18 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CUSTOMIZATION_STORAGE_KEY } from './config';
 import { LocalizationProvider, useLocalization } from './LocalizationContext';
+import type { Labels } from './resources/translations';
+
+const makeLabels = (language: 'en' | 'es'): Labels =>
+  ({
+    languageName: language === 'en' ? 'English' : 'Espanol',
+    home: {
+      title: language === 'en' ? 'Inspection Forms' : 'Formularios de inspeccion',
+    },
+    common: {
+      loading: language === 'en' ? 'Loading...' : 'Cargando...',
+    },
+  } as unknown as Labels);
 
 function LocalizationProbe() {
   const { language, labels, setLanguage } = useLocalization();
@@ -18,6 +30,20 @@ function LocalizationProbe() {
 describe('LocalizationContext', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      const language = url.endsWith('/translations/es') ? 'es' : 'en';
+      return Promise.resolve(
+        new Response(JSON.stringify(makeLabels(language)), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+    }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('throws when useLocalization is used outside provider', () => {
@@ -33,9 +59,11 @@ describe('LocalizationContext', () => {
       </LocalizationProvider>
     );
 
-    expect(screen.getByTestId('language')).toHaveTextContent('en');
-    expect(screen.getByRole('heading', { name: 'Inspection Forms' })).toBeInTheDocument();
-    expect(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY)).toBe(JSON.stringify({ language: 'en' }));
+    return waitFor(() => {
+      expect(screen.getByTestId('language')).toHaveTextContent('en');
+      expect(screen.getByRole('heading', { name: 'Inspection Forms' })).toBeInTheDocument();
+      expect(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY)).toBe(JSON.stringify({ language: 'en' }));
+    });
   });
 
   it('reads stored valid language and labels', () => {
@@ -47,8 +75,10 @@ describe('LocalizationContext', () => {
       </LocalizationProvider>
     );
 
-    expect(screen.getByTestId('language')).toHaveTextContent('es');
-    expect(screen.getByRole('heading', { name: 'Formularios de inspeccion' })).toBeInTheDocument();
+    return waitFor(() => {
+      expect(screen.getByTestId('language')).toHaveTextContent('es');
+      expect(screen.getByRole('heading', { name: 'Formularios de inspeccion' })).toBeInTheDocument();
+    });
   });
 
   it('falls back to default language for invalid stored values', () => {
@@ -60,7 +90,9 @@ describe('LocalizationContext', () => {
       </LocalizationProvider>
     );
 
-    expect(screen.getByTestId('language')).toHaveTextContent('en');
+    return waitFor(() => {
+      expect(screen.getByTestId('language')).toHaveTextContent('en');
+    });
   });
 
   it('handles invalid JSON in initial storage', () => {
@@ -72,8 +104,10 @@ describe('LocalizationContext', () => {
       </LocalizationProvider>
     );
 
-    expect(screen.getByTestId('language')).toHaveTextContent('en');
-    expect(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY)).toBe(JSON.stringify({ language: 'en' }));
+    return waitFor(() => {
+      expect(screen.getByTestId('language')).toHaveTextContent('en');
+      expect(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY)).toBe(JSON.stringify({ language: 'en' }));
+    });
   });
 
   it('preserves existing customization fields when language changes', async () => {
@@ -88,6 +122,7 @@ describe('LocalizationContext', () => {
       </LocalizationProvider>
     );
 
+    await screen.findByRole('button', { name: 'set-es' });
     fireEvent.click(screen.getByRole('button', { name: 'set-es' }));
 
     await waitFor(() => {

@@ -1,17 +1,6 @@
 import { getFormSchemaUrl, getTranslationsUrl } from './config';
-import { getLocalTranslations, type Labels, type LanguageCode } from './resources/translations';
+import type { Labels, LanguageCode } from './resources/translations';
 import type { FormSchema, FormType } from './types';
-
-interface TranslationAppResponse {
-  title?: string;
-  poweredBy?: string;
-  brand?: string;
-}
-
-interface TranslationsResponse {
-  languageName?: string;
-  app?: TranslationAppResponse;
-}
 
 const loadLocalFormSchema = async (formType: FormType): Promise<FormSchema> => {
   const schemaModule = await import(`./resources/${formType}.json`);
@@ -41,24 +30,10 @@ export const fetchFormSchema = async (formType: FormType): Promise<FormSchema> =
 };
 
 export const fetchTranslations = async (language: LanguageCode): Promise<Labels> => {
-  const localLabels = getLocalTranslations(language);
-
-  try {
-    const response = await fetch(getTranslationsUrl(language));
-    if (!response.ok) {
-      throw new Error(`Translations request failed with status ${response.status}`);
-    }
-
-    const payload = (await response.json()) as TranslationsResponse;
-    return {
-      ...localLabels,
-      languageName: payload.languageName || localLabels.languageName,
-      app: {
-        ...localLabels.app,
-        ...payload.app,
-      },
-    } as Labels;
-  } catch {
-    return localLabels;
+  const response = await fetch(getTranslationsUrl(language));
+  if (!response.ok) {
+    throw new Error(`Translations request failed with status ${response.status}`);
   }
+
+  return (await response.json()) as Labels;
 };

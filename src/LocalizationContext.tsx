@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { fetchTranslations } from './apiContent';
-import { defaultLanguage, getLocalTranslations, isLanguageCode, type LanguageCode, type Labels } from './resources/translations';
+import { defaultLanguage, isLanguageCode, type LanguageCode, type Labels } from './resources/translations';
 import { CUSTOMIZATION_STORAGE_KEY } from './config';
 
 interface LocalizationContextValue {
@@ -33,7 +33,8 @@ const readStoredLanguage = (): LanguageCode => {
 
 export function LocalizationProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<LanguageCode>(() => readStoredLanguage());
-  const [labels, setLabels] = useState<Labels>(() => getLocalTranslations(readStoredLanguage()));
+  const [labels, setLabels] = useState<Labels | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
@@ -51,12 +52,18 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    setLabels(getLocalTranslations(language));
+    setLoading(true);
 
     const load = async () => {
-      const resolvedLabels = await fetchTranslations(language);
-      if (active) {
-        setLabels(resolvedLabels);
+      try {
+        const resolvedLabels = await fetchTranslations(language);
+        if (active) {
+          setLabels(resolvedLabels);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
@@ -85,7 +92,16 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
  
-  const value = useMemo(() => ({ language, setLanguage, labels }), [language, labels]);
+  const value = useMemo(() => {
+    if (!labels) {
+      return undefined;
+    }
+    return { language, setLanguage, labels };
+  }, [language, labels]);
+
+  if (loading || !value) {
+    return <div>Loading translations...</div>;
+  }
 
   return (
     <LocalizationContext.Provider value={value}>

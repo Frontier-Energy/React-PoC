@@ -1,7 +1,4 @@
-import { FormType, UploadStatus } from '../../types';
-import { en } from './en';
-import { es } from './es';
-import { defaultLanguage, getTranslations, isLanguageCode } from './index';
+import { defaultLanguage, formatPluralTemplate, formatTemplate, isLanguageCode } from './index';
 
 describe('translations', () => {
   it('recognizes valid language codes', () => {
@@ -12,32 +9,20 @@ describe('translations', () => {
     expect(isLanguageCode(42)).toBe(false);
   });
 
-  it('returns translation sets and dynamic strings in English', () => {
-    expect(getTranslations('en').home.title).toBe('Inspection Forms');
-    expect(en.connectivity.lastCheckedAt('10:00')).toContain('10:00');
-    expect(en.myInspections.failedUploadMessage(1)).toContain('An inspection failed');
-    expect(en.myInspections.failedUploadMessage(2)).toContain('2 inspections failed');
-    expect(en.fillForm.wizard.stepNumberLabel(2)).toBe('Step 2');
-    expect(en.fillForm.wizard.collapsedStepsLabel(2, 7)).toBe('Step 2 of 7');
-    expect(en.fillForm.wizard.skipToButtonLabel('Review', 5)).toBe('Skip to Review (Step 5)');
-    expect(en.formTypes[FormType.HVAC]).toBe('HVAC');
-    expect(en.uploadStatus[UploadStatus.Uploading]).toBe('Uploading');
+  it('formats tokenized translation strings', () => {
+    expect(formatTemplate('Step {stepNumber} of {stepsCount}', { stepNumber: 2, stepsCount: 7 }))
+      .toBe('Step 2 of 7');
+    expect(formatTemplate(' (last checked {time})', { time: '10:00' }))
+      .toBe(' (last checked 10:00)');
   });
 
-  it('returns translation sets and dynamic strings in Spanish', () => {
-    expect(getTranslations('es').home.title).toBe('Formularios de inspeccion');
-    expect(es.connectivity.lastCheckedAt('10:00')).toContain('10:00');
-    expect(es.myInspections.failedUploadMessage(1)).toContain('Una inspeccion no pudo subirse');
-    expect(es.myInspections.failedUploadMessage(3)).toContain('3 inspecciones no pudieron subirse');
-    expect(es.fillForm.wizard.stepNumberLabel(2)).toBe('Paso 2');
-    expect(es.fillForm.wizard.collapsedStepsLabel(2, 7)).toBe('Paso 2 de 7');
-    expect(es.fillForm.wizard.skipToButtonLabel('Revision', 5)).toBe('Ir a Revision (Paso 5)');
-    expect(es.formTypes[FormType.SafetyChecklist]).toBe('Lista de seguridad');
-    expect(es.uploadStatus[UploadStatus.Failed]).toBe('Fallido');
-  });
+  it('formats pluralized translation strings', () => {
+    const template = {
+      one: 'An inspection failed to upload. Use Retry to try again.',
+      other: '{count} inspections failed to upload. Use Retry to try again.',
+    };
 
-  it('falls back to English translations for unknown language values at runtime', () => {
-    const labels = getTranslations('unknown' as unknown as 'en');
-    expect(labels.home.title).toBe(en.home.title);
+    expect(formatPluralTemplate(template, 1)).toContain('An inspection failed');
+    expect(formatPluralTemplate(template, 3)).toContain('3 inspections failed');
   });
 });

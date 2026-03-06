@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { Header, Container, SpaceBetween, Alert, Box, Link, Input, FormField, Wizard, Checkbox } from '@cloudscape-design/components';
 import { fetchFormSchema } from '../apiContent';
+import { formatTemplate } from '../resources/translations';
 import { InspectionSession, FormSchema, FormType, FormData, FormDataValue, UploadStatus, ConditionalVisibility, ValidationRule, FormSection, FormField as SchemaField } from '../types';
 import { FormRenderer } from '../components/FormRenderer';
 import { FormValidator, ValidationError } from '../utils/FormValidator';
@@ -405,11 +406,15 @@ export function FillForm() {
             },
           ]}
           i18nStrings={{
-            stepNumberLabel: (stepNumber) => labels.fillForm.wizard.stepNumberLabel(stepNumber),
+            stepNumberLabel: (stepNumber) =>
+              formatTemplate(labels.fillForm.wizard.stepNumberLabel, { stepNumber }),
             collapsedStepsLabel: (stepNumber, stepsCount) =>
-              labels.fillForm.wizard.collapsedStepsLabel(stepNumber, stepsCount),
+              formatTemplate(labels.fillForm.wizard.collapsedStepsLabel, { stepNumber, stepsCount }),
             skipToButtonLabel: (step, stepNumber) =>
-              labels.fillForm.wizard.skipToButtonLabel(step.title, stepNumber),
+              formatTemplate(labels.fillForm.wizard.skipToButtonLabel, {
+                title: step.title,
+                stepNumber,
+              }),
             navigationAriaLabel: labels.fillForm.wizard.navigationAriaLabel,
             cancelButton: labels.fillForm.wizard.cancelButton,
             previousButton: labels.fillForm.wizard.previousButton,
