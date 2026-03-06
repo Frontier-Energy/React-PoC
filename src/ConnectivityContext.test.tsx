@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { ConnectivityProvider, useConnectivity } from './ConnectivityContext';
+import { getConnectivityCheckUrl } from './config';
 
 function ConnectivityStatusProbe() {
   const { status } = useConnectivity();
@@ -25,6 +26,14 @@ describe('ConnectivityProvider', () => {
     await waitFor(() => {
       expect(screen.getByText('online')).toBeInTheDocument();
     });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      getConnectivityCheckUrl(),
+      expect.objectContaining({
+        method: 'GET',
+        cache: 'no-store',
+      })
+    );
   });
 
   it('sets offline when check fails', async () => {

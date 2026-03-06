@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { getConnectivityCheckUrl } from './config';
 
 export type ConnectivityStatus = 'checking' | 'online' | 'offline';
 
@@ -9,7 +10,7 @@ interface ConnectivityContextValue {
 }
 
 const DEFAULT_CHECK_INTERVAL_MS = 5000;
-const DEFAULT_CHECK_URL = '/index.html';
+const DEFAULT_CHECK_URL = getConnectivityCheckUrl();
 
 const ConnectivityContext = createContext<ConnectivityContextValue | undefined>(undefined);
 
@@ -31,13 +32,21 @@ export function ConnectivityProvider({
     let cancelled = false;
 
     const checkConnectivity = async () => {
+      const controller = new AbortController();
       try {
-        const response = await fetch(checkUrl, { method: 'HEAD', cache: 'no-store' });
+        const response = await fetch(checkUrl, {
+          method: 'GET',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
         if (cancelled) {
           return;
         }
         setStatus(response.ok ? 'online' : 'offline');
-      } catch {
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
         if (!cancelled) {
           setStatus('offline');
         }
@@ -46,13 +55,23 @@ export function ConnectivityProvider({
           setLastCheckedAt(new Date());
         }
       }
+
+      return () => controller.abort();
     };
 
-    checkConnectivity();
-    const intervalId = setInterval(checkConnectivity, checkIntervalMs);
+    let abortPendingCheck = () => undefined;
+
+    const runConnectivityCheck = async () => {
+      abortPendingCheck();
+      abortPendingCheck = (await checkConnectivity()) ?? (() => undefined);
+    };
+
+    void runConnectivityCheck();
+    const intervalId = setInterval(runConnectivityCheck, checkIntervalMs);
 
     return () => {
       cancelled = true;
+      abortPendingCheck();
       clearInterval(intervalId);
     };
   }, [checkIntervalMs, checkUrl]);

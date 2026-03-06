@@ -169,6 +169,8 @@ export const getTenantBootstrapUrl = (tenantId?: string) => {
   return `${appConfig.apiBaseUrl}${appConfig.tenantBootstrapPath}${query}`;
 };
 
+export const getConnectivityCheckUrl = () => getTenantBootstrapUrl();
+
 export const getFormSchemaUrl = (formType: string, tenantId?: string) => {
   const appConfig = getAppConfig(tenantId);
   return `${appConfig.apiBaseUrl}${appConfig.formSchemasPath}/${encodeURIComponent(formType)}`;

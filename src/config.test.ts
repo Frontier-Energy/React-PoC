@@ -2,6 +2,7 @@ import {
   CUSTOMIZATION_STORAGE_KEY,
   DEFAULT_TENANT_NAME,
   getActiveTenant,
+  getConnectivityCheckUrl,
   getFormSchemaUrl,
   getLoginUrl,
   getRegisterUrl,
@@ -47,6 +48,7 @@ describe('config', () => {
     expect(getLoginUrl()).toContain('/auth/login');
     expect(getRegisterUrl()).toContain('/auth/register');
     expect(getTenantBootstrapUrl()).toContain('/tenant-config');
+    expect(getConnectivityCheckUrl()).toBe(getTenantBootstrapUrl());
   });
 
   it('builds bootstrap and content urls for an explicitly requested tenant', () => {
