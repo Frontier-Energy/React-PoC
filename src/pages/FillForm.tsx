@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { Header, Container, SpaceBetween, Alert, Box, Link, Input, FormField, Wizard, Checkbox } from '@cloudscape-design/components';
 import { fetchFormSchema } from '../apiContent';
 import { formatTemplate } from '../resources/translations';
@@ -27,6 +27,56 @@ export function FillForm() {
   const formRef = useRef<HTMLDivElement>(null);
   const errorAlertRef = useRef<HTMLDivElement>(null);
   const loadRequestIdRef = useRef(0);
+
+  const loadFormData = useCallback((
+    targetSessionId: string,
+    map: Record<string, string>,
+    inspection: Pick<InspectionSession, 'tenantId' | 'userId'>
+  ) => {
+    const parsedData = inspectionRepository.loadFormData(targetSessionId, inspection);
+    if (parsedData) {
+      const convertedData: FormData = {};
+      Object.entries(parsedData).forEach(([key, value]) => {
+        const fieldId = map[key] || key;
+        convertedData[fieldId] = value;
+      });
+      setFormData(convertedData);
+    }
+  }, []);
+
+  const loadFormSchema = useCallback(async (
+    formType: FormType,
+    inspection: Pick<InspectionSession, 'tenantId' | 'userId'>,
+    requestId: number,
+    targetSessionId: string
+  ) => {
+    try {
+      const schema = await fetchFormSchema(formType);
+      if (requestId !== loadRequestIdRef.current) {
+        return;
+      }
+
+      setFormSchema(schema);
+
+      const map: Record<string, string> = {};
+      schema.sections.forEach((section: FormSection) => {
+        section.fields.forEach((field: SchemaField) => {
+          if (field.externalID) {
+            map[field.externalID] = field.id;
+          }
+        });
+      });
+
+      if (requestId === loadRequestIdRef.current) {
+        loadFormData(targetSessionId, map, inspection);
+      }
+    } catch (error) {
+      if (requestId !== loadRequestIdRef.current) {
+        return;
+      }
+      console.error(`Failed to load form schema for ${formType}:`, error);
+    }
+  }, [loadFormData]);
 
   useEffect(() => {
     const requestId = ++loadRequestIdRef.current;
@@ -60,7 +110,7 @@ export function FillForm() {
         setSession(resolvedSession);
       }
 
-      await loadFormSchema(resolvedSession.formType, resolvedSession, requestId);
+      await loadFormSchema(resolvedSession.formType, resolvedSession, requestId, sessionId);
 
       if (requestId === loadRequestIdRef.current) {
         setLoading(false);
@@ -72,58 +122,7 @@ export function FillForm() {
     return () => {
       loadRequestIdRef.current += 1;
     };
-  }, [sessionId, navigate]);
-
-  const loadFormSchema = async (
-    formType: FormType,
-    inspection: Pick<InspectionSession, 'tenantId' | 'userId'>,
-    requestId: number
-  ) => {
-    try {
-      const schema = await fetchFormSchema(formType);
-      if (requestId !== loadRequestIdRef.current) {
-        return;
-      }
-
-      setFormSchema(schema);
-
-      // Build externalID to fieldId map and validation rules map
-      const map: Record<string, string> = {};
-      schema.sections.forEach((section: FormSection) => {
-        section.fields.forEach((field: SchemaField) => {
-          if (field.externalID) {
-            map[field.externalID] = field.id;
-          }
-        });
-      });
-      // Load form data after schema is loaded so we can map externalIDs
-      if (sessionId && requestId === loadRequestIdRef.current) {
-        loadFormData(sessionId, map, inspection);
-      }
-    } catch (error) {
-      if (requestId !== loadRequestIdRef.current) {
-        return;
-      }
-      console.error(`Failed to load form schema for ${formType}:`, error);
-    }
-  };
-
-  const loadFormData = (
-    sessionId: string,
-    map: Record<string, string>,
-    inspection: Pick<InspectionSession, 'tenantId' | 'userId'>
-  ) => {
-    const parsedData = inspectionRepository.loadFormData(sessionId, inspection);
-    if (parsedData) {
-      // Convert persisted keys to fieldId keys for state. Keys can be externalID or fieldId.
-      const convertedData: FormData = {};
-      Object.entries(parsedData).forEach(([key, value]) => {
-        const fieldId = map[key] || key;
-        convertedData[fieldId] = value;
-      });
-      setFormData(convertedData);
-    }
-  };
+  }, [sessionId, navigate, loadFormSchema]);
 
   const updateFieldValue = (fieldId: string, value: FormDataValue | undefined, externalID?: string) => {
     const newFormData: FormData = { ...formData };

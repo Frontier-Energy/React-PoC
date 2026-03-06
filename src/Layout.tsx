@@ -11,6 +11,61 @@ import { CUSTOMIZATION_STORAGE_KEY, getActiveTenant, getTenantById, TENANTS } fr
 import { inspectionRepository } from './repositories/inspectionRepository';
 import { useTenantBootstrap } from './TenantBootstrapContext';
 
+const themeStyles: Record<
+  string,
+  {
+    bgColor: string;
+    textColor: string;
+    footerBg: string;
+    footerText: string;
+    footerHover: string;
+    flyoutBg: string;
+    flyoutText: string;
+    flyoutBorder: string;
+  }
+> = {
+  mist: {
+    bgColor: '#f7f8fa',
+    textColor: '#1a1a1a',
+    footerBg: '#1a1a1a',
+    footerText: '#f5f5f5',
+    footerHover: '#ffffff',
+    flyoutBg: '#ffffff',
+    flyoutText: '#1a1a1a',
+    flyoutBorder: '#d5dbe3',
+  },
+  harbor: {
+    bgColor: '#eef3f9',
+    textColor: '#1b1f2a',
+    footerBg: '#1b2b3a',
+    footerText: '#f0f4f8',
+    footerHover: '#ffffff',
+    flyoutBg: '#ffffff',
+    flyoutText: '#1b1f2a',
+    flyoutBorder: '#ccd5df',
+  },
+  sand: {
+    bgColor: '#f7f2ea',
+    textColor: '#2b2118',
+    footerBg: '#3b2f24',
+    footerText: '#f6efe6',
+    footerHover: '#ffffff',
+    flyoutBg: '#ffffff',
+    flyoutText: '#2b2118',
+    flyoutBorder: '#dccfbe',
+  },
+  night: {
+    bgColor: '#12161c',
+    textColor: '#e6e9ef',
+    footerBg: '#0b0f14',
+    footerText: '#cfd6df',
+    footerHover: '#ffffff',
+    flyoutBg: '#151b22',
+    flyoutText: '#e6e9ef',
+    flyoutBorder: '#2a3442',
+  },
+};
+
 export function Layout() {
   const navigate = useNavigate();
   const { status, lastCheckedAt } = useConnectivity();
@@ -128,61 +183,6 @@ export function Layout() {
       description: labels.customization.themeOptions.night.description,
     },
   ];
-
-  const themeStyles: Record<
-    string,
-    {
-      bgColor: string;
-      textColor: string;
-      footerBg: string;
-      footerText: string;
-      footerHover: string;
-      flyoutBg: string;
-      flyoutText: string;
-      flyoutBorder: string;
-    }
-  > = {
-    mist: {
-      bgColor: '#f7f8fa',
-      textColor: '#1a1a1a',
-      footerBg: '#1a1a1a',
-      footerText: '#f5f5f5',
-      footerHover: '#ffffff',
-      flyoutBg: '#ffffff',
-      flyoutText: '#1a1a1a',
-      flyoutBorder: '#d5dbe3',
-    },
-    harbor: {
-      bgColor: '#eef3f9',
-      textColor: '#1b1f2a',
-      footerBg: '#1b2b3a',
-      footerText: '#f0f4f8',
-      footerHover: '#ffffff',
-      flyoutBg: '#ffffff',
-      flyoutText: '#1b1f2a',
-      flyoutBorder: '#ccd5df',
-    },
-    sand: {
-      bgColor: '#f7f2ea',
-      textColor: '#2b2118',
-      footerBg: '#3b2f24',
-      footerText: '#f6efe6',
-      footerHover: '#ffffff',
-      flyoutBg: '#ffffff',
-      flyoutText: '#2b2118',
-      flyoutBorder: '#dccfbe',
-    },
-    night: {
-      bgColor: '#12161c',
-      textColor: '#e6e9ef',
-      footerBg: '#0b0f14',
-      footerText: '#cfd6df',
-      footerHover: '#ffffff',
-      flyoutBg: '#151b22',
-      flyoutText: '#e6e9ef',
-      flyoutBorder: '#2a3442',
-    },
-  };
 
   const fontOptions: SelectProps.Option[] = [
     {

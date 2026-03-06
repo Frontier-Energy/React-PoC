@@ -129,6 +129,8 @@ export function BackgroundUploadManager() {
   const workerIdRef = useRef(syncQueue.createWorkerId());
 
   useEffect(() => {
+    const workerId = workerIdRef.current;
+
     const runSyncCycle = async () => {
       if (connectivityStatus !== 'online' || syncInProgressRef.current) {
         return;
@@ -138,22 +140,22 @@ export function BackgroundUploadManager() {
 
       try {
         syncQueue.ensureQueuedForPendingInspections(inspectionRepository.loadAll());
-        if (!syncQueue.tryAcquireWorkerLease(workerIdRef.current)) {
+        if (!syncQueue.tryAcquireWorkerLease(workerId)) {
           return;
         }
 
         while (connectivityStatus === 'online') {
-          if (!syncQueue.renewWorkerLease(workerIdRef.current)) {
+          if (!syncQueue.renewWorkerLease(workerId)) {
             break;
           }
 
-          const processed = await processNextQueuedInspection(workerIdRef.current);
+          const processed = await processNextQueuedInspection(workerId);
           if (!processed) {
             break;
           }
         }
       } finally {
-        syncQueue.releaseWorkerLease(workerIdRef.current);
+        syncQueue.releaseWorkerLease(workerId);
         syncInProgressRef.current = false;
       }
     };
@@ -172,7 +174,7 @@ export function BackgroundUploadManager() {
       window.clearInterval(intervalId);
       window.removeEventListener('storage', handleQueueWakeup);
       window.removeEventListener('inspection-status-changed', handleQueueWakeup as EventListener);
-      syncQueue.releaseWorkerLease(workerIdRef.current);
+      syncQueue.releaseWorkerLease(workerId);
     };
   }, [connectivityStatus]);
 

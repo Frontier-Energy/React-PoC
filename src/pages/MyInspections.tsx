@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, SelectProps, Link, Alert, Modal } from '@cloudscape-design/components';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { InspectionSession, UploadStatus, FormType } from '../types';
 import { TableProps } from '@cloudscape-design/components';
@@ -18,7 +18,6 @@ export function MyInspections() {
   const { config } = useTenantBootstrap();
   const inspectionScopeRefreshKey = `${config.tenantId}:${getUserId() ?? 'anonymous'}`;
   const [inspections, setInspections] = useState<InspectionSession[]>([]);
-  const [filteredInspections, setFilteredInspections] = useState<InspectionSession[]>([]);
   const [formTypeFilter, setFormTypeFilter] = useState<SelectProps.Option | null>(null);
   const [statusFilter, setStatusFilter] = useState<SelectProps.Option | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -31,38 +30,11 @@ export function MyInspections() {
     (inspection) => (inspection.uploadStatus || UploadStatus.Local) === UploadStatus.Failed
   );
 
-  useEffect(() => {
-    loadInspections();
-  }, [inspectionScopeRefreshKey]);
-
-  useEffect(() => {
-    const handleStatusChange = () => {
-      loadInspections();
-    };
-
-    window.addEventListener('inspection-status-changed', handleStatusChange as EventListener);
-    return () => window.removeEventListener('inspection-status-changed', handleStatusChange as EventListener);
+  const loadInspections = useCallback(() => {
+    setInspections(inspectionRepository.loadAll());
   }, []);
 
-  useEffect(() => {
-    // Check if there's a success message from navigation state
-    if (location.state?.successMessage) {
-      setSuccessMessage(location.state.successMessage);
-      // Clear the message after 5 seconds
-      const timer = setTimeout(() => setSuccessMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [location]);
-
-  useEffect(() => {
-    applyFilters();
-  }, [inspections, formTypeFilter, statusFilter]);
-
-  const loadInspections = () => {
-    setInspections(inspectionRepository.loadAll());
-  };
-
-  const applyFilters = () => {
+  const filteredInspections = useMemo(() => {
     let filtered = inspections;
 
     if (formTypeFilter?.value) {
@@ -73,8 +45,31 @@ export function MyInspections() {
       filtered = filtered.filter((inspection) => (inspection.uploadStatus || UploadStatus.Local) === statusFilter.value);
     }
 
-    setFilteredInspections(filtered);
-  };
+    return filtered;
+  }, [inspections, formTypeFilter, statusFilter]);
+
+  useEffect(() => {
+    loadInspections();
+  }, [inspectionScopeRefreshKey, loadInspections]);
+
+  useEffect(() => {
+    const handleStatusChange = () => {
+      loadInspections();
+    };
+
+    window.addEventListener('inspection-status-changed', handleStatusChange as EventListener);
+    return () => window.removeEventListener('inspection-status-changed', handleStatusChange as EventListener);
+  }, [loadInspections]);
+
+  useEffect(() => {
+    // Check if there's a success message from navigation state
+    if (location.state?.successMessage) {
+      setSuccessMessage(location.state.successMessage);
+      // Clear the message after 5 seconds
+      const timer = setTimeout(() => setSuccessMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [location]);
 
   const handleOpenInspection = (inspection: InspectionSession) => {
     inspectionRepository.saveCurrent(inspection);
