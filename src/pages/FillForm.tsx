@@ -27,29 +27,57 @@ export function FillForm() {
   const errorAlertRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!sessionId) {
-      navigate('/new-inspection');
-      setLoading(false);
-      return;
-    }
+    let cancelled = false;
 
-    const resolvedSession = inspectionRepository.loadCurrentOrById(sessionId);
-    if (resolvedSession) {
-      setSession(resolvedSession);
-      loadFormSchema(resolvedSession.formType, resolvedSession);
-    } else {
-      navigate('/new-inspection');
-    }
+    const initialize = async () => {
+      setLoading(true);
 
-    setLoading(false);
+      if (!sessionId) {
+        navigate('/new-inspection');
+        if (!cancelled) {
+          setLoading(false);
+        }
+        return;
+      }
+
+      const resolvedSession = inspectionRepository.loadCurrentOrById(sessionId);
+      if (!resolvedSession) {
+        navigate('/new-inspection');
+        if (!cancelled) {
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!cancelled) {
+        setSession(resolvedSession);
+      }
+
+      await loadFormSchema(resolvedSession.formType, resolvedSession, cancelled);
+
+      if (!cancelled) {
+        setLoading(false);
+      }
+    };
+
+    void initialize();
+
+    return () => {
+      cancelled = true;
+    };
   }, [sessionId, navigate]);
 
   const loadFormSchema = async (
     formType: FormType,
-    inspection: Pick<InspectionSession, 'tenantId' | 'userId'>
+    inspection: Pick<InspectionSession, 'tenantId' | 'userId'>,
+    cancelled = false
   ) => {
     try {
       const schema = await fetchFormSchema(formType);
+      if (cancelled) {
+        return;
+      }
+
       setFormSchema(schema);
 
       // Build externalID to fieldId map and validation rules map

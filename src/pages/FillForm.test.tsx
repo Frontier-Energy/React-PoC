@@ -591,6 +591,27 @@ describe('FillForm', () => {
     expect(await screen.findByText('Error loading form schema')).toBeInTheDocument();
   });
 
+  it('keeps showing loading while the schema request is still in flight', async () => {
+    let resolveSchema: ((value: typeof schemaFixture) => void) | undefined;
+    fetchFormSchemaMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSchema = resolve as (value: typeof schemaFixture) => void;
+        })
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Loading...')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Error loading form schema')).not.toBeInTheDocument();
+
+    resolveSchema?.(schemaFixture);
+
+    expect(await screen.findByDisplayValue('Durability Session')).toBeInTheDocument();
+  });
+
   it('loads fallback inspection when currentSession does not match route id', async () => {
     localStorage.setItem(
       getCurrentSessionStorageKey(),
