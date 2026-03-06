@@ -12,7 +12,6 @@ export interface AppConfig {
 export interface TenantDefinition {
   tenantId: string;
   displayName: string;
-  servicePathPrefix: string;
   uiDefaults: {
     theme: string;
     font: string;
@@ -30,7 +29,6 @@ export const TENANTS: TenantDefinition[] = [
   {
     tenantId: DEFAULT_TENANT_NAME,
     displayName: 'Frontier Demo',
-    servicePathPrefix: '/QHVAC',
     uiDefaults: {
       theme: 'mist',
       font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
@@ -42,7 +40,6 @@ export const TENANTS: TenantDefinition[] = [
   {
     tenantId: 'qhvac',
     displayName: 'QHVAC',
-    servicePathPrefix: '/QHVAC',
     uiDefaults: {
       theme: 'harbor',
       font: 'Tahoma, "Trebuchet MS", Arial, sans-serif',
@@ -54,7 +51,6 @@ export const TENANTS: TenantDefinition[] = [
   {
     tenantId: 'opscentral',
     displayName: 'Ops Central',
-    servicePathPrefix: '/QHVAC',
     uiDefaults: {
       theme: 'sand',
       font: 'Georgia, "Times New Roman", serif',
@@ -66,7 +62,6 @@ export const TENANTS: TenantDefinition[] = [
   {
     tenantId: 'lire',
     displayName: 'LIRE',
-    servicePathPrefix: '/QHVAC',
     uiDefaults: {
       theme: 'mist',
       font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
@@ -143,12 +138,12 @@ const getAppConfig = (tenantId?: string): AppConfig => {
   return {
     tenantName: activeTenant.tenantId,
     apiBaseUrl: resolveApiBaseUrl(),
-    uploadInspectionPath: `${activeTenant.servicePathPrefix}/ReceiveInspection`,
-    loginPath: `${activeTenant.servicePathPrefix}/login`,
-    registerPath: `${activeTenant.servicePathPrefix}/Register`,
-    tenantBootstrapPath: `${activeTenant.servicePathPrefix}/tenant-config`,
-    formSchemasPath: `${activeTenant.servicePathPrefix}/form-schemas`,
-    translationsPath: `${activeTenant.servicePathPrefix}/translations`,
+    uploadInspectionPath: '/inspections',
+    loginPath: '/auth/login',
+    registerPath: '/auth/register',
+    tenantBootstrapPath: '/tenant-config',
+    formSchemasPath: '/form-schemas',
+    translationsPath: '/translations',
   };
 };
 

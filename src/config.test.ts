@@ -41,10 +41,10 @@ describe('config', () => {
 
   it('builds upload, login, and register urls for active tenant', () => {
     localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ tenantId: 'qhvac' }));
-    expect(getUploadInspectionUrl()).toContain('/QHVAC/ReceiveInspection');
-    expect(getLoginUrl()).toContain('/QHVAC/login');
-    expect(getRegisterUrl()).toContain('/QHVAC/Register');
-    expect(getTenantBootstrapUrl()).toContain('/QHVAC/tenant-config');
+    expect(getUploadInspectionUrl()).toContain('/inspections');
+    expect(getLoginUrl()).toContain('/auth/login');
+    expect(getRegisterUrl()).toContain('/auth/register');
+    expect(getTenantBootstrapUrl()).toContain('/tenant-config');
   });
 
   it('falls back to default tenant when window is unavailable', () => {
