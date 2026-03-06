@@ -2,31 +2,22 @@ import { getFormSchemaUrl, getTranslationsUrl } from './config';
 import type { Labels, LanguageCode } from './resources/translations';
 import type { FormSchema, FormType } from './types';
 
-const loadLocalFormSchema = async (formType: FormType): Promise<FormSchema> => {
-  const schemaModule = await import(`./resources/${formType}.json`);
-  return schemaModule.default as FormSchema;
-};
-
 export const fetchFormSchema = async (formType: FormType): Promise<FormSchema> => {
-  try {
-    const response = await fetch(getFormSchemaUrl(formType));
-    if (!response.ok) {
-      throw new Error(`Form schema request failed with status ${response.status}`);
-    }
-
-    const payload = (await response.json()) as Partial<FormSchema>;
-    if (!payload.formName || !Array.isArray(payload.sections)) {
-      throw new Error('Form schema response is missing required fields');
-    }
-
-    return {
-      formName: payload.formName,
-      sections: payload.sections,
-      uploadStatus: payload.uploadStatus,
-    } as FormSchema;
-  } catch {
-    return loadLocalFormSchema(formType);
+  const response = await fetch(getFormSchemaUrl(formType));
+  if (!response.ok) {
+    throw new Error(`Form schema request failed with status ${response.status}`);
   }
+
+  const payload = (await response.json()) as Partial<FormSchema>;
+  if (!payload.formName || !Array.isArray(payload.sections)) {
+    throw new Error('Form schema response is missing required fields');
+  }
+
+  return {
+    formName: payload.formName,
+    sections: payload.sections,
+    uploadStatus: payload.uploadStatus,
+  } as FormSchema;
 };
 
 export const fetchTranslations = async (language: LanguageCode): Promise<Labels> => {
