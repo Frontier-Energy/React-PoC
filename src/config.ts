@@ -1,3 +1,5 @@
+import { getStoredTenantPreference } from './appPreferences';
+
 export interface AppConfig {
   tenantName: string;
   apiBaseUrl: string;
@@ -22,7 +24,6 @@ export interface TenantDefinition {
 }
 
 export const DEFAULT_TENANT_NAME = 'frontierDemo';
-export const CUSTOMIZATION_STORAGE_KEY = 'appCustomization';
 const DEFAULT_API_BASE_URL = 'https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io';
 const QCONTROL_DOMAIN_SUFFIX = ['qcontrol', 'frontierenergy', 'com'] as const;
 export const TENANTS: TenantDefinition[] = [
@@ -96,19 +97,8 @@ export const resolveTenantNameFromHostname = (hostname: string): string => {
 };
 
 const readStoredTenantName = (): string | null => {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
-  if (!stored) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(stored) as { tenantId?: string };
-    return parsed.tenantId && getTenantById(parsed.tenantId) ? parsed.tenantId : null;
-  } catch (error) {
-    return null;
-  }
+  const storedTenantId = getStoredTenantPreference();
+  return storedTenantId && getTenantById(storedTenantId) ? storedTenantId : null;
 };
 
 const resolveActiveTenantName = (): string => {

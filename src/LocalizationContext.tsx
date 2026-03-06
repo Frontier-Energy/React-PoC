@@ -2,7 +2,11 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { fetchTranslations } from './apiContent';
 import { defaultLanguage, isLanguageCode, type LanguageCode, type Labels } from './resources/translations';
-import { CUSTOMIZATION_STORAGE_KEY } from './config';
+import {
+  getStoredLanguagePreference,
+  LANGUAGE_PREFERENCE_STORAGE_KEY,
+  setStoredLanguagePreference,
+} from './appPreferences';
 import { getFallbackLabels } from './resources/translations/fallback';
 
 interface LocalizationContextValue {
@@ -14,22 +18,7 @@ interface LocalizationContextValue {
 const LocalizationContext = createContext<LocalizationContextValue | undefined>(undefined);
 
 const readStoredLanguage = (): LanguageCode => {
-  if (typeof window === 'undefined') {
-    return defaultLanguage;
-  }
-  const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
-  if (!stored) {
-    return defaultLanguage;
-  }
-  try {
-    const parsed = JSON.parse(stored) as { language?: string };
-    if (parsed.language && isLanguageCode(parsed.language)) {
-      return parsed.language;
-    }
-  } catch (error) {
-    // Fall back to default language.
-  }
-  return defaultLanguage;
+  return getStoredLanguagePreference() ?? defaultLanguage;
 };
 
 export function LocalizationProvider({ children }: { children: ReactNode }) {
@@ -37,17 +26,7 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
   const [labels, setLabels] = useState<Labels>(() => getFallbackLabels(readStoredLanguage()));
 
   useEffect(() => {
-    const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
-    let existing: Record<string, unknown> = {};
-    if (stored) {
-      try {
-        existing = JSON.parse(stored) as Record<string, unknown>;
-      } catch (error) {
-        existing = {};
-      }
-    }
-    const updated = { ...existing, language };
-    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify(updated));
+    setStoredLanguagePreference(language);
   }, [language]);
 
   useEffect(() => {
@@ -76,16 +55,15 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
-      if (event.key !== CUSTOMIZATION_STORAGE_KEY || !event.newValue) {
+      if (event.key !== LANGUAGE_PREFERENCE_STORAGE_KEY) {
         return;
       }
-      try {
-        const parsed = JSON.parse(event.newValue) as { language?: string };
-        if (parsed.language && isLanguageCode(parsed.language)) {
-          setLanguage(parsed.language);
-        }
-      } catch (error) {
-        // Ignore invalid storage data.
+      if (!event.newValue) {
+        setLanguage(defaultLanguage);
+        return;
+      }
+      if (isLanguageCode(event.newValue)) {
+        setLanguage(event.newValue);
       }
     };
     window.addEventListener('storage', handleStorage);

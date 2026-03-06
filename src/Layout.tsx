@@ -6,8 +6,17 @@ import { clearUserId, getUserId, hasPermission, isLoggedInAdmin } from './auth';
 import { UploadStatus } from './types';
 import type { SelectProps, SideNavigationProps } from '@cloudscape-design/components';
 import { useLocalization } from './LocalizationContext';
-import { formatTemplate, isLanguageCode, type LanguageCode } from './resources/translations';
-import { CUSTOMIZATION_STORAGE_KEY, getActiveTenant, getTenantById, TENANTS } from './config';
+import { formatTemplate, isLanguageCode } from './resources/translations';
+import {
+  clearStoredFontPreference,
+  clearStoredThemePreference,
+  getStoredFontPreference,
+  getStoredThemePreference,
+  setStoredFontPreference,
+  setStoredTenantPreference,
+  setStoredThemePreference,
+} from './appPreferences';
+import { getActiveTenant, getTenantById, TENANTS } from './config';
 import { inspectionRepository } from './repositories/inspectionRepository';
 import { useTenantBootstrap } from './TenantBootstrapContext';
 
@@ -71,40 +80,12 @@ export function Layout() {
   const { status, lastCheckedAt } = useConnectivity();
   const { labels, language, setLanguage } = useLocalization();
   const { config, refreshConfig } = useTenantBootstrap();
-  const resolvedTenant = getActiveTenant();
   const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
-  type Customization = {
-    tenantId: string;
-    theme: string;
-    font: string;
-    language: LanguageCode;
-  };
-  const [customization, setCustomization] = useState<Customization>(() => {
-    const defaults: Customization = {
-      tenantId: resolvedTenant.tenantId,
-      theme: resolvedTenant.uiDefaults.theme,
-      font: resolvedTenant.uiDefaults.font,
-      language,
-    };
-    const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
-    if (!stored) {
-      return defaults;
-    }
-    try {
-      const parsed = JSON.parse(stored) as Partial<Customization>;
-      const merged = { ...defaults, ...parsed };
-      const validTenant = merged.tenantId ? getTenantById(merged.tenantId) : undefined;
-      return {
-        ...merged,
-        tenantId: validTenant?.tenantId ?? defaults.tenantId,
-        language: isLanguageCode(merged.language) ? merged.language : defaults.language,
-      };
-    } catch (error) {
-      console.error('Failed to parse customization settings:', error);
-      return defaults;
-    }
-  });
-  const activeTenant = getTenantById(customization.tenantId) ?? resolvedTenant;
+  const [themePreference, setThemePreference] = useState<string | null>(() => getStoredThemePreference());
+  const [fontPreference, setFontPreference] = useState<string | null>(() => getStoredFontPreference());
+  const activeTenant = getTenantById(config.tenantId) ?? getActiveTenant();
+  const activeTheme = themePreference ?? config.theme;
+  const activeFont = fontPreference ?? config.font;
   const inspectionScopeRefreshKey = `${config.tenantId}:${getUserId() ?? 'anonymous'}`;
   const [statusCounts, setStatusCounts] = useState<Record<UploadStatus, number>>(() => ({
     [UploadStatus.Local]: 0,
@@ -215,7 +196,7 @@ export function Layout() {
 
   useEffect(() => {
     document.body.classList.add('app-theme');
-    const themeStyle = themeStyles[customization.theme] ?? themeStyles.mist;
+    const themeStyle = themeStyles[activeTheme] ?? themeStyles.mist;
     document.documentElement.style.setProperty('--app-bg-color', themeStyle.bgColor);
     document.documentElement.style.setProperty('--app-text-color', themeStyle.textColor);
     document.documentElement.style.setProperty('--app-footer-bg-color', themeStyle.footerBg);
@@ -224,18 +205,20 @@ export function Layout() {
     document.documentElement.style.setProperty('--app-flyout-bg-color', themeStyle.flyoutBg);
     document.documentElement.style.setProperty('--app-flyout-text-color', themeStyle.flyoutText);
     document.documentElement.style.setProperty('--app-flyout-border-color', themeStyle.flyoutBorder);
-    document.documentElement.style.setProperty('--app-font-family', customization.font);
-    document.documentElement.style.setProperty('--font-family-base-gmnpzl', customization.font);
-    document.body.style.setProperty('--font-family-base-gmnpzl', customization.font);
-    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify(customization));
+    document.documentElement.style.setProperty('--app-font-family', activeFont);
+    document.documentElement.style.setProperty('--font-family-base-gmnpzl', activeFont);
+    document.body.style.setProperty('--font-family-base-gmnpzl', activeFont);
     return () => {
       document.body.classList.remove('app-theme');
     };
-  }, [customization]);
+  }, [activeFont, activeTheme]);
 
   useEffect(() => {
-    setCustomization((prev) => (prev.language === language ? prev : { ...prev, language }));
-  }, [language]);
+    const storedTheme = getStoredThemePreference();
+    const storedFont = getStoredFontPreference();
+    setThemePreference((prev) => (prev === storedTheme ? prev : storedTheme));
+    setFontPreference((prev) => (prev === storedFont ? prev : storedFont));
+  }, [config.font, config.theme]);
 
   const statusOrder: UploadStatus[] = [
     UploadStatus.Local,
@@ -362,44 +345,38 @@ export function Layout() {
           <FormField label={labels.customization.themeLabel}>
             <Select
               selectedOption={
-                themeOptions.find((option) => option.value === customization.theme) ?? themeOptions[0]
+                themeOptions.find((option) => option.value === activeTheme) ?? themeOptions[0]
               }
-              onChange={(event) =>
-                setCustomization((prev) => ({
-                  ...prev,
-                  theme: event.detail.selectedOption.value ?? prev.theme,
-                }))
-              }
+              onChange={(event) => {
+                const nextTheme = event.detail.selectedOption.value ?? activeTheme;
+                setThemePreference(nextTheme);
+                setStoredThemePreference(nextTheme);
+              }}
               options={themeOptions}
             />
           </FormField>
           <FormField label={labels.customization.fontLabel}>
             <Select
               selectedOption={
-                fontOptions.find((option) => option.value === customization.font) ?? fontOptions[0]
+                fontOptions.find((option) => option.value === activeFont) ?? fontOptions[0]
               }
-              onChange={(event) =>
-                setCustomization((prev) => ({
-                  ...prev,
-                  font: event.detail.selectedOption.value ?? prev.font,
-                }))
-              }
+              onChange={(event) => {
+                const nextFont = event.detail.selectedOption.value ?? activeFont;
+                setFontPreference(nextFont);
+                setStoredFontPreference(nextFont);
+              }}
               options={fontOptions}
             />
           </FormField>
           <FormField label={labels.customization.languageLabel}>
             <Select
               selectedOption={
-                languageOptions.find((option) => option.value === customization.language) ?? languageOptions[0]
+                languageOptions.find((option) => option.value === language) ?? languageOptions[0]
               }
               onChange={(event) => {
                 const selectedValue = event.detail.selectedOption.value;
-                const nextLanguage = isLanguageCode(selectedValue) ? selectedValue : customization.language;
+                const nextLanguage = isLanguageCode(selectedValue) ? selectedValue : language;
                 setLanguage(nextLanguage);
-                setCustomization((prev) => ({
-                  ...prev,
-                  language: nextLanguage,
-                }));
               }}
               options={languageOptions}
             />
@@ -409,7 +386,7 @@ export function Layout() {
             <FormField label={labels.customization.tenantLabel}>
               <Select
                 selectedOption={
-                  tenantOptions.find((option) => option.value === customization.tenantId) ?? tenantOptions[0]
+                  tenantOptions.find((option) => option.value === config.tenantId) ?? tenantOptions[0]
                 }
                 onChange={(event) => {
                   const selectedTenantId = event.detail.selectedOption.value;
@@ -417,12 +394,11 @@ export function Layout() {
                   if (!nextTenant) {
                     return;
                   }
-                  setCustomization((prev) => ({
-                    ...prev,
-                    tenantId: nextTenant.tenantId,
-                    theme: nextTenant.uiDefaults.theme,
-                    font: nextTenant.uiDefaults.font,
-                  }));
+                  setStoredTenantPreference(nextTenant.tenantId);
+                  clearStoredThemePreference();
+                  clearStoredFontPreference();
+                  setThemePreference(null);
+                  setFontPreference(null);
                   void refreshConfig(nextTenant.tenantId);
                 }}
                 options={tenantOptions}

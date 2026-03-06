@@ -1,4 +1,5 @@
-import { CUSTOMIZATION_STORAGE_KEY, getActiveTenant, getTenantById, getTenantBootstrapUrl } from './config';
+import { setStoredTenantPreference } from './appPreferences';
+import { getActiveTenant, getTenantById, getTenantBootstrapUrl } from './config';
 import { isLanguageCode, type LanguageCode } from './resources/translations';
 import { FormType } from './types';
 
@@ -151,24 +152,6 @@ export const fetchTenantBootstrapConfig = async (tenantId?: string): Promise<Ten
   return mapTenantBootstrapResponse(payload, defaults);
 };
 
-export const persistTenantCustomization = (config: TenantBootstrapConfig) => {
-  const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
-  let existing: Record<string, unknown> = {};
-  if (stored) {
-    try {
-      existing = JSON.parse(stored) as Record<string, unknown>;
-    } catch (error) {
-      existing = {};
-    }
-  }
-  const updated: Record<string, unknown> = {
-    ...existing,
-    tenantId: config.tenantId,
-    theme: config.theme,
-    font: config.font,
-  };
-  if (config.language) {
-    updated.language = config.language;
-  }
-  localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify(updated));
+export const persistSelectedTenant = (tenantId: string) => {
+  setStoredTenantPreference(tenantId);
 };

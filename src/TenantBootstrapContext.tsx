@@ -5,7 +5,7 @@ import {
   fetchTenantBootstrapConfig,
   getDefaultTenantBootstrapConfig,
   getDefaultTenantBootstrapConfigForTenant,
-  persistTenantCustomization,
+  persistSelectedTenant,
   type TenantBootstrapConfig,
 } from './tenantBootstrap';
 
@@ -28,14 +28,14 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
       const requestId = ++requestIdRef.current;
       const fallbackConfig = getDefaultTenantBootstrapConfigForTenant(tenantId);
       setConfig(fallbackConfig);
-      persistTenantCustomization(fallbackConfig);
+      persistSelectedTenant(fallbackConfig.tenantId);
       try {
         const resolvedConfig = await fetchTenantBootstrapConfig(tenantId);
         if (requestId !== requestIdRef.current) {
           return;
         }
         setConfig(resolvedConfig);
-        persistTenantCustomization(resolvedConfig);
+        persistSelectedTenant(resolvedConfig.tenantId);
         if (resolvedConfig.language) {
           setLanguage(resolvedConfig.language);
         }
@@ -44,7 +44,7 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
           return;
         }
         setConfig(fallbackConfig);
-        persistTenantCustomization(fallbackConfig);
+        persistSelectedTenant(fallbackConfig.tenantId);
       }
     },
     [setLanguage]
