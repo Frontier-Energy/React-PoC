@@ -7,12 +7,15 @@ import { TableProps } from '@cloudscape-design/components';
 import { useLocalization } from '../LocalizationContext';
 import { inspectionRepository } from '../repositories/inspectionRepository';
 import { formatPluralTemplate } from '../resources/translations';
+import { useTenantBootstrap } from '../TenantBootstrapContext';
+import { getUserId } from '../auth';
 
 export function MyInspections() {
   const navigate = useNavigate();
   const location = useLocation();
   const { labels } = useLocalization();
-  const inspectionStorageScopeKey = inspectionRepository.getStorageScopeKey();
+  const { config } = useTenantBootstrap();
+  const inspectionScopeRefreshKey = `${config.tenantId}:${getUserId() ?? 'anonymous'}`;
   const [inspections, setInspections] = useState<InspectionSession[]>([]);
   const [filteredInspections, setFilteredInspections] = useState<InspectionSession[]>([]);
   const [formTypeFilter, setFormTypeFilter] = useState<SelectProps.Option | null>(null);
@@ -29,7 +32,7 @@ export function MyInspections() {
 
   useEffect(() => {
     loadInspections();
-  }, [inspectionStorageScopeKey]);
+  }, [inspectionScopeRefreshKey]);
 
   useEffect(() => {
     const handleStatusChange = () => {
