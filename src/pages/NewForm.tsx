@@ -26,6 +26,7 @@ export function NewForm() {
       name: '',
       formType: selectedFormType.value as InspectionSession['formType'],
       uploadStatus: UploadStatus.Local,
+      tenantId: config.tenantId,
     };
 
     inspectionRepository.saveAsCurrent(session);

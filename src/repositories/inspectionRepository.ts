@@ -18,6 +18,11 @@ const getStorageScope = (): StorageScope => ({
   userId: getUserId()?.trim() || ANONYMOUS_USER_SCOPE,
 });
 
+const getScopeForInspection = (inspection: Pick<InspectionSession, 'tenantId' | 'userId'>): StorageScope => ({
+  tenantId: inspection.tenantId,
+  userId: inspection.userId?.trim() || getStorageScope().userId,
+});
+
 const getScopeKey = (scope: StorageScope = getStorageScope()) => `${scope.tenantId}:${scope.userId}`;
 const getInspectionKeyPrefix = (scope: StorageScope = getStorageScope()) => `${getScopeKey(scope)}:${INSPECTION_PREFIX}`;
 const getInspectionKey = (inspectionId: string, scope: StorageScope = getStorageScope()) =>
@@ -31,7 +36,7 @@ const normalizeInspectionForScope = (
   scope: StorageScope = getStorageScope()
 ): InspectionSession => ({
   ...inspection,
-  tenantId: scope.tenantId,
+  tenantId: inspection.tenantId || scope.tenantId,
   userId: inspection.userId ?? (scope.userId === ANONYMOUS_USER_SCOPE ? undefined : scope.userId),
 });
 
@@ -106,13 +111,15 @@ export const inspectionRepository = {
   },
 
   save(inspection: InspectionSession): void {
-    const normalizedInspection = normalizeInspectionForScope(inspection);
-    localStorage.setItem(getInspectionKey(normalizedInspection.id), JSON.stringify(normalizedInspection));
+    const inspectionScope = getScopeForInspection(inspection);
+    const normalizedInspection = normalizeInspectionForScope(inspection, inspectionScope);
+    localStorage.setItem(getInspectionKey(normalizedInspection.id, inspectionScope), JSON.stringify(normalizedInspection));
   },
 
   saveCurrent(inspection: InspectionSession): void {
-    const normalizedInspection = normalizeInspectionForScope(inspection);
-    localStorage.setItem(getCurrentSessionKey(), JSON.stringify(normalizedInspection));
+    const inspectionScope = getScopeForInspection(inspection);
+    const normalizedInspection = normalizeInspectionForScope(inspection, inspectionScope);
+    localStorage.setItem(getCurrentSessionKey(inspectionScope), JSON.stringify(normalizedInspection));
   },
 
   saveAsCurrent(inspection: InspectionSession): void {
@@ -125,47 +132,71 @@ export const inspectionRepository = {
     return inspection;
   },
 
-  delete(inspectionId: string, options?: { removeFormData?: boolean; removeCurrentIfMatch?: boolean }): void {
+  delete(
+    inspectionOrId: InspectionSession | string,
+    options?: { removeFormData?: boolean; removeCurrentIfMatch?: boolean }
+  ): void {
     const removeFormData = options?.removeFormData ?? true;
     const removeCurrentIfMatch = options?.removeCurrentIfMatch ?? true;
+    const inspectionId = typeof inspectionOrId === 'string' ? inspectionOrId : inspectionOrId.id;
+    const inspectionScope =
+      typeof inspectionOrId === 'string' ? getStorageScope() : getScopeForInspection(inspectionOrId);
 
-    localStorage.removeItem(getInspectionKey(inspectionId));
+    localStorage.removeItem(getInspectionKey(inspectionId, inspectionScope));
     if (removeFormData) {
-      localStorage.removeItem(getFormDataKey(inspectionId));
+      localStorage.removeItem(getFormDataKey(inspectionId, inspectionScope));
     }
 
     if (!removeCurrentIfMatch) {
       return;
     }
 
-    const currentSession = this.loadCurrent();
+    const currentSession = parseJson<InspectionSession>(
+      localStorage.getItem(getCurrentSessionKey(inspectionScope)),
+      'Failed to parse current inspection session:'
+    );
     if (currentSession?.id === inspectionId) {
-      localStorage.removeItem(getCurrentSessionKey());
+      localStorage.removeItem(getCurrentSessionKey(inspectionScope));
     }
   },
 
-  loadFormData(inspectionId: string): Record<string, FormDataValue> | null {
+  loadFormData(
+    inspectionId: string,
+    inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
+  ): Record<string, FormDataValue> | null {
+    const scope = inspection ? getScopeForInspection(inspection) : getStorageScope();
     return parseJson<Record<string, FormDataValue>>(
-      localStorage.getItem(getFormDataKey(inspectionId)),
+      localStorage.getItem(getFormDataKey(inspectionId, scope)),
       `Failed to parse form data for session ${inspectionId}:`
     );
   },
 
-  saveFormData(inspectionId: string, formData: Record<string, FormDataValue>): void {
-    localStorage.setItem(getFormDataKey(inspectionId), JSON.stringify(formData));
+  saveFormData(
+    inspectionId: string,
+    formData: Record<string, FormDataValue>,
+    inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
+  ): void {
+    const scope = inspection ? getScopeForInspection(inspection) : getStorageScope();
+    localStorage.setItem(getFormDataKey(inspectionId, scope), JSON.stringify(formData));
   },
 
-  updateFormDataEntry(inspectionId: string, key: string, value: FormDataValue | undefined): void {
-    const currentFormData = this.loadFormData(inspectionId) ?? {};
+  updateFormDataEntry(
+    inspectionId: string,
+    key: string,
+    value: FormDataValue | undefined,
+    inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
+  ): void {
+    const currentFormData = this.loadFormData(inspectionId, inspection) ?? {};
     if (value === undefined) {
       delete currentFormData[key];
     } else {
       currentFormData[key] = value;
     }
-    this.saveFormData(inspectionId, currentFormData);
+    this.saveFormData(inspectionId, currentFormData, inspection);
   },
 
-  clearFormData(inspectionId: string): void {
-    localStorage.removeItem(getFormDataKey(inspectionId));
+  clearFormData(inspectionId: string, inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>): void {
+    const scope = inspection ? getScopeForInspection(inspection) : getStorageScope();
+    localStorage.removeItem(getFormDataKey(inspectionId, scope));
   },
 };

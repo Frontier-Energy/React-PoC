@@ -27,6 +27,7 @@ export function NewInspection() {
       name: '',
       formType: selectedFormType.value as InspectionSession['formType'],
       uploadStatus: UploadStatus.InProgress,
+      tenantId: config.tenantId,
       userId: getUserId() || undefined,
     };
 

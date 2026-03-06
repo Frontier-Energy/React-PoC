@@ -37,6 +37,7 @@ const makeInspection = (id: string, overrides?: Partial<InspectionSession>): Ins
   id,
   name: `Inspection ${id}`,
   formType: FormType.HVAC,
+  tenantId: 'tenant-a',
   uploadStatus: UploadStatus.Local,
   ...overrides,
 });

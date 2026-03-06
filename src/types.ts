@@ -76,6 +76,6 @@ export interface InspectionSession {
   name: string;
   formType: FormType;
   uploadStatus?: UploadStatus;
-  tenantId?: string;
+  tenantId: string;
   userId?: string;
 }

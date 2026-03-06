@@ -85,7 +85,7 @@ export function MyInspections() {
   };
 
   const handleDeleteInspection = (inspection: InspectionSession) => {
-    inspectionRepository.delete(inspection.id);
+    inspectionRepository.delete(inspection);
     loadInspections();
   };
 

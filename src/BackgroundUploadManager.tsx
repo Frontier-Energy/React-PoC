@@ -24,7 +24,8 @@ const updateInspectionStatus = (inspection: InspectionSession, status: UploadSta
 };
 
 const uploadInspection = async (inspection: InspectionSession) => {
-  const formData: Record<string, FormDataValue> = inspectionRepository.loadFormData(inspection.id) ?? {};
+  const formData: Record<string, FormDataValue> =
+    inspectionRepository.loadFormData(inspection.id, inspection) ?? {};
 
   const uploadForm = new FormData();
   const queryParams: Record<string, string> = {};

@@ -36,7 +36,7 @@ export function FillForm() {
     const resolvedSession = inspectionRepository.loadCurrentOrById(sessionId);
     if (resolvedSession) {
       setSession(resolvedSession);
-      loadFormSchema(resolvedSession.formType);
+      loadFormSchema(resolvedSession.formType, resolvedSession);
     } else {
       navigate('/new-inspection');
     }
@@ -44,7 +44,10 @@ export function FillForm() {
     setLoading(false);
   }, [sessionId, navigate]);
 
-  const loadFormSchema = async (formType: FormType) => {
+  const loadFormSchema = async (
+    formType: FormType,
+    inspection: Pick<InspectionSession, 'tenantId' | 'userId'>
+  ) => {
     try {
       const schema = await fetchFormSchema(formType);
       setFormSchema(schema);
@@ -60,15 +63,19 @@ export function FillForm() {
       });
       // Load form data after schema is loaded so we can map externalIDs
       if (sessionId) {
-        loadFormData(sessionId, map);
+        loadFormData(sessionId, map, inspection);
       }
     } catch (error) {
       console.error(`Failed to load form schema for ${formType}:`, error);
     }
   };
 
-  const loadFormData = (sessionId: string, map: Record<string, string>) => {
-    const parsedData = inspectionRepository.loadFormData(sessionId);
+  const loadFormData = (
+    sessionId: string,
+    map: Record<string, string>,
+    inspection: Pick<InspectionSession, 'tenantId' | 'userId'>
+  ) => {
+    const parsedData = inspectionRepository.loadFormData(sessionId, inspection);
     if (parsedData) {
       // Convert persisted keys to fieldId keys for state. Keys can be externalID or fieldId.
       const convertedData: FormData = {};
@@ -90,9 +97,9 @@ export function FillForm() {
     setFormData(newFormData);
 
     // Save persisted data using externalID when available, otherwise fieldId.
-    if (sessionId) {
+    if (sessionId && session) {
       const storageKey = externalID || fieldId;
-      inspectionRepository.updateFormDataEntry(sessionId, storageKey, value);
+      inspectionRepository.updateFormDataEntry(sessionId, storageKey, value, session);
     }
 
     // Clear validation errors for this field
@@ -206,8 +213,8 @@ export function FillForm() {
     }
     setFormData({});
     setValidationErrors([]);
-    if (sessionId) {
-      inspectionRepository.clearFormData(sessionId);
+    if (sessionId && session) {
+      inspectionRepository.clearFormData(sessionId, session);
     }
     setReviewConfirmed(false);
     setReviewError(null);

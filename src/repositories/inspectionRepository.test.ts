@@ -2,6 +2,16 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { inspectionRepository } from './inspectionRepository';
 import { FormType, UploadStatus, type FormDataValue, type InspectionSession } from '../types';
 
+const { getActiveTenantId, setActiveTenantId } = vi.hoisted(() => {
+  let tenantId = 'tenant-a';
+  return {
+    getActiveTenantId: () => tenantId,
+    setActiveTenantId: (next: string) => {
+      tenantId = next;
+    },
+  };
+});
+
 vi.mock('../auth', () => ({
   getUserId: () => 'user-123',
 }));
@@ -10,7 +20,7 @@ vi.mock('../config', async () => {
   const actual = await vi.importActual<typeof import('../config')>('../config');
   return {
     ...actual,
-    getActiveTenant: () => ({ tenantId: 'tenant-a' }),
+    getActiveTenant: () => ({ tenantId: getActiveTenantId() }),
   };
 });
 
@@ -18,6 +28,7 @@ const makeInspection = (id: string, overrides?: Partial<InspectionSession>): Ins
   id,
   name: `Inspection ${id}`,
   formType: FormType.HVAC,
+  tenantId: 'tenant-a',
   uploadStatus: UploadStatus.Local,
   ...overrides,
 });
@@ -34,6 +45,7 @@ const getCurrentSessionStorageKey = (tenantId = 'tenant-a', userId = 'user-123')
 describe('inspectionRepository', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    setActiveTenantId('tenant-a');
   });
 
   it('loads all inspection records and de-duplicates by session id', () => {
@@ -119,6 +131,40 @@ describe('inspectionRepository', () => {
     expect(localStorage.getItem(getInspectionStorageKey('update-test'))).toBe(
       JSON.stringify({ ...inspection, tenantId: 'tenant-a', userId: 'user-123' })
     );
+  });
+
+  it('keeps inspection and form data in the inspection tenant after the active tenant changes', () => {
+    const inspection = makeInspection('tenant-pinned', { tenantId: 'tenant-a' });
+
+    inspectionRepository.saveAsCurrent(inspection);
+    inspectionRepository.updateFormDataEntry(inspection.id, 'ext.note', 'before switch', inspection);
+
+    setActiveTenantId('tenant-b');
+
+    inspectionRepository.saveCurrent({ ...inspection, name: 'Updated after switch' });
+    inspectionRepository.updateFormDataEntry(inspection.id, 'ext.note', 'after switch', inspection);
+
+    expect(localStorage.getItem(getInspectionStorageKey('tenant-pinned', 'tenant-a'))).toBe(
+      JSON.stringify({
+        ...inspection,
+        name: 'Inspection tenant-pinned',
+        tenantId: 'tenant-a',
+        userId: 'user-123',
+      })
+    );
+    expect(localStorage.getItem(getCurrentSessionStorageKey('tenant-a'))).toBe(
+      JSON.stringify({
+        ...inspection,
+        name: 'Updated after switch',
+        tenantId: 'tenant-a',
+        userId: 'user-123',
+      })
+    );
+    expect(localStorage.getItem(getCurrentSessionStorageKey('tenant-b'))).toBeNull();
+    expect(localStorage.getItem(getFormDataStorageKey('tenant-pinned', 'tenant-a'))).toBe(
+      JSON.stringify({ 'ext.note': 'after switch' })
+    );
+    expect(localStorage.getItem(getFormDataStorageKey('tenant-pinned', 'tenant-b'))).toBeNull();
   });
 
   it('loads current session and handles malformed current session', () => {
