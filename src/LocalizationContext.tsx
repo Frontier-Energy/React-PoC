@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { fetchTranslations } from './apiContent';
 import { defaultLanguage, isLanguageCode, type LanguageCode, type Labels } from './resources/translations';
 import { CUSTOMIZATION_STORAGE_KEY } from './config';
+import { getFallbackLabels } from './resources/translations/fallback';
 
 interface LocalizationContextValue {
   language: LanguageCode;
@@ -33,8 +34,7 @@ const readStoredLanguage = (): LanguageCode => {
 
 export function LocalizationProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<LanguageCode>(() => readStoredLanguage());
-  const [labels, setLabels] = useState<Labels | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [labels, setLabels] = useState<Labels>(() => getFallbackLabels(readStoredLanguage()));
 
   useEffect(() => {
     const stored = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
@@ -52,7 +52,7 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    setLabels(getFallbackLabels(language));
 
     const load = async () => {
       try {
@@ -60,9 +60,9 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
         if (active) {
           setLabels(resolvedLabels);
         }
-      } finally {
+      } catch (error) {
         if (active) {
-          setLoading(false);
+          console.warn(`Failed to load translations for language "${language}". Falling back to bundled labels.`, error);
         }
       }
     };
@@ -92,16 +92,7 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
  
-  const value = useMemo(() => {
-    if (!labels) {
-      return undefined;
-    }
-    return { language, setLanguage, labels };
-  }, [language, labels]);
-
-  if (loading || !value) {
-    return <div>Loading translations...</div>;
-  }
+  const value = useMemo(() => ({ language, setLanguage, labels }), [language, labels]);
 
   return (
     <LocalizationContext.Provider value={value}>

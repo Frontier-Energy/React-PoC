@@ -282,6 +282,26 @@ export const defaultLanguage: LanguageCode = 'en';
 export const isLanguageCode = (value: unknown): value is LanguageCode =>
   typeof value === 'string' && SUPPORTED_LANGUAGES.includes(value as LanguageCode);
 
+export const isLabels = (value: unknown): value is Labels => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<Labels>;
+  return (
+    typeof candidate.languageName === 'string' &&
+    typeof candidate.common?.loading === 'string' &&
+    typeof candidate.home?.title === 'string' &&
+    typeof candidate.login?.title === 'string' &&
+    typeof candidate.register?.title === 'string' &&
+    typeof candidate.customization?.languageOptions?.en === 'string' &&
+    typeof candidate.customization?.languageOptions?.es === 'string' &&
+    typeof candidate.formTypes?.electrical === 'string' &&
+    typeof candidate.uploadStatus?.local === 'string' &&
+    typeof candidate.formRenderer?.filePreview?.header === 'string'
+  );
+};
+
 export const formatTemplate = (template: string, values: Record<string, string | number>) =>
   Object.entries(values).reduce(
     (result, [key, value]) => result.split(`{${key}}`).join(String(value)),

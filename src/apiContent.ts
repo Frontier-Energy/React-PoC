@@ -1,5 +1,5 @@
 import { getFormSchemaUrl, getTranslationsUrl } from './config';
-import type { Labels, LanguageCode } from './resources/translations';
+import { isLabels, type Labels, type LanguageCode } from './resources/translations';
 import type { FormSchema, FormType } from './types';
 
 export const fetchFormSchema = async (formType: FormType): Promise<FormSchema> => {
@@ -26,5 +26,10 @@ export const fetchTranslations = async (language: LanguageCode): Promise<Labels>
     throw new Error(`Translations request failed with status ${response.status}`);
   }
 
-  return (await response.json()) as Labels;
+  const payload = await response.json();
+  if (!isLabels(payload)) {
+    throw new Error('Translations response is missing required fields');
+  }
+
+  return payload;
 };

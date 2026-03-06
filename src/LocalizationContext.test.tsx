@@ -189,4 +189,22 @@ describe('LocalizationContext', () => {
       expect(screen.getByTestId('language')).toHaveTextContent('en');
     });
   });
+
+  it('renders bundled fallback labels when translation fetch fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))));
+
+    render(
+      <LocalizationProvider>
+        <LocalizationProbe />
+      </LocalizationProvider>
+    );
+
+    expect(screen.getByTestId('language')).toHaveTextContent('en');
+    expect(screen.getByRole('heading', { name: 'Inspection Forms' })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalled();
+    });
+  });
 });
