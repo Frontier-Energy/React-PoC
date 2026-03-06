@@ -180,6 +180,23 @@ describe('tenantBootstrap', () => {
     expect(config.showInspectionStatsButton).toBe(false);
   });
 
+  it('requests bootstrap for the explicitly selected tenant during tenant switching', async () => {
+    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ tenantId: 'opscentral' }));
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        tenantId: 'qhvac',
+        formTypes: [FormType.HVAC],
+      }),
+    } as Response);
+
+    const config = await fetchTenantBootstrapConfig('qhvac');
+
+    expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining('tenantId=qhvac'));
+    expect(config.tenantId).toBe('qhvac');
+    expect(config.enabledForms).toEqual([FormType.HVAC]);
+  });
+
   it('throws when upstream bootstrap request fails', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: false,

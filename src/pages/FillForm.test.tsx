@@ -528,20 +528,30 @@ const renderPage = () =>
     </LocalizationProvider>
   );
 
-const STORAGE_SCOPE_PREFIX = 'frontierDemo:anonymous';
-const getCurrentSessionStorageKey = () => `${STORAGE_SCOPE_PREFIX}:currentSession`;
-const getInspectionStorageKey = (sessionId: string) => `${STORAGE_SCOPE_PREFIX}:inspection_${sessionId}`;
-const getFormDataStorageKey = (sessionId: string) => `${STORAGE_SCOPE_PREFIX}:formData_${sessionId}`;
+const getStorageScopePrefix = (tenantId = 'frontierDemo', userId = 'anonymous') => `${tenantId}:${userId}`;
+const getCurrentSessionStorageKey = (tenantId = 'frontierDemo', userId = 'anonymous') =>
+  `${getStorageScopePrefix(tenantId, userId)}:currentSession`;
+const getInspectionStorageKey = (sessionId: string, tenantId = 'frontierDemo', userId = 'anonymous') =>
+  `${getStorageScopePrefix(tenantId, userId)}:inspection_${sessionId}`;
+const getFormDataStorageKey = (sessionId: string, tenantId = 'frontierDemo', userId = 'anonymous') =>
+  `${getStorageScopePrefix(tenantId, userId)}:formData_${sessionId}`;
 
-const setSessionStorage = (sessionId: string, overrides?: Record<string, unknown>) => {
+const setSessionStorage = (
+  sessionId: string,
+  overrides?: Record<string, unknown>,
+  tenantId = 'frontierDemo',
+  userId = 'anonymous'
+) => {
   const session = {
     id: sessionId,
     name: 'Durability Session',
     formType: FormType.HVAC,
     uploadStatus: UploadStatus.InProgress,
+    tenantId,
+    userId: userId === 'anonymous' ? undefined : userId,
     ...overrides,
   };
-  localStorage.setItem(getCurrentSessionStorageKey(), JSON.stringify(session));
+  localStorage.setItem(getCurrentSessionStorageKey(tenantId, userId), JSON.stringify(session));
   return session;
 };
 
@@ -627,6 +637,72 @@ describe('FillForm', () => {
     expect(await screen.findByDisplayValue('From Repo')).toBeInTheDocument();
   });
 
+  it('ignores a stale schema response after the route switches to a different session', async () => {
+    const sessionARouteId = 'durability-session';
+    const sessionBRouteId = 'follow-up-session';
+    const schemaA = { ...schemaFixture, formName: 'Schema A' };
+    const schemaB = { ...schemaFixture, formName: 'Schema B' };
+    let resolveSchemaA: ((value: typeof schemaA) => void) | undefined;
+
+    localStorage.setItem(
+      getFormDataStorageKey(sessionARouteId),
+      JSON.stringify({ fieldNoExternal: 'session-a value' })
+    );
+
+    fetchFormSchemaMock
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSchemaA = resolve as (value: typeof schemaA) => void;
+          })
+      )
+      .mockResolvedValueOnce(schemaB);
+
+    const view = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Loading...')).toBeInTheDocument();
+    });
+
+    setSessionStorage(sessionBRouteId, { name: 'Session B' });
+    localStorage.setItem(
+      getInspectionStorageKey(sessionBRouteId),
+      JSON.stringify({
+        id: sessionBRouteId,
+        name: 'Session B',
+        formType: FormType.HVAC,
+        uploadStatus: UploadStatus.InProgress,
+        tenantId: 'frontierDemo',
+      })
+    );
+    localStorage.setItem(
+      getFormDataStorageKey(sessionBRouteId),
+      JSON.stringify({ fieldNoExternal: 'session-b value' })
+    );
+    setSessionId(sessionBRouteId);
+    view.rerender(
+      <LocalizationProvider>
+        <FillForm />
+      </LocalizationProvider>
+    );
+
+    expect(await screen.findByText('Schema B')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Session B')).toBeInTheDocument();
+      expect(screen.getByTestId('form-data-json')).toHaveTextContent('session-b value');
+    });
+
+    resolveSchemaA?.(schemaA);
+
+    await waitFor(() => {
+      expect(screen.getByText('Schema B')).toBeInTheDocument();
+      expect(screen.queryByText('Schema A')).not.toBeInTheDocument();
+      expect(screen.getByDisplayValue('Session B')).toBeInTheDocument();
+      expect(screen.getByTestId('form-data-json')).toHaveTextContent('session-b value');
+      expect(screen.getByTestId('form-data-json')).not.toHaveTextContent('session-a value');
+    });
+  });
+
   it('persists field updates even when externalID is missing', async () => {
     renderPage();
 
@@ -645,6 +721,24 @@ describe('FillForm', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('form-data-json')).toHaveTextContent('restored value');
+    });
+  });
+
+  it('keeps form data isolated from other tenants for the same session id', async () => {
+    localStorage.setItem(
+      getFormDataStorageKey('durability-session', 'qhvac'),
+      JSON.stringify({ fieldNoExternal: 'other tenant value' })
+    );
+    localStorage.setItem(
+      getFormDataStorageKey('durability-session'),
+      JSON.stringify({ fieldNoExternal: 'active tenant value' })
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('form-data-json')).toHaveTextContent('active tenant value');
+      expect(screen.getByTestId('form-data-json')).not.toHaveTextContent('other tenant value');
     });
   });
 

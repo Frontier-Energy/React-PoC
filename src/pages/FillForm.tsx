@@ -25,16 +25,22 @@ export function FillForm() {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const errorAlertRef = useRef<HTMLDivElement>(null);
+  const loadRequestIdRef = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
+    const requestId = ++loadRequestIdRef.current;
 
     const initialize = async () => {
       setLoading(true);
+      setFormSchema(null);
+      setFormData({});
+      setValidationErrors([]);
+      setReviewConfirmed(false);
+      setReviewError(null);
 
       if (!sessionId) {
         navigate('/new-inspection');
-        if (!cancelled) {
+        if (requestId === loadRequestIdRef.current) {
           setLoading(false);
         }
         return;
@@ -43,19 +49,19 @@ export function FillForm() {
       const resolvedSession = inspectionRepository.loadCurrentOrById(sessionId);
       if (!resolvedSession) {
         navigate('/new-inspection');
-        if (!cancelled) {
+        if (requestId === loadRequestIdRef.current) {
           setLoading(false);
         }
         return;
       }
 
-      if (!cancelled) {
+      if (requestId === loadRequestIdRef.current) {
         setSession(resolvedSession);
       }
 
-      await loadFormSchema(resolvedSession.formType, resolvedSession, cancelled);
+      await loadFormSchema(resolvedSession.formType, resolvedSession, requestId);
 
-      if (!cancelled) {
+      if (requestId === loadRequestIdRef.current) {
         setLoading(false);
       }
     };
@@ -63,18 +69,18 @@ export function FillForm() {
     void initialize();
 
     return () => {
-      cancelled = true;
+      loadRequestIdRef.current += 1;
     };
   }, [sessionId, navigate]);
 
   const loadFormSchema = async (
     formType: FormType,
     inspection: Pick<InspectionSession, 'tenantId' | 'userId'>,
-    cancelled = false
+    requestId: number
   ) => {
     try {
       const schema = await fetchFormSchema(formType);
-      if (cancelled) {
+      if (requestId !== loadRequestIdRef.current) {
         return;
       }
 
@@ -90,10 +96,13 @@ export function FillForm() {
         });
       });
       // Load form data after schema is loaded so we can map externalIDs
-      if (sessionId) {
+      if (sessionId && requestId === loadRequestIdRef.current) {
         loadFormData(sessionId, map, inspection);
       }
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current) {
+        return;
+      }
       console.error(`Failed to load form schema for ${formType}:`, error);
     }
   };

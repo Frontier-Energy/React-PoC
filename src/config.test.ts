@@ -2,10 +2,12 @@ import {
   CUSTOMIZATION_STORAGE_KEY,
   DEFAULT_TENANT_NAME,
   getActiveTenant,
+  getFormSchemaUrl,
   getLoginUrl,
   getRegisterUrl,
   getTenantBootstrapUrl,
   getTenantById,
+  getTranslationsUrl,
   getUploadInspectionUrl,
   resolveTenantNameFromHostname,
 } from './config';
@@ -45,6 +47,25 @@ describe('config', () => {
     expect(getLoginUrl()).toContain('/auth/login');
     expect(getRegisterUrl()).toContain('/auth/register');
     expect(getTenantBootstrapUrl()).toContain('/tenant-config');
+  });
+
+  it('builds bootstrap and content urls for an explicitly requested tenant', () => {
+    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ tenantId: 'opscentral' }));
+
+    expect(getTenantBootstrapUrl('qhvac')).toContain('tenantId=qhvac');
+    expect(getFormSchemaUrl('hvac', 'qhvac')).toContain('/form-schemas/hvac');
+    expect(getTranslationsUrl('en', 'qhvac')).toContain('/translations/en');
+  });
+
+  it('falls back to hostname tenant when stored customization tenant is unknown', () => {
+    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ tenantId: 'missing-tenant' }));
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'lire.qcontrol.frontierenergy.com',
+      },
+    });
+
+    expect(getActiveTenant().tenantId).toBe('lire');
   });
 
   it('falls back to default tenant when window is unavailable', () => {
