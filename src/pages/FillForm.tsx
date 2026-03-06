@@ -10,6 +10,7 @@ import { formatFileValue, getFileReferences, isFormDataValueEmpty } from '../uti
 import { saveFiles, deleteFiles } from '../utils/fileStorage';
 import { useLocalization } from '../LocalizationContext';
 import { inspectionRepository } from '../repositories/inspectionRepository';
+import { syncQueue } from '../syncQueue';
 
 export function FillForm() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -229,6 +230,8 @@ export function FillForm() {
         uploadStatus: UploadStatus.Local,
       };
       inspectionRepository.saveAsCurrent(updatedSession);
+      syncQueue.enqueue(updatedSession, formData);
+      window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedSession }));
 
       console.log('Form submitted:', formData);
 

@@ -7,6 +7,7 @@ import { TableProps } from '@cloudscape-design/components';
 import { useLocalization } from '../LocalizationContext';
 import { inspectionRepository } from '../repositories/inspectionRepository';
 import { formatPluralTemplate } from '../resources/translations';
+import { syncQueue } from '../syncQueue';
 import { useTenantBootstrap } from '../TenantBootstrapContext';
 import { getUserId } from '../auth';
 
@@ -86,6 +87,7 @@ export function MyInspections() {
 
   const handleDeleteInspection = (inspection: InspectionSession) => {
     inspectionRepository.delete(inspection);
+    syncQueue.delete(inspection.id);
     loadInspections();
   };
 
@@ -111,6 +113,8 @@ export function MyInspections() {
       uploadStatus: UploadStatus.Local,
     };
     inspectionRepository.update(updatedInspection);
+    const formData = inspectionRepository.loadFormData(inspection.id, inspection) ?? {};
+    syncQueue.enqueue(updatedInspection, formData);
     const currentSession = inspectionRepository.loadCurrent();
     if (currentSession?.id === inspection.id) {
       inspectionRepository.saveCurrent(updatedInspection);

@@ -1,32 +1,35 @@
 import { useEffect, useRef } from 'react';
+import { getUserId } from './auth';
 import { useConnectivity } from './ConnectivityContext';
 import { getUploadInspectionUrl } from './config';
-import { InspectionSession, UploadStatus, FormDataValue } from './types';
+import { inspectionRepository } from './repositories/inspectionRepository';
+import { buildInspectionSyncFingerprint, syncQueue, type SyncQueueEntry } from './syncQueue';
+import { FormDataValue, InspectionSession, UploadStatus } from './types';
 import { getFileReferences, serializeFormValue } from './utils/formDataUtils';
 import { deleteFiles, getFile } from './utils/fileStorage';
-import { inspectionRepository } from './repositories/inspectionRepository';
-import { getUserId } from './auth';
 
-const CONNECTIVITY_CHECK_INTERVAL_MS = 30000;
+const SYNC_CHECK_INTERVAL_MS = 15_000;
 
-const loadInspectionsFromStorage = () => {
-  return inspectionRepository.loadAll();
+const emitInspectionStatusChanged = (inspection: InspectionSession) => {
+  window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: inspection }));
 };
 
-const updateInspectionStatus = (inspection: InspectionSession, status: UploadStatus) => {
+const persistInspectionStatus = (inspection: InspectionSession, status: UploadStatus) => {
   const updatedInspection: InspectionSession = { ...inspection, uploadStatus: status };
   inspectionRepository.update(updatedInspection);
   const currentSession = inspectionRepository.loadCurrent();
   if (currentSession?.id === inspection.id) {
     inspectionRepository.saveCurrent(updatedInspection);
   }
-  window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedInspection }));
+  emitInspectionStatusChanged(updatedInspection);
+  return updatedInspection;
 };
 
-const uploadInspection = async (inspection: InspectionSession) => {
-  const formData: Record<string, FormDataValue> =
-    inspectionRepository.loadFormData(inspection.id, inspection) ?? {};
-
+const createUploadRequest = async (
+  inspection: InspectionSession,
+  formData: Record<string, FormDataValue>,
+  queueEntry: SyncQueueEntry
+) => {
   const uploadForm = new FormData();
   const queryParams: Record<string, string> = {};
 
@@ -46,17 +49,30 @@ const uploadInspection = async (inspection: InspectionSession) => {
       uploadForm.append('files', storedFile.blob, storedFile.name);
     }
   }
-  const payload = {
-    sessionId: inspection.id,
-    name: inspection.name,
-    userId: inspection.userId ?? getUserId() ?? '',
-    queryParams,
-  };
 
-  uploadForm.append('payload', JSON.stringify(payload));
+  uploadForm.append(
+    'payload',
+    JSON.stringify({
+      sessionId: inspection.id,
+      idempotencyKey: queueEntry.idempotencyKey,
+      name: inspection.name,
+      userId: inspection.userId ?? getUserId() ?? '',
+      queryParams,
+    })
+  );
 
+  return uploadForm;
+};
+
+const uploadInspection = async (inspection: InspectionSession, queueEntry: SyncQueueEntry) => {
+  const formData = inspectionRepository.loadFormData(inspection.id, inspection) ?? {};
+  const refreshedQueueEntry = syncQueue.refreshFingerprint(queueEntry, inspection, formData);
+  const uploadForm = await createUploadRequest(inspection, formData, refreshedQueueEntry);
   const response = await fetch(getUploadInspectionUrl(), {
     method: 'POST',
+    headers: {
+      'Idempotency-Key': refreshedQueueEntry.idempotencyKey,
+    },
     body: uploadForm,
   });
 
@@ -67,50 +83,97 @@ const uploadInspection = async (inspection: InspectionSession) => {
   const uploadedFileIds = Object.values(formData)
     .flatMap((value) => getFileReferences(value))
     .map((file) => file.id);
+
   if (uploadedFileIds.length > 0) {
     await deleteFiles(uploadedFileIds);
   }
 };
 
-const processLocalInspections = async () => {
-  const inspections = loadInspectionsFromStorage();
-  const localInspections = inspections.filter(
-    (inspection) => (inspection.uploadStatus || UploadStatus.Local) === UploadStatus.Local
-  );
-
-  for (const inspection of localInspections) {
-    updateInspectionStatus(inspection, UploadStatus.Uploading);
-    try {
-      await uploadInspection(inspection);
-      updateInspectionStatus(inspection, UploadStatus.Uploaded);
-    } catch (error) {
-      console.error('Failed to upload inspection:', inspection.id, error);
-      updateInspectionStatus(inspection, UploadStatus.Failed);
-    }
+const processNextQueuedInspection = async (workerId: string) => {
+  const queueEntry = syncQueue.claimNextReady(workerId);
+  if (!queueEntry) {
+    return false;
   }
+
+  const inspection = inspectionRepository.loadById(queueEntry.inspectionId);
+  if (!inspection) {
+    syncQueue.delete(queueEntry.inspectionId);
+    return true;
+  }
+
+  const formData = inspectionRepository.loadFormData(inspection.id, inspection) ?? {};
+  const currentFingerprint = buildInspectionSyncFingerprint(inspection, formData);
+  const effectiveQueueEntry =
+    currentFingerprint === queueEntry.fingerprint
+      ? queueEntry
+      : syncQueue.refreshFingerprint(queueEntry, inspection, formData);
+
+  persistInspectionStatus(inspection, UploadStatus.Uploading);
+
+  try {
+    await uploadInspection(inspection, effectiveQueueEntry);
+    syncQueue.markSucceeded(inspection.id);
+    persistInspectionStatus(inspection, UploadStatus.Uploaded);
+  } catch (error) {
+    console.error('Failed to upload inspection:', inspection.id, error);
+    syncQueue.markFailed(effectiveQueueEntry, error instanceof Error ? error.message : 'Unknown upload error');
+    persistInspectionStatus(inspection, UploadStatus.Failed);
+  }
+
+  return true;
 };
 
 export function BackgroundUploadManager() {
   const { status: connectivityStatus } = useConnectivity();
-  const uploadInProgressRef = useRef(false);
+  const syncInProgressRef = useRef(false);
+  const workerIdRef = useRef(syncQueue.createWorkerId());
 
   useEffect(() => {
-    const runUploadCheck = async () => {
-      if (connectivityStatus !== 'online' || uploadInProgressRef.current) {
+    const runSyncCycle = async () => {
+      if (connectivityStatus !== 'online' || syncInProgressRef.current) {
         return;
       }
-      uploadInProgressRef.current = true;
+
+      syncInProgressRef.current = true;
+
       try {
-        await processLocalInspections();
+        syncQueue.ensureQueuedForPendingInspections(inspectionRepository.loadAll());
+        if (!syncQueue.tryAcquireWorkerLease(workerIdRef.current)) {
+          return;
+        }
+
+        while (connectivityStatus === 'online') {
+          if (!syncQueue.renewWorkerLease(workerIdRef.current)) {
+            break;
+          }
+
+          const processed = await processNextQueuedInspection(workerIdRef.current);
+          if (!processed) {
+            break;
+          }
+        }
       } finally {
-        uploadInProgressRef.current = false;
+        syncQueue.releaseWorkerLease(workerIdRef.current);
+        syncInProgressRef.current = false;
       }
     };
 
-    runUploadCheck();
-    const intervalId = setInterval(runUploadCheck, CONNECTIVITY_CHECK_INTERVAL_MS);
+    const handleQueueWakeup = () => {
+      void runSyncCycle();
+    };
 
-    return () => clearInterval(intervalId);
+    void runSyncCycle();
+
+    const intervalId = window.setInterval(handleQueueWakeup, SYNC_CHECK_INTERVAL_MS);
+    window.addEventListener('storage', handleQueueWakeup);
+    window.addEventListener('inspection-status-changed', handleQueueWakeup as EventListener);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('storage', handleQueueWakeup);
+      window.removeEventListener('inspection-status-changed', handleQueueWakeup as EventListener);
+      syncQueue.releaseWorkerLease(workerIdRef.current);
+    };
   }, [connectivityStatus]);
 
   return null;
