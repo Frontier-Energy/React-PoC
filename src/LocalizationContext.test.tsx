@@ -1,5 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { CUSTOMIZATION_STORAGE_KEY } from './config';
+import {
+  LANGUAGE_PREFERENCE_STORAGE_KEY,
+  LEGACY_CUSTOMIZATION_STORAGE_KEY,
+  TENANT_PREFERENCE_STORAGE_KEY,
+  THEME_PREFERENCE_STORAGE_KEY,
+} from './appPreferences';
 import { LocalizationProvider, useLocalization } from './LocalizationContext';
 import type { Labels } from './resources/translations';
 
@@ -62,12 +67,12 @@ describe('LocalizationContext', () => {
     return waitFor(() => {
       expect(screen.getByTestId('language')).toHaveTextContent('en');
       expect(screen.getByRole('heading', { name: 'Inspection Forms' })).toBeInTheDocument();
-      expect(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY)).toBe(JSON.stringify({ language: 'en' }));
+      expect(localStorage.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBe('en');
     });
   });
 
   it('reads stored valid language and labels', () => {
-    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ language: 'es' }));
+    localStorage.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, 'es');
 
     render(
       <LocalizationProvider>
@@ -82,7 +87,7 @@ describe('LocalizationContext', () => {
   });
 
   it('falls back to default language for invalid stored values', () => {
-    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ language: 'fr' }));
+    localStorage.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, 'fr');
 
     render(
       <LocalizationProvider>
@@ -95,8 +100,8 @@ describe('LocalizationContext', () => {
     });
   });
 
-  it('handles invalid JSON in initial storage', () => {
-    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, '{invalid');
+  it('handles invalid legacy customization in initial storage', () => {
+    localStorage.setItem(LEGACY_CUSTOMIZATION_STORAGE_KEY, '{invalid');
 
     render(
       <LocalizationProvider>
@@ -106,15 +111,14 @@ describe('LocalizationContext', () => {
 
     return waitFor(() => {
       expect(screen.getByTestId('language')).toHaveTextContent('en');
-      expect(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY)).toBe(JSON.stringify({ language: 'en' }));
+      expect(localStorage.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBe('en');
     });
   });
 
-  it('preserves existing customization fields when language changes', async () => {
-    localStorage.setItem(
-      CUSTOMIZATION_STORAGE_KEY,
-      JSON.stringify({ tenantId: 'qhvac', theme: 'harbor', language: 'en' })
-    );
+  it('updates only the language preference when language changes', async () => {
+    localStorage.setItem(TENANT_PREFERENCE_STORAGE_KEY, 'qhvac');
+    localStorage.setItem(THEME_PREFERENCE_STORAGE_KEY, 'harbor');
+    localStorage.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, 'en');
 
     render(
       <LocalizationProvider>
@@ -129,11 +133,9 @@ describe('LocalizationContext', () => {
       expect(screen.getByTestId('language')).toHaveTextContent('es');
     });
 
-    expect(JSON.parse(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY) || '{}')).toMatchObject({
-      tenantId: 'qhvac',
-      theme: 'harbor',
-      language: 'es',
-    });
+    expect(localStorage.getItem(TENANT_PREFERENCE_STORAGE_KEY)).toBe('qhvac');
+    expect(localStorage.getItem(THEME_PREFERENCE_STORAGE_KEY)).toBe('harbor');
+    expect(localStorage.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY)).toBe('es');
   });
 
   it('updates language from storage events with valid data', async () => {
@@ -146,8 +148,8 @@ describe('LocalizationContext', () => {
     act(() => {
       window.dispatchEvent(
         new StorageEvent('storage', {
-          key: CUSTOMIZATION_STORAGE_KEY,
-          newValue: JSON.stringify({ language: 'es' }),
+          key: LANGUAGE_PREFERENCE_STORAGE_KEY,
+          newValue: 'es',
         })
       );
     });
@@ -168,19 +170,19 @@ describe('LocalizationContext', () => {
       window.dispatchEvent(
         new StorageEvent('storage', {
           key: 'other-key',
-          newValue: JSON.stringify({ language: 'es' }),
+          newValue: 'es',
         })
       );
       window.dispatchEvent(
         new StorageEvent('storage', {
-          key: CUSTOMIZATION_STORAGE_KEY,
+          key: LANGUAGE_PREFERENCE_STORAGE_KEY,
           newValue: '{invalid',
         })
       );
       window.dispatchEvent(
         new StorageEvent('storage', {
-          key: CUSTOMIZATION_STORAGE_KEY,
-          newValue: JSON.stringify({ language: 'fr' }),
+          key: LANGUAGE_PREFERENCE_STORAGE_KEY,
+          newValue: 'fr',
         })
       );
     });

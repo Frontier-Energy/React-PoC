@@ -89,8 +89,22 @@ export const setStoredFontPreference = (font: string | null | undefined) =>
 export const clearStoredFontPreference = () => writeStringPreference(FONT_PREFERENCE_STORAGE_KEY, null);
 
 export const getStoredLanguagePreference = (): LanguageCode | null => {
-  const storedLanguage = readStringPreference(LANGUAGE_PREFERENCE_STORAGE_KEY, 'language');
-  return storedLanguage && isLanguageCode(storedLanguage) ? storedLanguage : null;
+  if (!canUseStorage()) {
+    return null;
+  }
+
+  const currentValue = normalizeStoredString(localStorage.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY));
+  if (currentValue) {
+    return isLanguageCode(currentValue) ? currentValue : null;
+  }
+
+  const legacyValue = normalizeStoredString(readLegacyCustomization()?.language);
+  if (legacyValue && isLanguageCode(legacyValue)) {
+    localStorage.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, legacyValue);
+    return legacyValue;
+  }
+
+  return null;
 };
 
 export const setStoredLanguagePreference = (language: LanguageCode | null | undefined) =>

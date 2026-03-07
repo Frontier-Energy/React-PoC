@@ -1,11 +1,11 @@
 import { FormType } from './types';
-import { CUSTOMIZATION_STORAGE_KEY } from './config';
+import { LEGACY_CUSTOMIZATION_STORAGE_KEY, TENANT_PREFERENCE_STORAGE_KEY } from './appPreferences';
 import {
   fetchTenantBootstrapConfig,
   getDefaultTenantBootstrapConfig,
   getDefaultTenantBootstrapConfigForTenant,
   mapTenantBootstrapResponse,
-  persistTenantCustomization,
+  persistSelectedTenant,
 } from './tenantBootstrap';
 
 describe('tenantBootstrap', () => {
@@ -26,7 +26,7 @@ describe('tenantBootstrap', () => {
   });
 
   it('defaults login to optional and hides left flyout for lire tenant', () => {
-    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ tenantId: 'lire' }));
+    localStorage.setItem(TENANT_PREFERENCE_STORAGE_KEY, 'lire');
 
     const defaults = getDefaultTenantBootstrapConfig();
 
@@ -181,7 +181,7 @@ describe('tenantBootstrap', () => {
   });
 
   it('requests bootstrap for the explicitly selected tenant during tenant switching', async () => {
-    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ tenantId: 'opscentral' }));
+    localStorage.setItem(TENANT_PREFERENCE_STORAGE_KEY, 'opscentral');
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -206,53 +206,17 @@ describe('tenantBootstrap', () => {
     await expect(fetchTenantBootstrapConfig()).rejects.toThrow('Tenant bootstrap request failed with status 500');
   });
 
-  it('persists tenant customization and merges with existing settings', () => {
-    localStorage.setItem(
-      CUSTOMIZATION_STORAGE_KEY,
-      JSON.stringify({ language: 'es', extra: 'keep-me' })
-    );
-    persistTenantCustomization({
-      tenantId: 'qhvac',
-      displayName: 'QHVAC',
-      theme: 'harbor',
-      font: 'Tahoma',
-      language: 'en',
-      enabledForms: [FormType.HVAC],
-      loginRequired: true,
-      showLeftFlyout: true,
-      showRightFlyout: true,
-      showInspectionStatsButton: false,
-    });
+  it('persists only the selected tenant preference', () => {
+    persistSelectedTenant('qhvac');
 
-    expect(JSON.parse(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY) || '{}')).toEqual({
-      tenantId: 'qhvac',
-      theme: 'harbor',
-      font: 'Tahoma',
-      language: 'en',
-      extra: 'keep-me',
-    });
+    expect(localStorage.getItem(TENANT_PREFERENCE_STORAGE_KEY)).toBe('qhvac');
   });
 
-  it('handles malformed stored customization and omits language when not set', () => {
-    localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, '{bad-json');
+  it('reads tenant defaults from legacy customization for backwards compatibility', () => {
+    localStorage.setItem(LEGACY_CUSTOMIZATION_STORAGE_KEY, JSON.stringify({ tenantId: 'lire' }));
 
-    persistTenantCustomization({
-      tenantId: 'opscentral',
-      displayName: 'Operations Central',
-      theme: 'mist',
-      font: 'Georgia',
-      enabledForms: [FormType.SafetyChecklist],
-      loginRequired: false,
-      showLeftFlyout: true,
-      showRightFlyout: true,
-      showInspectionStatsButton: false,
-    });
-
-    expect(JSON.parse(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY) || '{}')).toEqual({
-      tenantId: 'opscentral',
-      theme: 'mist',
-      font: 'Georgia',
-    });
+    expect(getDefaultTenantBootstrapConfig().tenantId).toBe('lire');
+    expect(localStorage.getItem(TENANT_PREFERENCE_STORAGE_KEY)).toBe('lire');
   });
 
   it('falls back to defaults when both requested and default tenant ids are unknown', () => {
@@ -284,24 +248,12 @@ describe('tenantBootstrap', () => {
     expect(config.font).toBe('custom-font');
   });
 
-  it('persists customization when no previous storage exists', () => {
-    persistTenantCustomization({
-      tenantId: 'qhvac',
-      displayName: 'QHVAC',
-      theme: 'harbor',
-      font: 'Tahoma',
-      enabledForms: [FormType.HVAC],
-      loginRequired: true,
-      showLeftFlyout: true,
-      showRightFlyout: true,
-      showInspectionStatsButton: false,
-    });
+  it('overwrites tenant selection when persisting a new one', () => {
+    localStorage.setItem(TENANT_PREFERENCE_STORAGE_KEY, 'frontierDemo');
 
-    expect(JSON.parse(localStorage.getItem(CUSTOMIZATION_STORAGE_KEY) || '{}')).toEqual({
-      tenantId: 'qhvac',
-      theme: 'harbor',
-      font: 'Tahoma',
-    });
+    persistSelectedTenant('qhvac');
+
+    expect(localStorage.getItem(TENANT_PREFERENCE_STORAGE_KEY)).toBe('qhvac');
   });
 
   it('falls back to tenant catalog display/theme/font when payload values are blank', () => {

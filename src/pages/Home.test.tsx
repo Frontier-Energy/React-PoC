@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { Home } from './Home';
 import { LocalizationProvider } from '../LocalizationContext';
-import { CUSTOMIZATION_STORAGE_KEY } from '../config';
+import { LANGUAGE_PREFERENCE_STORAGE_KEY } from '../appPreferences';
 
 describe('Home', () => {
   it('renders the default landing page heading', () => {
@@ -15,10 +15,7 @@ describe('Home', () => {
   });
 
   it('renders the heading in Spanish when a stored language exists', () => {
-    localStorage.setItem(
-      CUSTOMIZATION_STORAGE_KEY,
-      JSON.stringify({ language: 'es' })
-    );
+    localStorage.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, 'es');
 
     render(
       <LocalizationProvider>
