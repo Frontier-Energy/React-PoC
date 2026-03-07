@@ -2,20 +2,21 @@ import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box, Table
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useConnectivity } from './ConnectivityContext';
+import {
+  clearFontPreference,
+  clearThemePreference,
+  getAppPreferenceState,
+  setFontPreference,
+  setLanguagePreference,
+  setSelectedTenantId,
+  setThemePreference,
+  subscribeToAppPreferenceState,
+} from './appState';
 import { clearUserId, getUserId, hasPermission, isLoggedInAdmin } from './auth';
 import { UploadStatus } from './types';
 import type { SelectProps, SideNavigationProps } from '@cloudscape-design/components';
 import { useLocalization } from './LocalizationContext';
 import { formatTemplate, isLanguageCode } from './resources/translations';
-import {
-  clearStoredFontPreference,
-  clearStoredThemePreference,
-  getStoredFontPreference,
-  getStoredThemePreference,
-  setStoredFontPreference,
-  setStoredTenantPreference,
-  setStoredThemePreference,
-} from './appPreferences';
 import { getActiveTenant, getTenantById, TENANTS } from './config';
 import { inspectionRepository } from './repositories/inspectionRepository';
 import { useTenantBootstrap } from './TenantBootstrapContext';
@@ -78,14 +79,14 @@ const themeStyles: Record<
 export function Layout() {
   const navigate = useNavigate();
   const { status, lastCheckedAt } = useConnectivity();
-  const { labels, language, setLanguage } = useLocalization();
+  const { labels, language } = useLocalization();
   const { config, refreshConfig } = useTenantBootstrap();
   const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
-  const [themePreference, setThemePreference] = useState<string | null>(() => getStoredThemePreference());
-  const [fontPreference, setFontPreference] = useState<string | null>(() => getStoredFontPreference());
+  const [themePreferenceState, setThemePreferenceState] = useState<string | null>(() => getAppPreferenceState().theme);
+  const [fontPreferenceState, setFontPreferenceState] = useState<string | null>(() => getAppPreferenceState().font);
   const activeTenant = getTenantById(config.tenantId) ?? getActiveTenant();
-  const activeTheme = themePreference ?? config.theme;
-  const activeFont = fontPreference ?? config.font;
+  const activeTheme = themePreferenceState ?? config.theme;
+  const activeFont = fontPreferenceState ?? config.font;
   const inspectionScopeRefreshKey = `${config.tenantId}:${getUserId() ?? 'anonymous'}`;
   const [statusCounts, setStatusCounts] = useState<Record<UploadStatus, number>>(() => ({
     [UploadStatus.Local]: 0,
@@ -213,12 +214,18 @@ export function Layout() {
     };
   }, [activeFont, activeTheme]);
 
-  useEffect(() => {
-    const storedTheme = getStoredThemePreference();
-    const storedFont = getStoredFontPreference();
-    setThemePreference((prev) => (prev === storedTheme ? prev : storedTheme));
-    setFontPreference((prev) => (prev === storedFont ? prev : storedFont));
-  }, [config.font, config.theme]);
+  useEffect(
+    () =>
+      subscribeToAppPreferenceState((state, changedKeys) => {
+        if (changedKeys.includes('theme')) {
+          setThemePreferenceState((prev) => (prev === state.theme ? prev : state.theme));
+        }
+        if (changedKeys.includes('font')) {
+          setFontPreferenceState((prev) => (prev === state.font ? prev : state.font));
+        }
+      }),
+    []
+  );
 
   const statusOrder: UploadStatus[] = [
     UploadStatus.Local,
@@ -350,7 +357,6 @@ export function Layout() {
               onChange={(event) => {
                 const nextTheme = event.detail.selectedOption.value ?? activeTheme;
                 setThemePreference(nextTheme);
-                setStoredThemePreference(nextTheme);
               }}
               options={themeOptions}
             />
@@ -363,7 +369,6 @@ export function Layout() {
               onChange={(event) => {
                 const nextFont = event.detail.selectedOption.value ?? activeFont;
                 setFontPreference(nextFont);
-                setStoredFontPreference(nextFont);
               }}
               options={fontOptions}
             />
@@ -376,7 +381,7 @@ export function Layout() {
               onChange={(event) => {
                 const selectedValue = event.detail.selectedOption.value;
                 const nextLanguage = isLanguageCode(selectedValue) ? selectedValue : language;
-                setLanguage(nextLanguage);
+                setLanguagePreference(nextLanguage);
               }}
               options={languageOptions}
             />
@@ -394,11 +399,9 @@ export function Layout() {
                   if (!nextTenant) {
                     return;
                   }
-                  setStoredTenantPreference(nextTenant.tenantId);
-                  clearStoredThemePreference();
-                  clearStoredFontPreference();
-                  setThemePreference(null);
-                  setFontPreference(null);
+                  setSelectedTenantId(nextTenant.tenantId);
+                  clearThemePreference();
+                  clearFontPreference();
                   void refreshConfig(nextTenant.tenantId);
                 }}
                 options={tenantOptions}

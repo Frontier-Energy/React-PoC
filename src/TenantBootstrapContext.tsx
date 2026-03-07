@@ -1,5 +1,6 @@
 import { Box, Header } from '@cloudscape-design/components';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { setLanguagePreference } from './appState';
 import { useLocalization } from './LocalizationContext';
 import {
   fetchTenantBootstrapConfig,
@@ -18,7 +19,7 @@ interface TenantBootstrapContextValue {
 const TenantBootstrapContext = createContext<TenantBootstrapContextValue | undefined>(undefined);
 
 export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
-  const { labels, setLanguage } = useLocalization();
+  const { labels } = useLocalization();
   const [config, setConfig] = useState<TenantBootstrapConfig>(() => getDefaultTenantBootstrapConfig());
   const [loading, setLoading] = useState(true);
   const requestIdRef = useRef(0);
@@ -37,7 +38,7 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
         setConfig(resolvedConfig);
         persistSelectedTenant(resolvedConfig.tenantId);
         if (resolvedConfig.language) {
-          setLanguage(resolvedConfig.language);
+          setLanguagePreference(resolvedConfig.language);
         }
       } catch {
         if (requestId !== requestIdRef.current) {
@@ -47,7 +48,7 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
         persistSelectedTenant(fallbackConfig.tenantId);
       }
     },
-    [setLanguage]
+    []
   );
 
   useEffect(() => {

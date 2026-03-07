@@ -59,11 +59,11 @@ export function ConnectivityProvider({
       return () => controller.abort();
     };
 
-    let abortPendingCheck = () => undefined;
+    let abortPendingCheck: () => void = () => {};
 
     const runConnectivityCheck = async () => {
       abortPendingCheck();
-      abortPendingCheck = (await checkConnectivity()) ?? (() => undefined);
+      abortPendingCheck = (await checkConnectivity()) ?? (() => {});
     };
 
     void runConnectivityCheck();

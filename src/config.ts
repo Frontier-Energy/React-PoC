@@ -1,4 +1,4 @@
-import { getStoredTenantPreference } from './appPreferences';
+import { getAppPreferenceState } from './appState';
 
 export interface AppConfig {
   tenantName: string;
@@ -97,7 +97,7 @@ export const resolveTenantNameFromHostname = (hostname: string): string => {
 };
 
 const readStoredTenantName = (): string | null => {
-  const storedTenantId = getStoredTenantPreference();
+  const storedTenantId = getAppPreferenceState().tenantId;
   return storedTenantId && getTenantById(storedTenantId) ? storedTenantId : null;
 };
 

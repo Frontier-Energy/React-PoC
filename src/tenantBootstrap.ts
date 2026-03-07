@@ -1,4 +1,4 @@
-import { setStoredTenantPreference } from './appPreferences';
+import { setSelectedTenantId } from './appState';
 import { getActiveTenant, getTenantById, getTenantBootstrapUrl } from './config';
 import { isLanguageCode, type LanguageCode } from './resources/translations';
 import { FormType } from './types';
@@ -153,5 +153,5 @@ export const fetchTenantBootstrapConfig = async (tenantId?: string): Promise<Ten
 };
 
 export const persistSelectedTenant = (tenantId: string) => {
-  setStoredTenantPreference(tenantId);
+  setSelectedTenantId(tenantId);
 };

@@ -1,12 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { fetchTranslations } from './apiContent';
 import { defaultLanguage, isLanguageCode, type LanguageCode, type Labels } from './resources/translations';
-import {
-  getStoredLanguagePreference,
-  LANGUAGE_PREFERENCE_STORAGE_KEY,
-  setStoredLanguagePreference,
-} from './appPreferences';
+import { getAppPreferenceState, setLanguagePreference, subscribeToAppPreferenceState } from './appState';
 import { getFallbackLabels } from './resources/translations/fallback';
 
 interface LocalizationContextValue {
@@ -18,15 +14,20 @@ interface LocalizationContextValue {
 const LocalizationContext = createContext<LocalizationContextValue | undefined>(undefined);
 
 const readStoredLanguage = (): LanguageCode => {
-  return getStoredLanguagePreference() ?? defaultLanguage;
+  return getAppPreferenceState().language ?? defaultLanguage;
 };
 
 export function LocalizationProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<LanguageCode>(() => readStoredLanguage());
   const [labels, setLabels] = useState<Labels>(() => getFallbackLabels(readStoredLanguage()));
+  const updateLanguage = useCallback((nextLanguage: LanguageCode) => {
+    setLanguagePreference(nextLanguage);
+  }, []);
 
   useEffect(() => {
-    setStoredLanguagePreference(language);
+    if (getAppPreferenceState().language !== language) {
+      setLanguagePreference(language);
+    }
   }, [language]);
 
   useEffect(() => {
@@ -54,23 +55,23 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
   }, [language]);
 
   useEffect(() => {
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key !== LANGUAGE_PREFERENCE_STORAGE_KEY) {
+    return subscribeToAppPreferenceState((state, changedKeys) => {
+      if (!changedKeys.includes('language')) {
         return;
       }
-      if (!event.newValue) {
+
+      if (!state.language) {
         setLanguage(defaultLanguage);
         return;
       }
-      if (isLanguageCode(event.newValue)) {
-        setLanguage(event.newValue);
+
+      if (isLanguageCode(state.language)) {
+        setLanguage(state.language);
       }
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    });
   }, []);
- 
-  const value = useMemo(() => ({ language, setLanguage, labels }), [language, labels]);
+
+  const value = useMemo(() => ({ language, setLanguage: updateLanguage, labels }), [language, labels, updateLanguage]);
 
   return (
     <LocalizationContext.Provider value={value}>
