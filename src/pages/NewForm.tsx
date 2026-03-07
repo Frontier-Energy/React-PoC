@@ -29,8 +29,9 @@ export function NewForm() {
       tenantId: config.tenantId,
     };
 
-    inspectionRepository.saveAsCurrent(session);
-    navigate(`/fill-form/${session.id}`);
+    void inspectionRepository.saveAsCurrent(session).then(() => {
+      navigate(`/fill-form/${session.id}`);
+    });
   };
 
   return (

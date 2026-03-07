@@ -61,10 +61,10 @@ describe('BackgroundUploadManager', () => {
   it('uploads queued inspections with a durable idempotency key and transitions to uploaded', async () => {
     const local = makeInspection('local-1');
     const formData = { note: 'ready' };
-    inspectionRepository.save(local);
-    inspectionRepository.saveCurrent(local);
-    inspectionRepository.saveFormData(local.id, formData, local);
-    const queueEntry = syncQueue.enqueue(local, formData);
+    await inspectionRepository.save(local);
+    await inspectionRepository.saveCurrent(local);
+    await inspectionRepository.saveFormData(local.id, formData, local);
+    const queueEntry = await syncQueue.enqueue(local, formData);
 
     const updateSpy = vi.spyOn(inspectionRepository, 'update');
     const saveCurrentSpy = vi.spyOn(inspectionRepository, 'saveCurrent');
@@ -78,7 +78,7 @@ describe('BackgroundUploadManager', () => {
     expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'local-1', uploadStatus: UploadStatus.Uploading }));
     expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'local-1', uploadStatus: UploadStatus.Uploaded }));
     expect(saveCurrentSpy).toHaveBeenCalled();
-    expect(syncQueue.load(local.id)).toBeNull();
+    expect(await syncQueue.load(local.id)).toBeNull();
 
     const [, request] = vi.mocked(global.fetch).mock.calls[0] as [
       string,
@@ -98,8 +98,8 @@ describe('BackgroundUploadManager', () => {
 
   it('creates queue entries for legacy local inspections before syncing', async () => {
     const local = makeInspection('legacy-local');
-    inspectionRepository.save(local);
-    inspectionRepository.saveFormData(local.id, {}, local);
+    await inspectionRepository.save(local);
+    await inspectionRepository.saveFormData(local.id, {}, local);
 
     render(<BackgroundUploadManager />);
 
@@ -107,7 +107,7 @@ describe('BackgroundUploadManager', () => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
-    expect(syncQueue.load(local.id)).toBeNull();
+    expect(await syncQueue.load(local.id)).toBeNull();
   });
 
   it('marks failed uploads for retry with backoff while keeping the same idempotency key', async () => {
@@ -117,9 +117,9 @@ describe('BackgroundUploadManager', () => {
 
     const local = makeInspection('local-fail');
     const formData = { note: 'retry me' };
-    inspectionRepository.save(local);
-    inspectionRepository.saveFormData(local.id, formData, local);
-    const queueEntry = syncQueue.enqueue(local, formData);
+    await inspectionRepository.save(local);
+    await inspectionRepository.saveFormData(local.id, formData, local);
+    const queueEntry = await syncQueue.enqueue(local, formData);
 
     render(<BackgroundUploadManager />);
 
@@ -127,7 +127,7 @@ describe('BackgroundUploadManager', () => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
-    const persistedEntry = syncQueue.load(local.id);
+    const persistedEntry = await syncQueue.load(local.id);
     expect(persistedEntry).toEqual(
       expect.objectContaining({
         inspectionId: 'local-fail',
@@ -137,16 +137,16 @@ describe('BackgroundUploadManager', () => {
       })
     );
     expect((persistedEntry?.nextAttemptAt ?? 0) - (persistedEntry?.lastAttemptAt ?? 0)).toBeGreaterThanOrEqual(4_500);
-    expect(inspectionRepository.loadById(local.id)?.uploadStatus).toBe(UploadStatus.Failed);
+    expect((await inspectionRepository.loadById(local.id))?.uploadStatus).toBe(UploadStatus.Failed);
     expect(deleteFiles).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();
   });
 
   it('coordinates across tabs through the shared worker lease', async () => {
     const local = makeInspection('local-multi-tab');
-    inspectionRepository.save(local);
-    inspectionRepository.saveFormData(local.id, {}, local);
-    syncQueue.enqueue(local, {});
+    await inspectionRepository.save(local);
+    await inspectionRepository.saveFormData(local.id, {}, local);
+    await syncQueue.enqueue(local, {});
 
     render(
       <>
@@ -163,15 +163,15 @@ describe('BackgroundUploadManager', () => {
   it('skips sync when connectivity is offline', async () => {
     setConnectivityStatus('offline');
     const local = makeInspection('offline-local');
-    inspectionRepository.save(local);
-    inspectionRepository.saveFormData(local.id, {}, local);
-    syncQueue.enqueue(local, {});
+    await inspectionRepository.save(local);
+    await inspectionRepository.saveFormData(local.id, {}, local);
+    await syncQueue.enqueue(local, {});
 
     render(<BackgroundUploadManager />);
 
     await waitFor(() => {
       expect(global.fetch).not.toHaveBeenCalled();
     });
-    expect(syncQueue.load(local.id)).not.toBeNull();
+    expect(await syncQueue.load(local.id)).not.toBeNull();
   });
 });

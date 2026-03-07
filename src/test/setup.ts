@@ -2,9 +2,14 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { getFallbackLabels } from '../resources/translations/fallback';
+import { appDataStore } from '../utils/appDataStore';
+import { createIndexedDbMock } from './indexedDbMock';
+
+const indexedDbMock = createIndexedDbMock();
 
 beforeEach(() => {
   vi.stubGlobal('scrollTo', vi.fn());
+  vi.stubGlobal('indexedDB', indexedDbMock.indexedDB);
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
@@ -23,9 +28,11 @@ beforeEach(() => {
   );
 });
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   localStorage.clear();
+  indexedDbMock.reset();
+  await appDataStore.clearAll();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { inspectionRepository } from './inspectionRepository';
 import { FormType, UploadStatus, type FormDataValue, type InspectionSession } from '../types';
 
@@ -48,7 +48,7 @@ describe('inspectionRepository', () => {
     setActiveTenantId('tenant-a');
   });
 
-  it('loads all inspection records and de-duplicates by session id', () => {
+  it('loads all inspection records and de-duplicates by session id', async () => {
     const first = makeInspection('abc');
     const latest = makeInspection('abc', { name: 'Latest', uploadStatus: UploadStatus.Uploaded });
     const second = makeInspection('def');
@@ -60,7 +60,7 @@ describe('inspectionRepository', () => {
     localStorage.setItem(getInspectionStorageKey('user-b', 'tenant-a', 'user-b'), JSON.stringify(makeInspection('user-b')));
     localStorage.setItem('unrelated_key', JSON.stringify({ foo: 'bar' }));
 
-    const loaded = inspectionRepository.loadAll();
+    const loaded = await inspectionRepository.loadAll();
 
     expect(loaded).toHaveLength(2);
     expect(loaded.find((item) => item.id === 'abc')).toEqual({
@@ -73,35 +73,35 @@ describe('inspectionRepository', () => {
       tenantId: 'tenant-a',
       userId: 'user-123',
     });
+    expect(localStorage.getItem(getInspectionStorageKey('abc'))).toBeNull();
   });
 
-  it('ignores malformed inspections while loading all', () => {
+  it('ignores malformed inspections while loading all', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     localStorage.setItem(getInspectionStorageKey('valid'), JSON.stringify(makeInspection('valid')));
     localStorage.setItem(getInspectionStorageKey('bad'), '{bad-json');
 
-    const loaded = inspectionRepository.loadAll();
+    const loaded = await inspectionRepository.loadAll();
 
     expect(loaded).toHaveLength(1);
     expect(loaded[0].id).toBe('valid');
     expect(consoleSpy).toHaveBeenCalled();
   });
 
-  it('loads inspection by id and returns null when missing or malformed', () => {
+  it('loads inspection by id and returns null when missing or malformed', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const inspection = makeInspection('by-id');
 
     const normalizedInspection = { ...inspection, tenantId: 'tenant-a', userId: 'user-123' };
     localStorage.setItem(getInspectionStorageKey('by-id'), JSON.stringify(inspection));
-    expect(inspectionRepository.loadById('by-id')).toEqual(normalizedInspection);
-    expect(inspectionRepository.loadById('missing')).toBeNull();
-
     localStorage.setItem(getInspectionStorageKey('bad-id'), 'not-json');
-    expect(inspectionRepository.loadById('bad-id')).toBeNull();
+    expect(await inspectionRepository.loadById('by-id')).toEqual(normalizedInspection);
+    expect(await inspectionRepository.loadById('missing')).toBeNull();
+    expect(await inspectionRepository.loadById('bad-id')).toBeNull();
     expect(consoleSpy).toHaveBeenCalled();
   });
 
-  it('loads inspection by id from an explicit inspection scope', () => {
+  it('loads inspection by id from an explicit inspection scope', async () => {
     const inspection = makeInspection('scoped-id', {
       tenantId: 'tenant-a',
       userId: 'impersonated-user',
@@ -115,7 +115,7 @@ describe('inspectionRepository', () => {
     setActiveTenantId('tenant-b');
 
     expect(
-      inspectionRepository.loadById('scoped-id', {
+      await inspectionRepository.loadById('scoped-id', {
         tenantId: 'tenant-a',
         userId: 'impersonated-user',
       })
@@ -124,89 +124,90 @@ describe('inspectionRepository', () => {
       tenantId: 'tenant-a',
       userId: 'impersonated-user',
     });
-    expect(inspectionRepository.loadById('scoped-id')).toBeNull();
+    expect(await inspectionRepository.loadById('scoped-id')).toBeNull();
   });
 
-  it('saves inspection and current session records', () => {
+  it('saves inspection and current session records', async () => {
     const inspection = makeInspection('save-test', { uploadStatus: UploadStatus.InProgress });
     const normalizedInspection = { ...inspection, tenantId: 'tenant-a', userId: 'user-123' };
 
-    inspectionRepository.save(inspection);
-    inspectionRepository.saveCurrent(inspection);
+    await inspectionRepository.save(inspection);
+    await inspectionRepository.saveCurrent(inspection);
 
-    expect(localStorage.getItem(getInspectionStorageKey('save-test'))).toBe(JSON.stringify(normalizedInspection));
-    expect(localStorage.getItem(getCurrentSessionStorageKey())).toBe(JSON.stringify(normalizedInspection));
+    expect(await inspectionRepository.loadById('save-test')).toEqual(normalizedInspection);
+    expect(await inspectionRepository.loadCurrent()).toEqual(normalizedInspection);
   });
 
-  it('saves inspection as current in a single operation', () => {
+  it('saves inspection as current in a single operation', async () => {
     const inspection = makeInspection('save-as-current-test', { uploadStatus: UploadStatus.InProgress });
     const normalizedInspection = { ...inspection, tenantId: 'tenant-a', userId: 'user-123' };
 
-    inspectionRepository.saveAsCurrent(inspection);
+    await inspectionRepository.saveAsCurrent(inspection);
 
-    expect(localStorage.getItem(getInspectionStorageKey('save-as-current-test'))).toBe(JSON.stringify(normalizedInspection));
-    expect(localStorage.getItem(getCurrentSessionStorageKey())).toBe(JSON.stringify(normalizedInspection));
+    expect(await inspectionRepository.loadById('save-as-current-test')).toEqual(normalizedInspection);
+    expect(await inspectionRepository.loadCurrent()).toEqual(normalizedInspection);
   });
 
-  it('updates inspection and returns the updated object', () => {
+  it('updates inspection and returns the updated object', async () => {
     const inspection = makeInspection('update-test', { uploadStatus: UploadStatus.Uploading });
 
-    const result = inspectionRepository.update(inspection);
+    const result = await inspectionRepository.update(inspection);
 
     expect(result).toEqual(inspection);
-    expect(localStorage.getItem(getInspectionStorageKey('update-test'))).toBe(
-      JSON.stringify({ ...inspection, tenantId: 'tenant-a', userId: 'user-123' })
-    );
+    expect(await inspectionRepository.loadById('update-test')).toEqual({
+      ...inspection,
+      tenantId: 'tenant-a',
+      userId: 'user-123',
+    });
   });
 
-  it('keeps inspection and form data in the inspection tenant after the active tenant changes', () => {
+  it('keeps inspection and form data in the inspection tenant after the active tenant changes', async () => {
     const inspection = makeInspection('tenant-pinned', { tenantId: 'tenant-a' });
 
-    inspectionRepository.saveAsCurrent(inspection);
-    inspectionRepository.updateFormDataEntry(inspection.id, 'ext.note', 'before switch', inspection);
+    await inspectionRepository.saveAsCurrent(inspection);
+    await inspectionRepository.updateFormDataEntry(inspection.id, 'ext.note', 'before switch', inspection);
 
     setActiveTenantId('tenant-b');
 
-    inspectionRepository.saveCurrent({ ...inspection, name: 'Updated after switch' });
-    inspectionRepository.updateFormDataEntry(inspection.id, 'ext.note', 'after switch', inspection);
+    await inspectionRepository.saveCurrent({ ...inspection, name: 'Updated after switch' });
+    await inspectionRepository.updateFormDataEntry(inspection.id, 'ext.note', 'after switch', inspection);
 
-    expect(localStorage.getItem(getInspectionStorageKey('tenant-pinned', 'tenant-a'))).toBe(
-      JSON.stringify({
-        ...inspection,
-        name: 'Inspection tenant-pinned',
-        tenantId: 'tenant-a',
-        userId: 'user-123',
-      })
-    );
-    expect(localStorage.getItem(getCurrentSessionStorageKey('tenant-a'))).toBe(
-      JSON.stringify({
-        ...inspection,
-        name: 'Updated after switch',
-        tenantId: 'tenant-a',
-        userId: 'user-123',
-      })
-    );
-    expect(localStorage.getItem(getCurrentSessionStorageKey('tenant-b'))).toBeNull();
-    expect(localStorage.getItem(getFormDataStorageKey('tenant-pinned', 'tenant-a'))).toBe(
-      JSON.stringify({ 'ext.note': 'after switch' })
-    );
-    expect(localStorage.getItem(getFormDataStorageKey('tenant-pinned', 'tenant-b'))).toBeNull();
+    expect(await inspectionRepository.loadById('tenant-pinned', { tenantId: 'tenant-a', userId: 'user-123' })).toEqual({
+      ...inspection,
+      tenantId: 'tenant-a',
+      userId: 'user-123',
+    });
+    expect(await inspectionRepository.loadCurrent({ tenantId: 'tenant-a', userId: 'user-123' })).toEqual({
+      ...inspection,
+      name: 'Updated after switch',
+      tenantId: 'tenant-a',
+      userId: 'user-123',
+    });
+    expect(await inspectionRepository.loadCurrent({ tenantId: 'tenant-b', userId: 'user-123' })).toBeNull();
+    expect(await inspectionRepository.loadFormData('tenant-pinned', { tenantId: 'tenant-a', userId: 'user-123' })).toEqual({
+      'ext.note': 'after switch',
+    });
   });
 
-  it('loads current session and handles malformed current session', () => {
+  it('loads current session and handles malformed current session', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const inspection = makeInspection('current');
     const normalizedInspection = { ...inspection, tenantId: 'tenant-a', userId: 'user-123' };
 
     localStorage.setItem(getCurrentSessionStorageKey(), JSON.stringify(inspection));
-    expect(inspectionRepository.loadCurrent()).toEqual(normalizedInspection);
+    expect(await inspectionRepository.loadCurrent()).toEqual(normalizedInspection);
+    expect(localStorage.getItem(getCurrentSessionStorageKey())).toBeNull();
+  });
+
+  it('returns null and logs when the migrated current session payload is malformed', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     localStorage.setItem(getCurrentSessionStorageKey(), 'bad-json');
-    expect(inspectionRepository.loadCurrent()).toBeNull();
+    expect(await inspectionRepository.loadCurrent()).toBeNull();
     expect(consoleSpy).toHaveBeenCalled();
   });
 
-  it('loads current session by id and falls back to inspection when current does not match', () => {
+  it('loads current session by id and falls back to inspection when current does not match', async () => {
     const current = makeInspection('current-session');
     const fallback = makeInspection('fallback-session');
     const normalizedCurrent = { ...current, tenantId: 'tenant-a', userId: 'user-123' };
@@ -215,12 +216,12 @@ describe('inspectionRepository', () => {
     localStorage.setItem(getCurrentSessionStorageKey(), JSON.stringify(current));
     localStorage.setItem(getInspectionStorageKey('fallback-session'), JSON.stringify(fallback));
 
-    expect(inspectionRepository.loadCurrentOrById('current-session')).toEqual(normalizedCurrent);
-    expect(inspectionRepository.loadCurrentOrById('fallback-session')).toEqual(normalizedFallback);
-    expect(inspectionRepository.loadCurrentOrById('missing-session')).toBeNull();
+    expect(await inspectionRepository.loadCurrentOrById('current-session')).toEqual(normalizedCurrent);
+    expect(await inspectionRepository.loadCurrentOrById('fallback-session')).toEqual(normalizedFallback);
+    expect(await inspectionRepository.loadCurrentOrById('missing-session')).toBeNull();
   });
 
-  it('loads inspection by id from explicit scope when current scope differs', () => {
+  it('loads inspection by id from explicit scope when current scope differs', async () => {
     const scopedInspection = makeInspection('scoped-fallback', {
       tenantId: 'tenant-a',
       userId: 'impersonated-user',
@@ -234,7 +235,7 @@ describe('inspectionRepository', () => {
     setActiveTenantId('tenant-b');
 
     expect(
-      inspectionRepository.loadCurrentOrById('scoped-fallback', {
+      await inspectionRepository.loadCurrentOrById('scoped-fallback', {
         tenantId: 'tenant-a',
         userId: 'impersonated-user',
       })
@@ -245,38 +246,42 @@ describe('inspectionRepository', () => {
     });
   });
 
-  it('deletes inspection, form data, and current session when matching', () => {
+  it('deletes inspection, form data, and current session when matching', async () => {
     const inspection = makeInspection('delete-me');
 
-    localStorage.setItem(getInspectionStorageKey('delete-me'), JSON.stringify(inspection));
-    localStorage.setItem(getFormDataStorageKey('delete-me'), JSON.stringify({ extId: 'value' }));
-    localStorage.setItem(getCurrentSessionStorageKey(), JSON.stringify(inspection));
+    await inspectionRepository.save(inspection);
+    await inspectionRepository.saveFormData('delete-me', { extId: 'value' });
+    await inspectionRepository.saveCurrent(inspection);
 
-    inspectionRepository.delete('delete-me');
+    await inspectionRepository.delete('delete-me');
 
-    expect(localStorage.getItem(getInspectionStorageKey('delete-me'))).toBeNull();
-    expect(localStorage.getItem(getFormDataStorageKey('delete-me'))).toBeNull();
-    expect(localStorage.getItem(getCurrentSessionStorageKey())).toBeNull();
+    expect(await inspectionRepository.loadById('delete-me')).toBeNull();
+    expect(await inspectionRepository.loadFormData('delete-me')).toBeNull();
+    expect(await inspectionRepository.loadCurrent()).toBeNull();
   });
 
-  it('supports delete options for preserving related storage entries', () => {
+  it('supports delete options for preserving related storage entries', async () => {
     const inspection = makeInspection('keep-data');
     const otherCurrent = makeInspection('other-current');
-    localStorage.setItem(getInspectionStorageKey('keep-data'), JSON.stringify(inspection));
-    localStorage.setItem(getFormDataStorageKey('keep-data'), JSON.stringify({ extId: 'value' }));
-    localStorage.setItem(getCurrentSessionStorageKey(), JSON.stringify(otherCurrent));
+    await inspectionRepository.save(inspection);
+    await inspectionRepository.saveFormData('keep-data', { extId: 'value' });
+    await inspectionRepository.saveCurrent(otherCurrent);
 
-    inspectionRepository.delete('keep-data', {
+    await inspectionRepository.delete('keep-data', {
       removeFormData: false,
       removeCurrentIfMatch: false,
     });
 
-    expect(localStorage.getItem(getInspectionStorageKey('keep-data'))).toBeNull();
-    expect(localStorage.getItem(getFormDataStorageKey('keep-data'))).not.toBeNull();
-    expect(localStorage.getItem(getCurrentSessionStorageKey())).toBe(JSON.stringify(otherCurrent));
+    expect(await inspectionRepository.loadById('keep-data')).toBeNull();
+    expect(await inspectionRepository.loadFormData('keep-data')).toEqual({ extId: 'value' });
+    expect(await inspectionRepository.loadCurrent()).toEqual({
+      ...otherCurrent,
+      tenantId: 'tenant-a',
+      userId: 'user-123',
+    });
   });
 
-  it('loads and saves form data payloads', () => {
+  it('loads and saves form data payloads', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const formData: Record<string, FormDataValue> = {
       yesNo: true,
@@ -284,29 +289,33 @@ describe('inspectionRepository', () => {
       multi: ['a', 'b'],
     };
 
-    inspectionRepository.saveFormData('form-session', formData);
-    expect(inspectionRepository.loadFormData('form-session')).toEqual(formData);
-    expect(inspectionRepository.loadFormData('missing-form')).toBeNull();
+    await inspectionRepository.saveFormData('form-session', formData);
+    expect(await inspectionRepository.loadFormData('form-session')).toEqual(formData);
+    expect(await inspectionRepository.loadFormData('missing-form')).toBeNull();
+  });
+
+  it('returns null and logs when migrated form data is malformed', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     localStorage.setItem(getFormDataStorageKey('bad-form'), '{bad-json');
-    expect(inspectionRepository.loadFormData('bad-form')).toBeNull();
+    expect(await inspectionRepository.loadFormData('bad-form')).toBeNull();
     expect(consoleSpy).toHaveBeenCalled();
   });
 
-  it('updates and clears individual form data entries', () => {
-    inspectionRepository.updateFormDataEntry('entry-session', 'ext.foo', 'value');
-    inspectionRepository.updateFormDataEntry('entry-session', 'ext.bar', true);
-    expect(inspectionRepository.loadFormData('entry-session')).toEqual({
+  it('updates and clears individual form data entries', async () => {
+    await inspectionRepository.updateFormDataEntry('entry-session', 'ext.foo', 'value');
+    await inspectionRepository.updateFormDataEntry('entry-session', 'ext.bar', true);
+    expect(await inspectionRepository.loadFormData('entry-session')).toEqual({
       'ext.foo': 'value',
       'ext.bar': true,
     });
 
-    inspectionRepository.updateFormDataEntry('entry-session', 'ext.foo', undefined);
-    expect(inspectionRepository.loadFormData('entry-session')).toEqual({
+    await inspectionRepository.updateFormDataEntry('entry-session', 'ext.foo', undefined);
+    expect(await inspectionRepository.loadFormData('entry-session')).toEqual({
       'ext.bar': true,
     });
 
-    inspectionRepository.clearFormData('entry-session');
-    expect(inspectionRepository.loadFormData('entry-session')).toBeNull();
+    await inspectionRepository.clearFormData('entry-session');
+    expect(await inspectionRepository.loadFormData('entry-session')).toBeNull();
   });
 });

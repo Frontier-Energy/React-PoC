@@ -27,26 +27,43 @@ export function DebugInspection() {
       ? (location.state.inspectionScope as { tenantId: string; userId?: string })
       : undefined;
 
-  const inspectionData = useMemo(() => {
-    if (!sessionId) {
-      return { error: labels.debugInspection.errors.missingInspectionId };
-    }
+  const [inspectionData, setInspectionData] = useState<{
+    error?: string;
+    inspection?: Awaited<ReturnType<typeof inspectionRepository.loadById>> | null;
+    formData?: Awaited<ReturnType<typeof inspectionRepository.loadFormData>> | null;
+  }>({});
 
-    const inspection = inspectionRepository.loadById(sessionId, inspectionScope);
-    if (!inspection) {
-      return {
-        inspection: null,
-        formData: null,
-      };
-    }
+  useEffect(() => {
+    let cancelled = false;
 
-    const formData = inspectionRepository.loadFormData(sessionId, inspection);
+    const loadInspectionData = async () => {
+      if (!sessionId) {
+        if (!cancelled) {
+          setInspectionData({ error: labels.debugInspection.errors.missingInspectionId });
+        }
+        return;
+      }
 
-    return {
-      inspection,
-      formData,
+      const inspection = await inspectionRepository.loadById(sessionId, inspectionScope);
+      if (!inspection) {
+        if (!cancelled) {
+          setInspectionData({ inspection: null, formData: null });
+        }
+        return;
+      }
+
+      const formData = await inspectionRepository.loadFormData(sessionId, inspection);
+      if (!cancelled) {
+        setInspectionData({ inspection, formData });
+      }
     };
-  }, [inspectionScope, sessionId, labels]);
+
+    void loadInspectionData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inspectionScope, labels.debugInspection.errors.missingInspectionId, sessionId]);
 
   useEffect(() => {
     const loadSchema = async () => {

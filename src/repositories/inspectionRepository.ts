@@ -1,15 +1,10 @@
 import { FormDataValue, InspectionSession } from '../types';
 import { getUserId } from '../auth';
 import { getActiveTenant } from '../config';
+import { appDataStore, type StorageScope } from '../utils/appDataStore';
 
 const INSPECTION_PREFIX = 'inspection_';
-const CURRENT_SESSION_KEY = 'currentSession';
 const FORM_DATA_PREFIX = 'formData_';
-
-type StorageScope = {
-  tenantId: string;
-  userId: string;
-};
 
 const ANONYMOUS_USER_SCOPE = 'anonymous';
 
@@ -23,13 +18,12 @@ const getScopeForInspection = (inspection: Pick<InspectionSession, 'tenantId' | 
   userId: inspection.userId?.trim() || getStorageScope().userId,
 });
 
-const getScopeKey = (scope: StorageScope = getStorageScope()) => `${scope.tenantId}:${scope.userId}`;
-const getInspectionKeyPrefix = (scope: StorageScope = getStorageScope()) => `${getScopeKey(scope)}:${INSPECTION_PREFIX}`;
+const getInspectionKeyPrefix = (scope: StorageScope = getStorageScope()) =>
+  `${appDataStore.getScopeKey(scope)}:${INSPECTION_PREFIX}`;
 const getInspectionKey = (inspectionId: string, scope: StorageScope = getStorageScope()) =>
   `${getInspectionKeyPrefix(scope)}${inspectionId}`;
 const getFormDataKey = (inspectionId: string, scope: StorageScope = getStorageScope()) =>
-  `${getScopeKey(scope)}:${FORM_DATA_PREFIX}${inspectionId}`;
-const getCurrentSessionKey = (scope: StorageScope = getStorageScope()) => `${getScopeKey(scope)}:${CURRENT_SESSION_KEY}`;
+  `${appDataStore.getScopeKey(scope)}:${FORM_DATA_PREFIX}${inspectionId}`;
 
 const normalizeInspectionForScope = (
   inspection: InspectionSession,
@@ -40,170 +34,144 @@ const normalizeInspectionForScope = (
   userId: inspection.userId ?? (scope.userId === ANONYMOUS_USER_SCOPE ? undefined : scope.userId),
 });
 
-const parseJson = <T>(raw: string | null, errorMessage: string): T | null => {
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as T;
-  } catch (error) {
-    console.error(errorMessage, error);
-    return null;
-  }
-};
-
 export const inspectionRepository = {
   getStorageScopeKey(): string {
-    return getScopeKey();
+    return appDataStore.getScopeKey(getStorageScope());
   },
 
   isInspectionStorageKey(key: string): boolean {
     return key.startsWith(getInspectionKeyPrefix());
   },
 
-  loadAll(): InspectionSession[] {
-    const sessionMap: Record<string, InspectionSession> = {};
+  subscribe(listener: () => void) {
+    return appDataStore.subscribe(this.getStorageScopeKey(), listener);
+  },
+
+  async loadAll(): Promise<InspectionSession[]> {
     const scope = getStorageScope();
-    const inspectionKeyPrefix = getInspectionKeyPrefix(scope);
-    const keys = Object.keys(localStorage);
+    const sessionMap: Record<string, InspectionSession> = {};
+    const sessions = await appDataStore.listInspections(scope);
 
-    keys.forEach((key) => {
-      if (!key.startsWith(inspectionKeyPrefix)) {
-        return;
-      }
-
-      const session = parseJson<InspectionSession>(
-        localStorage.getItem(key),
-        `Failed to parse session ${key}:`
-      );
-      if (session) {
-        const normalizedSession = normalizeInspectionForScope(session, scope);
-        sessionMap[normalizedSession.id] = normalizedSession;
-      }
+    sessions.forEach((session) => {
+      const normalizedSession = normalizeInspectionForScope(session, scope);
+      sessionMap[normalizedSession.id] = normalizedSession;
     });
 
     return Object.values(sessionMap);
   },
 
-  loadById(
+  async loadById(
     inspectionId: string,
     inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
-  ): InspectionSession | null {
+  ): Promise<InspectionSession | null> {
     const scope = inspection ? getScopeForInspection(inspection) : getStorageScope();
-    const session = parseJson<InspectionSession>(
-      localStorage.getItem(getInspectionKey(inspectionId, scope)),
-      `Failed to parse session ${inspectionId}:`
-    );
+    const session = await appDataStore.getInspection(getInspectionKey(inspectionId, scope));
     return session ? normalizeInspectionForScope(session, scope) : null;
   },
 
-  loadCurrent(): InspectionSession | null {
-    const session = parseJson<InspectionSession>(
-      localStorage.getItem(getCurrentSessionKey()),
-      'Failed to parse current inspection session:'
-    );
-    return session ? normalizeInspectionForScope(session) : null;
+  async loadCurrent(inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>): Promise<InspectionSession | null> {
+    const scope = inspection ? getScopeForInspection(inspection) : getStorageScope();
+    const session = await appDataStore.getCurrentSession(scope);
+    return session ? normalizeInspectionForScope(session, scope) : null;
   },
 
-  loadCurrentOrById(
+  async loadCurrentOrById(
     inspectionId: string,
     inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
-  ): InspectionSession | null {
-    const currentSession = this.loadCurrent();
+  ): Promise<InspectionSession | null> {
+    const currentSession = await this.loadCurrent(inspection);
     if (currentSession?.id === inspectionId) {
       return currentSession;
     }
+
     return this.loadById(inspectionId, inspection);
   },
 
-  save(inspection: InspectionSession): void {
+  async save(inspection: InspectionSession): Promise<void> {
     const inspectionScope = getScopeForInspection(inspection);
     const normalizedInspection = normalizeInspectionForScope(inspection, inspectionScope);
-    localStorage.setItem(getInspectionKey(normalizedInspection.id, inspectionScope), JSON.stringify(normalizedInspection));
+    await appDataStore.putInspection(inspectionScope, getInspectionKey(normalizedInspection.id, inspectionScope), normalizedInspection);
   },
 
-  saveCurrent(inspection: InspectionSession): void {
+  async saveCurrent(inspection: InspectionSession): Promise<void> {
     const inspectionScope = getScopeForInspection(inspection);
     const normalizedInspection = normalizeInspectionForScope(inspection, inspectionScope);
-    localStorage.setItem(getCurrentSessionKey(inspectionScope), JSON.stringify(normalizedInspection));
+    await appDataStore.putCurrentSession(inspectionScope, normalizedInspection);
   },
 
-  saveAsCurrent(inspection: InspectionSession): void {
-    this.save(inspection);
-    this.saveCurrent(inspection);
+  async saveAsCurrent(inspection: InspectionSession): Promise<void> {
+    await this.save(inspection);
+    await this.saveCurrent(inspection);
   },
 
-  update(inspection: InspectionSession): InspectionSession {
-    this.save(inspection);
+  async update(inspection: InspectionSession): Promise<InspectionSession> {
+    await this.save(inspection);
     return inspection;
   },
 
-  delete(
+  async delete(
     inspectionOrId: InspectionSession | string,
     options?: { removeFormData?: boolean; removeCurrentIfMatch?: boolean }
-  ): void {
+  ): Promise<void> {
     const removeFormData = options?.removeFormData ?? true;
     const removeCurrentIfMatch = options?.removeCurrentIfMatch ?? true;
     const inspectionId = typeof inspectionOrId === 'string' ? inspectionOrId : inspectionOrId.id;
     const inspectionScope =
       typeof inspectionOrId === 'string' ? getStorageScope() : getScopeForInspection(inspectionOrId);
 
-    localStorage.removeItem(getInspectionKey(inspectionId, inspectionScope));
+    await appDataStore.deleteInspection(inspectionScope, getInspectionKey(inspectionId, inspectionScope));
     if (removeFormData) {
-      localStorage.removeItem(getFormDataKey(inspectionId, inspectionScope));
+      await appDataStore.deleteFormData(inspectionScope, getFormDataKey(inspectionId, inspectionScope));
     }
 
     if (!removeCurrentIfMatch) {
       return;
     }
 
-    const currentSession = parseJson<InspectionSession>(
-      localStorage.getItem(getCurrentSessionKey(inspectionScope)),
-      'Failed to parse current inspection session:'
-    );
+    const currentSession = await this.loadCurrent(inspectionScope);
     if (currentSession?.id === inspectionId) {
-      localStorage.removeItem(getCurrentSessionKey(inspectionScope));
+      await appDataStore.deleteCurrentSession(inspectionScope);
     }
   },
 
-  loadFormData(
+  async loadFormData(
     inspectionId: string,
     inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
-  ): Record<string, FormDataValue> | null {
+  ): Promise<Record<string, FormDataValue> | null> {
     const scope = inspection ? getScopeForInspection(inspection) : getStorageScope();
-    return parseJson<Record<string, FormDataValue>>(
-      localStorage.getItem(getFormDataKey(inspectionId, scope)),
-      `Failed to parse form data for session ${inspectionId}:`
-    );
+    return appDataStore.getFormData(getFormDataKey(inspectionId, scope));
   },
 
-  saveFormData(
+  async saveFormData(
     inspectionId: string,
     formData: Record<string, FormDataValue>,
     inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
-  ): void {
+  ): Promise<void> {
     const scope = inspection ? getScopeForInspection(inspection) : getStorageScope();
-    localStorage.setItem(getFormDataKey(inspectionId, scope), JSON.stringify(formData));
+    await appDataStore.putFormData(scope, getFormDataKey(inspectionId, scope), formData);
   },
 
-  updateFormDataEntry(
+  async updateFormDataEntry(
     inspectionId: string,
     key: string,
     value: FormDataValue | undefined,
     inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
-  ): void {
-    const currentFormData = this.loadFormData(inspectionId, inspection) ?? {};
+  ): Promise<void> {
+    const currentFormData = (await this.loadFormData(inspectionId, inspection)) ?? {};
     if (value === undefined) {
       delete currentFormData[key];
     } else {
       currentFormData[key] = value;
     }
-    this.saveFormData(inspectionId, currentFormData, inspection);
+
+    await this.saveFormData(inspectionId, currentFormData, inspection);
   },
 
-  clearFormData(inspectionId: string, inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>): void {
+  async clearFormData(
+    inspectionId: string,
+    inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
+  ): Promise<void> {
     const scope = inspection ? getScopeForInspection(inspection) : getStorageScope();
-    localStorage.removeItem(getFormDataKey(inspectionId, scope));
+    await appDataStore.deleteFormData(scope, getFormDataKey(inspectionId, scope));
   },
 };

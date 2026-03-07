@@ -31,7 +31,7 @@ export function MyInspections() {
   );
 
   const loadInspections = useCallback(() => {
-    setInspections(inspectionRepository.loadAll());
+    void inspectionRepository.loadAll().then(setInspections);
   }, []);
 
   const filteredInspections = useMemo(() => {
@@ -58,7 +58,11 @@ export function MyInspections() {
     };
 
     window.addEventListener('inspection-status-changed', handleStatusChange as EventListener);
-    return () => window.removeEventListener('inspection-status-changed', handleStatusChange as EventListener);
+    const unsubscribe = inspectionRepository.subscribe(handleStatusChange);
+    return () => {
+      window.removeEventListener('inspection-status-changed', handleStatusChange as EventListener);
+      unsubscribe();
+    };
   }, [loadInspections]);
 
   useEffect(() => {
@@ -72,8 +76,9 @@ export function MyInspections() {
   }, [location]);
 
   const handleOpenInspection = (inspection: InspectionSession) => {
-    inspectionRepository.saveCurrent(inspection);
-    navigate(`/fill-form/${inspection.id}`);
+    void inspectionRepository.saveCurrent(inspection).then(() => {
+      navigate(`/fill-form/${inspection.id}`);
+    });
   };
 
   const handleViewInspection = (inspection: InspectionSession) => {
@@ -88,9 +93,11 @@ export function MyInspections() {
   };
 
   const handleDeleteInspection = (inspection: InspectionSession) => {
-    inspectionRepository.delete(inspection);
-    syncQueue.delete(inspection.id);
-    loadInspections();
+    void (async () => {
+      await inspectionRepository.delete(inspection);
+      await syncQueue.delete(inspection.id, inspection);
+      loadInspections();
+    })();
   };
 
   const handleRequestDeleteInspection = (inspection: InspectionSession) => {
@@ -110,19 +117,21 @@ export function MyInspections() {
   };
 
   const handleRetryInspection = (inspection: InspectionSession) => {
-    const updatedInspection: InspectionSession = {
-      ...inspection,
-      uploadStatus: UploadStatus.Local,
-    };
-    inspectionRepository.update(updatedInspection);
-    const formData = inspectionRepository.loadFormData(inspection.id, inspection) ?? {};
-    syncQueue.enqueue(updatedInspection, formData);
-    const currentSession = inspectionRepository.loadCurrent();
-    if (currentSession?.id === inspection.id) {
-      inspectionRepository.saveCurrent(updatedInspection);
-    }
-    window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedInspection }));
-    loadInspections();
+    void (async () => {
+      const updatedInspection: InspectionSession = {
+        ...inspection,
+        uploadStatus: UploadStatus.Local,
+      };
+      await inspectionRepository.update(updatedInspection);
+      const formData = (await inspectionRepository.loadFormData(inspection.id, inspection)) ?? {};
+      await syncQueue.enqueue(updatedInspection, formData);
+      const currentSession = await inspectionRepository.loadCurrent();
+      if (currentSession?.id === inspection.id) {
+        await inspectionRepository.saveCurrent(updatedInspection);
+      }
+      window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedInspection }));
+      loadInspections();
+    })();
   };
 
   const getUploadStatusBadge = (status: UploadStatus | undefined) => {

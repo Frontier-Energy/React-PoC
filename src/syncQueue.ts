@@ -1,9 +1,9 @@
 import { getUserId } from './auth';
 import { inspectionRepository } from './repositories/inspectionRepository';
 import { FormDataValue, InspectionSession, UploadStatus } from './types';
+import { appDataStore, type StorageScope } from './utils/appDataStore';
 
 const SYNC_QUEUE_PREFIX = 'syncQueue_';
-const SYNC_WORKER_LEASE_KEY = 'syncQueueWorkerLease';
 const WORKER_LEASE_DURATION_MS = 45_000;
 const ENTRY_PROCESSING_LEASE_DURATION_MS = 60_000;
 const INITIAL_RETRY_DELAY_MS = 5_000;
@@ -34,23 +34,12 @@ interface WorkerLease {
   expiresAt: number;
 }
 
-const parseJson = <T>(raw: string | null, errorMessage: string): T | null => {
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as T;
-  } catch (error) {
-    console.error(errorMessage, error);
-    return null;
-  }
+const getScope = (): StorageScope => {
+  const [tenantId, userId] = inspectionRepository.getStorageScopeKey().split(':', 2);
+  return { tenantId, userId };
 };
 
-const getScopeKey = () => inspectionRepository.getStorageScopeKey();
-const getQueueKey = (inspectionId: string) => `${getScopeKey()}:${SYNC_QUEUE_PREFIX}${inspectionId}`;
-const getQueuePrefix = () => `${getScopeKey()}:${SYNC_QUEUE_PREFIX}`;
-const getWorkerLeaseKey = () => `${getScopeKey()}:${SYNC_WORKER_LEASE_KEY}`;
+const getQueueKey = (inspectionId: string, scope = getScope()) => `${appDataStore.getScopeKey(scope)}:${SYNC_QUEUE_PREFIX}${inspectionId}`;
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -77,45 +66,18 @@ const stableSerialize = (value: unknown): unknown => {
   return value;
 };
 
-const getInspectionScope = (inspection: InspectionSession) => ({
+const getInspectionScope = (inspection: InspectionSession): StorageScope => ({
   tenantId: inspection.tenantId,
   userId: inspection.userId ?? getUserId() ?? ANONYMOUS_USER_SCOPE,
 });
 
+const getEntryScope = (entry: Pick<SyncQueueEntry, 'tenantId' | 'userId'>): StorageScope => ({
+  tenantId: entry.tenantId,
+  userId: entry.userId ?? ANONYMOUS_USER_SCOPE,
+});
+
 const isEntryLocked = (entry: SyncQueueEntry, now: number) =>
   entry.status === 'syncing' && (entry.processingExpiresAt ?? 0) > now;
-
-const readEntry = (inspectionId: string): SyncQueueEntry | null =>
-  parseJson<SyncQueueEntry>(
-    localStorage.getItem(getQueueKey(inspectionId)),
-    `Failed to parse sync queue entry ${inspectionId}:`
-  );
-
-const writeEntry = (entry: SyncQueueEntry) => {
-  localStorage.setItem(getQueueKey(entry.inspectionId), JSON.stringify(entry));
-};
-
-const removeEntry = (inspectionId: string) => {
-  localStorage.removeItem(getQueueKey(inspectionId));
-};
-
-const listEntries = (): SyncQueueEntry[] => {
-  const prefix = getQueuePrefix();
-  const keys = Object.keys(localStorage).filter((key) => key.startsWith(prefix));
-
-  return keys
-    .map((key) =>
-      parseJson<SyncQueueEntry>(localStorage.getItem(key), `Failed to parse sync queue entry ${key}:`)
-    )
-    .filter((entry): entry is SyncQueueEntry => entry !== null)
-    .sort((left, right) => {
-      if (left.nextAttemptAt !== right.nextAttemptAt) {
-        return left.nextAttemptAt - right.nextAttemptAt;
-      }
-
-      return left.createdAt - right.createdAt;
-    });
-};
 
 const computeRetryDelay = (attemptCount: number) => {
   const exponentialDelay = Math.min(
@@ -148,19 +110,30 @@ export const syncQueue = {
     return `sync-worker:${generateId()}`;
   },
 
-  load(inspectionId: string) {
-    return readEntry(inspectionId);
+  subscribe(listener: () => void) {
+    return appDataStore.subscribe(inspectionRepository.getStorageScopeKey(), listener);
   },
 
-  list() {
-    return listEntries();
+  async load(inspectionId: string) {
+    return appDataStore.getQueueEntry(getQueueKey(inspectionId));
   },
 
-  enqueue(inspection: InspectionSession, formData: Record<string, FormDataValue>) {
-    const existing = readEntry(inspection.id);
+  async list() {
+    const entries = await appDataStore.listQueueEntries(getScope());
+    return entries.sort((left, right) => {
+      if (left.nextAttemptAt !== right.nextAttemptAt) {
+        return left.nextAttemptAt - right.nextAttemptAt;
+      }
+
+      return left.createdAt - right.createdAt;
+    });
+  },
+
+  async enqueue(inspection: InspectionSession, formData: Record<string, FormDataValue>) {
+    const inspectionScope = getInspectionScope(inspection);
+    const existing = await appDataStore.getQueueEntry(getQueueKey(inspection.id, inspectionScope));
     const now = Date.now();
     const fingerprint = buildInspectionSyncFingerprint(inspection, formData);
-    const inspectionScope = getInspectionScope(inspection);
 
     const entry: SyncQueueEntry = {
       inspectionId: inspection.id,
@@ -178,43 +151,44 @@ export const syncQueue = {
       updatedAt: now,
     };
 
-    writeEntry(entry);
+    await appDataStore.putQueueEntry(inspectionScope, getQueueKey(entry.inspectionId, inspectionScope), entry);
     return entry;
   },
 
-  ensureQueuedForInspection(inspection: InspectionSession) {
-    const existing = readEntry(inspection.id);
+  async ensureQueuedForInspection(inspection: InspectionSession) {
+    const inspectionScope = getInspectionScope(inspection);
+    const existing = await appDataStore.getQueueEntry(getQueueKey(inspection.id, inspectionScope));
     if (existing) {
       return existing;
     }
 
-    const formData = inspectionRepository.loadFormData(inspection.id, inspection) ?? {};
+    const formData = (await inspectionRepository.loadFormData(inspection.id, inspection)) ?? {};
     return this.enqueue(inspection, formData);
   },
 
-  ensureQueuedForPendingInspections(inspections: InspectionSession[]) {
-    inspections.forEach((inspection) => {
-      const status = inspection.uploadStatus || UploadStatus.Local;
-      if (status === UploadStatus.Local || status === UploadStatus.Failed || status === UploadStatus.Uploading) {
-        this.ensureQueuedForInspection(inspection);
-      }
+  async ensureQueuedForPendingInspections(inspections: InspectionSession[]) {
+    await Promise.all(
+      inspections.map(async (inspection) => {
+        const status = inspection.uploadStatus || UploadStatus.Local;
+        if (status === UploadStatus.Local || status === UploadStatus.Failed || status === UploadStatus.Uploading) {
+          await this.ensureQueuedForInspection(inspection);
+        }
 
-      if (status === UploadStatus.Uploaded) {
-        removeEntry(inspection.id);
-      }
-    });
-  },
-
-  delete(inspectionId: string) {
-    removeEntry(inspectionId);
-  },
-
-  tryAcquireWorkerLease(ownerId: string, now = Date.now()) {
-    const leaseKey = getWorkerLeaseKey();
-    const existingLease = parseJson<WorkerLease>(
-      localStorage.getItem(leaseKey),
-      'Failed to parse sync worker lease:'
+        if (status === UploadStatus.Uploaded) {
+          await this.delete(inspection.id, inspection);
+        }
+      })
     );
+  },
+
+  async delete(inspectionId: string, inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>) {
+    const scope = inspection ? { tenantId: inspection.tenantId, userId: inspection.userId ?? ANONYMOUS_USER_SCOPE } : getScope();
+    await appDataStore.deleteQueueEntry(scope, getQueueKey(inspectionId, scope));
+  },
+
+  async tryAcquireWorkerLease(ownerId: string, now = Date.now()) {
+    const scope = getScope();
+    const existingLease = await appDataStore.getWorkerLease(scope);
 
     if (existingLease && existingLease.ownerId !== ownerId && existingLease.expiresAt > now) {
       return false;
@@ -225,33 +199,27 @@ export const syncQueue = {
       expiresAt: now + WORKER_LEASE_DURATION_MS,
     };
 
-    localStorage.setItem(leaseKey, JSON.stringify(nextLease));
-    const persistedLease = parseJson<WorkerLease>(
-      localStorage.getItem(leaseKey),
-      'Failed to parse sync worker lease:'
-    );
+    await appDataStore.putWorkerLease(scope, nextLease);
+    const persistedLease = await appDataStore.getWorkerLease(scope);
 
     return persistedLease?.ownerId === ownerId;
   },
 
-  renewWorkerLease(ownerId: string, now = Date.now()) {
+  async renewWorkerLease(ownerId: string, now = Date.now()) {
     return this.tryAcquireWorkerLease(ownerId, now);
   },
 
-  releaseWorkerLease(ownerId: string) {
-    const leaseKey = getWorkerLeaseKey();
-    const existingLease = parseJson<WorkerLease>(
-      localStorage.getItem(leaseKey),
-      'Failed to parse sync worker lease:'
-    );
+  async releaseWorkerLease(ownerId: string) {
+    const scope = getScope();
+    const existingLease = await appDataStore.getWorkerLease(scope);
 
     if (existingLease?.ownerId === ownerId) {
-      localStorage.removeItem(leaseKey);
+      await appDataStore.deleteWorkerLease(scope);
     }
   },
 
-  claimNextReady(ownerId: string, now = Date.now()) {
-    const readyEntry = listEntries().find((entry) => entry.nextAttemptAt <= now && !isEntryLocked(entry, now));
+  async claimNextReady(ownerId: string, now = Date.now()) {
+    const readyEntry = (await this.list()).find((entry) => entry.nextAttemptAt <= now && !isEntryLocked(entry, now));
     if (!readyEntry) {
       return null;
     }
@@ -265,11 +233,12 @@ export const syncQueue = {
       processingExpiresAt: now + ENTRY_PROCESSING_LEASE_DURATION_MS,
     };
 
-    writeEntry(claimedEntry);
+    const scope = getEntryScope(claimedEntry);
+    await appDataStore.putQueueEntry(scope, getQueueKey(claimedEntry.inspectionId, scope), claimedEntry);
     return claimedEntry;
   },
 
-  refreshFingerprint(entry: SyncQueueEntry, inspection: InspectionSession, formData: Record<string, FormDataValue>) {
+  async refreshFingerprint(entry: SyncQueueEntry, inspection: InspectionSession, formData: Record<string, FormDataValue>) {
     const fingerprint = buildInspectionSyncFingerprint(inspection, formData);
     if (fingerprint === entry.fingerprint) {
       return entry;
@@ -286,11 +255,12 @@ export const syncQueue = {
       lastError: undefined,
     };
 
-    writeEntry(updatedEntry);
+    const scope = getInspectionScope(inspection);
+    await appDataStore.putQueueEntry(scope, getQueueKey(updatedEntry.inspectionId, scope), updatedEntry);
     return updatedEntry;
   },
 
-  markFailed(entry: SyncQueueEntry, errorMessage: string, now = Date.now()) {
+  async markFailed(entry: SyncQueueEntry, errorMessage: string, now = Date.now()) {
     const attemptCount = entry.attemptCount + 1;
     const updatedEntry: SyncQueueEntry = {
       ...entry,
@@ -304,11 +274,12 @@ export const syncQueue = {
       processingExpiresAt: undefined,
     };
 
-    writeEntry(updatedEntry);
+    const scope = getEntryScope(updatedEntry);
+    await appDataStore.putQueueEntry(scope, getQueueKey(updatedEntry.inspectionId, scope), updatedEntry);
     return updatedEntry;
   },
 
-  markSucceeded(inspectionId: string) {
-    removeEntry(inspectionId);
+  async markSucceeded(inspectionId: string, inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>) {
+    await this.delete(inspectionId, inspection);
   },
 };

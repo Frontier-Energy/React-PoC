@@ -33,15 +33,16 @@ export function FillForm() {
     map: Record<string, string>,
     inspection: Pick<InspectionSession, 'tenantId' | 'userId'>
   ) => {
-    const parsedData = inspectionRepository.loadFormData(targetSessionId, inspection);
-    if (parsedData) {
-      const convertedData: FormData = {};
-      Object.entries(parsedData).forEach(([key, value]) => {
-        const fieldId = map[key] || key;
-        convertedData[fieldId] = value;
-      });
-      setFormData(convertedData);
-    }
+    void inspectionRepository.loadFormData(targetSessionId, inspection).then((parsedData) => {
+      if (parsedData) {
+        const convertedData: FormData = {};
+        Object.entries(parsedData).forEach(([key, value]) => {
+          const fieldId = map[key] || key;
+          convertedData[fieldId] = value;
+        });
+        setFormData(convertedData);
+      }
+    });
   }, []);
 
   const loadFormSchema = useCallback(async (
@@ -97,7 +98,7 @@ export function FillForm() {
         return;
       }
 
-      const resolvedSession = inspectionRepository.loadCurrentOrById(sessionId);
+      const resolvedSession = await inspectionRepository.loadCurrentOrById(sessionId);
       if (!resolvedSession) {
         navigate('/new-inspection');
         if (requestId === loadRequestIdRef.current) {
@@ -136,7 +137,7 @@ export function FillForm() {
     // Save persisted data using externalID when available, otherwise fieldId.
     if (sessionId && session) {
       const storageKey = externalID || fieldId;
-      inspectionRepository.updateFormDataEntry(sessionId, storageKey, value, session);
+      void inspectionRepository.updateFormDataEntry(sessionId, storageKey, value, session);
     }
 
     // Clear validation errors for this field
@@ -224,22 +225,23 @@ export function FillForm() {
     }
 
     if (session) {
-      const updatedSession: InspectionSession = {
-        ...session,
-        uploadStatus: UploadStatus.Local,
-      };
-      inspectionRepository.saveAsCurrent(updatedSession);
-      syncQueue.enqueue(updatedSession, formData);
-      window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedSession }));
+      void (async () => {
+        const updatedSession: InspectionSession = {
+          ...session,
+          uploadStatus: UploadStatus.Local,
+        };
+        await inspectionRepository.saveAsCurrent(updatedSession);
+        await syncQueue.enqueue(updatedSession, formData);
+        window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedSession }));
 
-      console.log('Form submitted:', formData);
+        console.log('Form submitted:', formData);
 
-      // Redirect to my inspections with success message
-      navigate('/my-inspections', {
-        state: {
-          successMessage: labels.fillForm.successMessage,
-        },
-      });
+        navigate('/my-inspections', {
+          state: {
+            successMessage: labels.fillForm.successMessage,
+          },
+        });
+      })();
     }
   };
 
@@ -253,7 +255,7 @@ export function FillForm() {
     setFormData({});
     setValidationErrors([]);
     if (sessionId && session) {
-      inspectionRepository.clearFormData(sessionId, session);
+      await inspectionRepository.clearFormData(sessionId, session);
     }
     setReviewConfirmed(false);
     setReviewError(null);
@@ -283,7 +285,7 @@ export function FillForm() {
         name,
       };
       setSession(updatedSession);
-      inspectionRepository.saveAsCurrent(updatedSession);
+      void inspectionRepository.saveAsCurrent(updatedSession);
     }
     setValidationErrors((prev) => prev.filter((err) => err.fieldId !== 'sessionName'));
   };

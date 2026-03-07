@@ -106,8 +106,10 @@ export function Layout() {
   const iconFill = status === 'online' ? '#1d8102' : status === 'offline' ? '#d13212' : '#879596';
 
   useEffect(() => {
-    const loadStatusCounts = () => {
-      const inspections = inspectionRepository.loadAll();
+    let cancelled = false;
+
+    const loadStatusCounts = async () => {
+      const inspections = await inspectionRepository.loadAll();
 
       const counts: Record<UploadStatus, number> = {
         [UploadStatus.Local]: 0,
@@ -122,22 +124,20 @@ export function Layout() {
         counts[uploadStatus] += 1;
       });
 
-      setStatusCounts(counts);
-    };
-
-    const handleStatusChange = () => loadStatusCounts();
-    const handleStorage = (event: StorageEvent) => {
-      if (!event.key || inspectionRepository.isInspectionStorageKey(event.key)) {
-        loadStatusCounts();
+      if (!cancelled) {
+        setStatusCounts(counts);
       }
     };
 
-    loadStatusCounts();
+    const handleStatusChange = () => void loadStatusCounts();
+
+    void loadStatusCounts();
     window.addEventListener('inspection-status-changed', handleStatusChange as EventListener);
-    window.addEventListener('storage', handleStorage);
+    const unsubscribe = inspectionRepository.subscribe(handleStatusChange);
     return () => {
+      cancelled = true;
       window.removeEventListener('inspection-status-changed', handleStatusChange as EventListener);
-      window.removeEventListener('storage', handleStorage);
+      unsubscribe();
     };
   }, [inspectionScopeRefreshKey]);
 
