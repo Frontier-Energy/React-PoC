@@ -1,7 +1,8 @@
-import { render, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getUserId } from './auth';
 import { BackgroundUploadManager } from './BackgroundUploadManager';
+import { backgroundUploadRuntime } from './backgroundUploadRuntime';
 import { inspectionRepository } from './repositories/inspectionRepository';
 import { syncQueue } from './syncQueue';
 import { FormType, type InspectionSession, UploadStatus } from './types';
@@ -68,15 +69,21 @@ const makeInspection = (id: string, overrides?: Partial<InspectionSession>): Ins
   ...overrides,
 });
 
-describe('BackgroundUploadManager', () => {
-  beforeEach(() => {
+describe('backgroundUploadRuntime', () => {
+  beforeEach(async () => {
     setConnectivityStatus('online');
+    await backgroundUploadRuntime.stop();
     vi.restoreAllMocks();
+    vi.useRealTimers();
     vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
     vi.mocked(getFile).mockResolvedValue(null);
     vi.mocked(deleteFiles).mockResolvedValue();
     vi.mocked(getUserId).mockReturnValue(null);
     Object.values(syncMonitorMock).forEach((mock) => mock.mockClear());
+  });
+
+  afterEach(() => {
+    return backgroundUploadRuntime.stop();
   });
 
   it('uploads queued inspections with a durable idempotency key and transitions to uploaded', async () => {
@@ -90,9 +97,10 @@ describe('BackgroundUploadManager', () => {
     const updateSpy = vi.spyOn(inspectionRepository, 'update');
     const saveCurrentSpy = vi.spyOn(inspectionRepository, 'saveCurrent');
 
-    render(<BackgroundUploadManager />);
+    backgroundUploadRuntime.setConnectivityStatus('online');
+    backgroundUploadRuntime.start();
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
@@ -123,9 +131,10 @@ describe('BackgroundUploadManager', () => {
     await inspectionRepository.save(local);
     await inspectionRepository.saveFormData(local.id, {}, local);
 
-    render(<BackgroundUploadManager />);
+    backgroundUploadRuntime.setConnectivityStatus('online');
+    backgroundUploadRuntime.start();
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
@@ -143,9 +152,10 @@ describe('BackgroundUploadManager', () => {
     await inspectionRepository.saveFormData(local.id, formData, local);
     const queueEntry = await syncQueue.enqueue(local, formData);
 
-    render(<BackgroundUploadManager />);
+    backgroundUploadRuntime.setConnectivityStatus('online');
+    backgroundUploadRuntime.start();
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
@@ -171,30 +181,33 @@ describe('BackgroundUploadManager', () => {
     await inspectionRepository.saveFormData(local.id, {}, local);
     await syncQueue.enqueue(local, {});
 
-    render(
-      <>
-        <BackgroundUploadManager />
-        <BackgroundUploadManager />
-      </>
-    );
+    const secondRuntime = (await import('./backgroundUploadRuntime')).createBackgroundUploadRuntime();
 
-    await waitFor(() => {
+    backgroundUploadRuntime.setConnectivityStatus('online');
+    secondRuntime.setConnectivityStatus('online');
+    backgroundUploadRuntime.start();
+    secondRuntime.start();
+
+    await vi.waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
+
+    await secondRuntime.stop();
   });
 
   it('skips sync when connectivity is offline', async () => {
-    setConnectivityStatus('offline');
     const local = makeInspection('offline-local');
     await inspectionRepository.save(local);
     await inspectionRepository.saveFormData(local.id, {}, local);
     await syncQueue.enqueue(local, {});
 
-    render(<BackgroundUploadManager />);
+    backgroundUploadRuntime.setConnectivityStatus('offline');
+    backgroundUploadRuntime.start();
 
-    await waitFor(() => {
-      expect(global.fetch).not.toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(syncMonitorMock.markPaused).toHaveBeenCalledWith('offline');
     });
+    expect(global.fetch).not.toHaveBeenCalled();
     expect(await syncQueue.load(local.id)).not.toBeNull();
   });
 
@@ -203,9 +216,10 @@ describe('BackgroundUploadManager', () => {
     await syncQueue.enqueue(inspection, {});
     const deleteSpy = vi.spyOn(syncQueue, 'delete');
 
-    render(<BackgroundUploadManager />);
+    backgroundUploadRuntime.setConnectivityStatus('online');
+    backgroundUploadRuntime.start();
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(deleteSpy).toHaveBeenCalledWith('orphaned', expect.objectContaining({ inspectionId: 'orphaned' }));
     });
     expect(global.fetch).not.toHaveBeenCalled();
@@ -225,13 +239,21 @@ describe('BackgroundUploadManager', () => {
 
     vi.mocked(getFile).mockImplementation(async (fileId: string) =>
       fileId === 'file-1'
-        ? { blob: new Blob(['abc'], { type: 'image/jpeg' }), name: 'proof.jpg' }
+        ? {
+            id: 'file-1',
+            blob: new Blob(['abc'], { type: 'image/jpeg' }),
+            name: 'proof.jpg',
+            type: 'image/jpeg',
+            size: 128,
+            lastModified: 1,
+          }
         : null
     );
 
-    render(<BackgroundUploadManager />);
+    backgroundUploadRuntime.setConnectivityStatus('online');
+    backgroundUploadRuntime.start();
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
@@ -261,9 +283,10 @@ describe('BackgroundUploadManager', () => {
     await inspectionRepository.saveFormData(local.id, { note: 'after' }, local);
     const refreshSpy = vi.spyOn(syncQueue, 'refreshFingerprint');
 
-    render(<BackgroundUploadManager />);
+    backgroundUploadRuntime.setConnectivityStatus('online');
+    backgroundUploadRuntime.start();
 
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(refreshSpy).toHaveBeenCalledWith(
         expect.objectContaining({ inspectionId: queueEntry.inspectionId, fingerprint: queueEntry.fingerprint }),
         local,
@@ -271,15 +294,24 @@ describe('BackgroundUploadManager', () => {
       );
     });
 
-    const persistedEntry = await syncQueue.load(local.id);
-    expect(persistedEntry).toEqual(
-      expect.objectContaining({
-        inspectionId: 'stale-fingerprint',
-        status: 'failed',
-        lastError: 'Unknown upload error',
-      })
-    );
+    await vi.waitFor(async () => {
+      expect(await syncQueue.load(local.id)).toEqual(
+        expect.objectContaining({
+          inspectionId: 'stale-fingerprint',
+          status: 'failed',
+          lastError: 'Unknown upload error',
+        })
+      );
+    });
     expect((await inspectionRepository.loadById(local.id))?.uploadStatus).toBe(UploadStatus.Failed);
     expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('bridges connectivity changes from React into the runtime', async () => {
+    const setConnectivitySpy = vi.spyOn(backgroundUploadRuntime, 'setConnectivityStatus');
+
+    render(<BackgroundUploadManager />);
+
+    expect(setConnectivitySpy).toHaveBeenCalledWith('online');
   });
 });
