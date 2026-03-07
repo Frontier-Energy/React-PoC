@@ -1,6 +1,6 @@
-# QHVAC Inspection Tool
+# QHVAC Multi-Tenant Inspection Platform
 
-An offline-first inspection application built with React, TypeScript, and Cloudscape Design Components. The app runs as a PWA, stores working data locally in IndexedDB, and syncs queued inspections to the API when connectivity returns.
+An offline-capable, multi-tenant platform for inspection and field workflow delivery, built with React, TypeScript, and Cloudscape Design Components. The current repo already includes tenant branding, tenant bootstrap, localization, role-based customization, durable sync queueing, file uploads, and PWA behavior. That places the product boundary in platform territory rather than in a narrow single-purpose form app.
 
 ## Features
 
@@ -13,6 +13,54 @@ An offline-first inspection application built with React, TypeScript, and Clouds
 - [x] **Attachment support**: uploaded files and signatures are stored locally and included in sync
 - [x] **Localization**: bundled fallback labels with API-loaded translations
 - [x] **Responsive PWA**: installable on desktop and mobile
+
+## Product Boundary
+
+This repository should be treated as the frontend for a multi-tenant operations platform that happens to deliver inspection workflows.
+
+In bounds:
+
+- Tenant-aware runtime bootstrap, branding, language, and feature enablement
+- Per-tenant and per-user data isolation across local storage and sync processing
+- Role-based experience differences, especially for tenant selection and customization
+- Offline capture, attachment handling, retryable background synchronization, and conflict-resistant queue processing
+- Platform-level administration surfaces for tenant configuration, rollout control, and operational support
+- Operational concerns such as audit trails, supportability, diagnostics, and SLA-oriented health visibility
+
+Out of bounds:
+
+- Treating the product as a one-off hard-coded form experience for a single customer
+- Embedding tenant-specific business rules directly into scattered UI code without governance
+- Assuming manual support intervention is an acceptable substitute for admin tooling or observability
+- Treating sync, upload, and localization behavior as secondary UX details instead of platform capabilities
+
+## Platform Implications
+
+Because the platform already supports tenant bootstrap, localization, sync queueing, file upload, role-sensitive customization, and PWA/offline behavior, the next design decisions should optimize for controlled multi-tenant operations.
+
+- **Admin tooling**: provide first-class admin surfaces for tenant onboarding, tenant selection, branding overrides, enabled forms, localization choices, login policy, and support actions such as queue retry or inspection troubleshooting.
+- **Config governance**: treat tenant bootstrap and UI/runtime configuration as governed artifacts with schema validation, versioning, change history, review/approval flow, and safe rollout or rollback between environments.
+- **Auditability**: capture who changed tenant config, roles, forms, translations, and support state, along with what changed, when it changed, and which tenant or user scope was affected.
+- **SLA-minded operations**: expose queue depth, retry age, upload failure rate, stale lease detection, bootstrap failures, translation load failures, storage pressure, and tenant-scoped health indicators so support teams can manage reliability intentionally.
+
+## Operating Model
+
+The platform should be designed around a few clear responsibility boundaries.
+
+- **Tenant runtime plane**: bootstrap configuration, branding, login requirements, enabled forms, and localization defaults resolved before normal app use
+- **Work execution plane**: inspection capture, attachment storage, local persistence, background sync, and recovery from connectivity loss
+- **Admin plane**: governed configuration changes, tenant support tools, diagnostics, and role-restricted operational actions
+- **Control and evidence plane**: audit logs, config history, support event traces, and reliability telemetry suitable for compliance and SLA review
+
+## Admin and Governance Requirements
+
+The repo does not need every platform feature implemented yet, but it should be designed so these capabilities fit naturally:
+
+- Tenant configuration must be centrally managed, validated, and promotable across environments
+- Role claims should come from the backend identity boundary, with the frontend enforcing capability checks rather than inventing long-term authorization rules
+- Support users need visibility into sync failures, stuck uploads, missing files, and tenant bootstrap issues without requiring direct database access
+- Configuration changes should be attributable, diffable, and reversible
+- Tenant-facing behavior should be explainable from config plus audit records, not tribal knowledge
 
 ## Tech Stack
 
@@ -76,13 +124,15 @@ npm run preview
 
 ## Application Model
 
-This is no longer a simple single-tenant form demo.
+This is a platform shell for tenant-specific workflow applications, not a simple single-tenant form demo.
 
 - **Tenant bootstrap**: the app requests `/tenant-config` and merges the response with local tenant defaults.
 - **Tenant selection**: the active tenant comes from stored preference first, then hostname fallback.
 - **Login gating**: routes are protected when the tenant bootstrap marks login as required.
 - **Localization**: the app starts with bundled fallback labels, then fetches translations for the selected language.
 - **Background sync**: a headless `BackgroundUploadManager` continuously drains the local sync queue while online.
+- **Role-aware customization**: tenant switching and customization permissions are already role-gated in `src/auth.ts`.
+- **Operational diagnostics**: the stored inspection debug route and queue state are early indicators of the admin/support surface the platform needs.
 
 ## Storage Model
 
