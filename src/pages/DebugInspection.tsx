@@ -18,14 +18,17 @@ export function DebugInspection() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const inspectionScope =
+  const inspectionScopeState = useMemo(() => (
     location.state &&
     typeof location.state === 'object' &&
     'inspectionScope' in location.state &&
     location.state.inspectionScope &&
     typeof location.state.inspectionScope === 'object'
       ? (location.state.inspectionScope as { tenantId: string; userId?: string })
-      : undefined;
+      : undefined
+  ), [location.state]);
+  const inspectionScopeTenantId = inspectionScopeState?.tenantId;
+  const inspectionScopeUserId = inspectionScopeState?.userId;
 
   const [inspectionData, setInspectionData] = useState<{
     error?: string;
@@ -37,6 +40,10 @@ export function DebugInspection() {
     let cancelled = false;
 
     const loadInspectionData = async () => {
+      const inspectionScope = inspectionScopeTenantId
+        ? { tenantId: inspectionScopeTenantId, userId: inspectionScopeUserId }
+        : undefined;
+
       if (!sessionId) {
         if (!cancelled) {
           setInspectionData({ error: labels.debugInspection.errors.missingInspectionId });
@@ -63,7 +70,7 @@ export function DebugInspection() {
     return () => {
       cancelled = true;
     };
-  }, [inspectionScope, labels.debugInspection.errors.missingInspectionId, sessionId]);
+  }, [inspectionScopeTenantId, inspectionScopeUserId, labels.debugInspection.errors.missingInspectionId, sessionId]);
 
   useEffect(() => {
     const loadSchema = async () => {

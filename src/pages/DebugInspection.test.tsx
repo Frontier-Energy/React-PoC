@@ -62,6 +62,43 @@ const {
   anchorClickMock: vi.fn(),
 }));
 
+const { debugLabels } = vi.hoisted(() => ({
+  debugLabels: {
+    common: {
+      unknown: 'Unknown',
+      download: 'Download',
+      preview: 'Preview',
+    },
+    debugInspection: {
+      title: 'Debug Inspection',
+      backToMyInspections: 'Back to My Inspections',
+      filesHeader: 'Files in Form',
+      schemaLoadError: 'Failed to load form schema.',
+      noFilesFound: 'No files or signatures found.',
+      table: {
+        fileName: 'File Name',
+        size: 'Size',
+        fileType: 'File Type',
+        download: 'Download',
+        preview: 'Preview',
+      },
+      previewTitle: 'Preview',
+      close: 'Close',
+      errors: {
+        missingInspectionId: 'Missing inspection id.',
+      },
+    },
+  },
+}));
+
+vi.mock('../LocalizationContext', async () => {
+  const React = await vi.importActual<typeof import('react')>('react');
+  return {
+    LocalizationProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    useLocalization: () => ({ labels: debugLabels }),
+  };
+});
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
@@ -418,7 +455,7 @@ describe('DebugInspection', () => {
 
     renderPage();
 
-    expect(await screen.findByText(/Inspection ID is required\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Missing inspection id\./)).toBeInTheDocument();
     expect(loadByIdMock).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import {
   LANGUAGE_PREFERENCE_STORAGE_KEY,
   LEGACY_CUSTOMIZATION_STORAGE_KEY,
@@ -34,6 +35,27 @@ function LocalizationProbe() {
   );
 }
 
+class HookErrorBoundary extends Component<
+  { children: ReactNode },
+  { errorMessage: string | null }
+> {
+  state = { errorMessage: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { errorMessage: error.message };
+  }
+
+  componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {}
+
+  render() {
+    if (this.state.errorMessage) {
+      return <div data-testid="hook-error">{this.state.errorMessage}</div>;
+    }
+
+    return this.props.children;
+  }
+}
+
 describe('LocalizationContext', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -54,10 +76,28 @@ describe('LocalizationContext', () => {
   });
 
   it('throws when useLocalization is used outside provider', () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const expectedErrorHandler = (event: ErrorEvent) => {
+      if (event.error instanceof Error && event.error.message === 'useLocalization must be used within a LocalizationProvider') {
+        event.preventDefault();
+      }
+    };
 
-    expect(() => render(<LocalizationProbe />)).toThrow('useLocalization must be used within a LocalizationProvider');
-    expect(errorSpy).toHaveBeenCalled();
+    window.addEventListener('error', expectedErrorHandler);
+
+    try {
+      render(
+        <HookErrorBoundary>
+          <LocalizationProbe />
+        </HookErrorBoundary>
+      );
+
+      expect(screen.getByTestId('hook-error')).toHaveTextContent(
+        'useLocalization must be used within a LocalizationProvider'
+      );
+    } finally {
+      window.removeEventListener('error', expectedErrorHandler);
+    }
   });
 
   it('uses default language when no storage exists', () => {

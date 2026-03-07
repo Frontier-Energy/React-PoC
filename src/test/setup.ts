@@ -32,7 +32,9 @@ afterEach(async () => {
   cleanup();
   localStorage.clear();
   indexedDbMock.reset();
-  await appDataStore.clearAll();
+  if (typeof indexedDB !== 'undefined') {
+    await appDataStore.clearAll();
+  }
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });

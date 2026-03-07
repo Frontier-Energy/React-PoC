@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ConnectivityProvider, useConnectivity } from './ConnectivityContext';
 import { getConnectivityCheckUrl } from './config';
 
@@ -7,12 +8,51 @@ function ConnectivityStatusProbe() {
   return <div>{status}</div>;
 }
 
+class HookErrorBoundary extends Component<
+  { children: ReactNode },
+  { errorMessage: string | null }
+> {
+  state = { errorMessage: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { errorMessage: error.message };
+  }
+
+  componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {}
+
+  render() {
+    if (this.state.errorMessage) {
+      return <div data-testid="hook-error">{this.state.errorMessage}</div>;
+    }
+
+    return this.props.children;
+  }
+}
+
 describe('ConnectivityProvider', () => {
   it('throws when useConnectivity is used outside provider', () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const expectedErrorHandler = (event: ErrorEvent) => {
+      if (event.error instanceof Error && event.error.message === 'useConnectivity must be used within a ConnectivityProvider') {
+        event.preventDefault();
+      }
+    };
 
-    expect(() => render(<ConnectivityStatusProbe />)).toThrow('useConnectivity must be used within a ConnectivityProvider');
-    expect(errorSpy).toHaveBeenCalled();
+    window.addEventListener('error', expectedErrorHandler);
+
+    try {
+      render(
+        <HookErrorBoundary>
+          <ConnectivityStatusProbe />
+        </HookErrorBoundary>
+      );
+
+      expect(screen.getByTestId('hook-error')).toHaveTextContent(
+        'useConnectivity must be used within a ConnectivityProvider'
+      );
+    } finally {
+      window.removeEventListener('error', expectedErrorHandler);
+    }
   });
 
   it('sets online when check succeeds', async () => {
