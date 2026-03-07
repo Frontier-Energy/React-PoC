@@ -3,13 +3,23 @@ import { LocalizationProvider } from '../LocalizationContext';
 import { DebugInspection } from './DebugInspection';
 import type { InspectionSession } from '../types';
 
-const { navigateMock, getSessionId, setSessionId } = vi.hoisted(() => {
+const { navigateMock, getSessionId, setSessionId, getLocationState, setLocationState } = vi.hoisted(() => {
   let currentSessionId: string | undefined = 'scoped-session';
+  let currentLocationState: unknown = {
+    inspectionScope: {
+      tenantId: 'tenant-a',
+      userId: 'impersonated-user',
+    },
+  };
   return {
     navigateMock: vi.fn(),
     getSessionId: () => currentSessionId,
     setSessionId: (value: string | undefined) => {
       currentSessionId = value;
+    },
+    getLocationState: () => currentLocationState,
+    setLocationState: (value: unknown) => {
+      currentLocationState = value;
     },
   };
 });
@@ -106,12 +116,7 @@ vi.mock('react-router-dom', async () => {
     useNavigate: () => navigateMock,
     useParams: () => ({ sessionId: getSessionId() }),
     useLocation: () => ({
-      state: {
-        inspectionScope: {
-          tenantId: scopedInspection.tenantId,
-          userId: scopedInspection.userId,
-        },
-      },
+      state: getLocationState(),
     }),
   };
 });
@@ -361,11 +366,16 @@ vi.mock('@cloudscape-design/components', async () => {
     Modal: ({
       children,
       footer,
+      onDismiss,
     }: {
       children: React.ReactNode;
       footer?: React.ReactNode;
+      onDismiss?: () => void;
     }) => (
       <div>
+        <button type="button" onClick={onDismiss}>
+          Dismiss Modal
+        </button>
         {children}
         {footer}
       </div>
@@ -385,14 +395,20 @@ describe('DebugInspection', () => {
   beforeEach(() => {
     const originalCreateElement = document.createElement.bind(document);
     setSessionId('scoped-session');
+    setLocationState({
+      inspectionScope: {
+        tenantId: scopedInspection.tenantId,
+        userId: scopedInspection.userId,
+      },
+    });
     navigateMock.mockReset();
-    loadByIdMock.mockClear();
+    loadByIdMock.mockReset();
     loadByIdMock.mockImplementation(() => scopedInspection);
-    loadFormDataMock.mockClear();
+    loadFormDataMock.mockReset();
     loadFormDataMock.mockImplementation(() => ({
       'ext.fileSingle': { id: 'file-1', name: 'proof.jpg', type: 'image/jpeg', size: 128 },
     }));
-    fetchFormSchemaMock.mockClear();
+    fetchFormSchemaMock.mockReset();
     fetchFormSchemaMock.mockImplementation(async () => ({
       formName: 'Schema',
       sections: [
@@ -405,9 +421,9 @@ describe('DebugInspection', () => {
         },
       ],
     }));
-    getFileMock.mockClear();
+    getFileMock.mockReset();
     getFileMock.mockResolvedValue(null);
-    getFileReferencesMock.mockClear();
+    getFileReferencesMock.mockReset();
     getFileReferencesMock.mockImplementation((value?: unknown) => {
       if (!value || typeof value !== 'object') {
         return [];
@@ -450,6 +466,16 @@ describe('DebugInspection', () => {
     });
   });
 
+  it('falls back to an undefined inspection scope when route state is missing or invalid', async () => {
+    setLocationState('invalid');
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(loadByIdMock).toHaveBeenCalledWith('scoped-session', undefined);
+    });
+  });
+
   it('shows a missing inspection id error when the route param is absent', async () => {
     setSessionId(undefined);
 
@@ -465,6 +491,16 @@ describe('DebugInspection', () => {
     renderPage();
 
     expect(await screen.findByText('No files or signatures found.')).toBeInTheDocument();
+  });
+
+  it('renders the empty state when the inspection cannot be found', async () => {
+    loadByIdMock.mockResolvedValueOnce(null);
+
+    renderPage();
+
+    expect(await screen.findByText('No files or signatures found.')).toBeInTheDocument();
+    expect(fetchFormSchemaMock).not.toHaveBeenCalled();
+    expect(loadFormDataMock).not.toHaveBeenCalled();
   });
 
   it('shows the schema load error when the schema request fails', async () => {
@@ -494,6 +530,18 @@ describe('DebugInspection', () => {
     });
   });
 
+  it('does not create a download when the stored file is missing', async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Download' }));
+
+    await waitFor(() => {
+      expect(getFileMock).toHaveBeenCalledWith('file-1');
+    });
+    expect(anchorClickMock).not.toHaveBeenCalled();
+    expect(createObjectUrlMock).not.toHaveBeenCalled();
+  });
+
   it('opens and closes an image preview for previewable files', async () => {
     getFileMock.mockResolvedValueOnce({
       blob: new Blob(['abc'], { type: 'image/jpeg' }),
@@ -513,6 +561,58 @@ describe('DebugInspection', () => {
     });
   });
 
+  it('replaces an existing preview url when previewing another image and formats larger file sizes', async () => {
+    loadFormDataMock.mockImplementation(() => ({
+      'ext.fileSingle': [
+        { id: 'file-1', name: 'first.jpg', type: 'image/jpeg', size: 1_572_864 },
+        { id: 'file-2', name: '', type: 'image/png', size: 1_073_741_824 },
+        { id: 'file-3', name: 'mystery.bin', type: '', size: 128 },
+      ],
+    }));
+    getFileReferencesMock.mockImplementation((value?: unknown) => (Array.isArray(value) ? value : value ? [value] : []));
+    createObjectUrlMock
+      .mockReturnValueOnce('blob:first-preview')
+      .mockReturnValueOnce('blob:second-preview');
+    getFileMock
+      .mockResolvedValueOnce({
+        blob: new Blob(['first'], { type: 'image/jpeg' }),
+        name: 'first.jpg',
+      })
+      .mockResolvedValueOnce({
+        blob: new Blob(['second'], { type: 'image/jpeg' }),
+        name: '',
+      });
+
+    renderPage();
+
+    expect(await screen.findByText('1.5 MB')).toBeInTheDocument();
+    expect(screen.getByText('1.0 GB')).toBeInTheDocument();
+    expect(screen.getByText('Unknown')).toBeInTheDocument();
+
+    const previewButtons = await screen.findAllByRole('button', { name: 'Preview' });
+    fireEvent.click(previewButtons[0]);
+    expect(await screen.findByAltText('first.jpg')).toBeInTheDocument();
+
+    fireEvent.click(previewButtons[1]);
+
+    await waitFor(() => {
+      expect(revokeObjectUrlMock).toHaveBeenCalledWith('blob:first-preview');
+    });
+    expect(await screen.findByAltText('Preview')).toBeInTheDocument();
+  });
+
+  it('returns early when previewable files no longer exist in storage', async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Preview' }));
+
+    await waitFor(() => {
+      expect(getFileMock).toHaveBeenCalledWith('file-1');
+    });
+    expect(createObjectUrlMock).not.toHaveBeenCalled();
+    expect(screen.queryByAltText('proof.jpg')).not.toBeInTheDocument();
+  });
+
   it('does not preview non-image files and shows a placeholder instead', async () => {
     loadFormDataMock.mockImplementation(() => ({ signature: { id: 'file-2', name: 'signed.pdf', type: 'application/pdf', size: 2048 } }));
     getFileReferencesMock.mockImplementation((value?: unknown) => (value ? [value] : []));
@@ -522,6 +622,14 @@ describe('DebugInspection', () => {
     expect(await screen.findByText('signed.pdf')).toBeInTheDocument();
     expect(screen.getByText('-')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Preview' })).not.toBeInTheDocument();
+  });
+
+  it('can dismiss the preview modal when no preview has been opened', async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Dismiss Modal' }));
+
+    expect(revokeObjectUrlMock).not.toHaveBeenCalled();
   });
 
   it('navigates back to the inspection list when the header action is clicked', async () => {

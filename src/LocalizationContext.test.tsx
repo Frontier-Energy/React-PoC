@@ -235,6 +235,53 @@ describe('LocalizationContext', () => {
     });
   });
 
+  it('ignores non-language preference change events and resets to default when language becomes null', async () => {
+    localStorage.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, 'es');
+
+    render(
+      <LocalizationProvider>
+        <LocalizationProbe />
+      </LocalizationProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('language')).toHaveTextContent('es');
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('app-preferences-changed', {
+          detail: {
+            changedKeys: ['theme'],
+            state: {
+              tenantId: null,
+              theme: 'harbor',
+              font: null,
+              language: 'es',
+            },
+          },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent('app-preferences-changed', {
+          detail: {
+            changedKeys: ['language'],
+            state: {
+              tenantId: null,
+              theme: null,
+              font: null,
+              language: null,
+            },
+          },
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('language')).toHaveTextContent('en');
+    });
+  });
+
   it('renders bundled fallback labels when translation fetch fails', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))));

@@ -174,4 +174,89 @@ describe('BackgroundUploadManager', () => {
     });
     expect(await syncQueue.load(local.id)).not.toBeNull();
   });
+
+  it('deletes orphaned queue entries when the inspection no longer exists', async () => {
+    const inspection = makeInspection('orphaned');
+    await syncQueue.enqueue(inspection, {});
+    const deleteSpy = vi.spyOn(syncQueue, 'delete');
+
+    render(<BackgroundUploadManager />);
+
+    await waitFor(() => {
+      expect(deleteSpy).toHaveBeenCalledWith('orphaned', expect.objectContaining({ inspectionId: 'orphaned' }));
+    });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('uploads stored files, warns for missing file references, and deletes uploaded file ids afterwards', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(getUserId).mockReturnValue('resolved-user');
+
+    const local = makeInspection('with-files', { userId: undefined });
+    const fileRef = { id: 'file-1', name: 'proof.jpg', type: 'image/jpeg', size: 128, lastModified: 1 };
+    const missingRef = { id: 'missing-file', name: 'missing.jpg', type: 'image/jpeg', size: 64, lastModified: 1 };
+
+    await inspectionRepository.save(local);
+    await inspectionRepository.saveFormData(local.id, { attachments: [fileRef, missingRef] }, local);
+    await syncQueue.enqueue(local, { attachments: [fileRef, missingRef] });
+
+    vi.mocked(getFile).mockImplementation(async (fileId: string) =>
+      fileId === 'file-1'
+        ? { blob: new Blob(['abc'], { type: 'image/jpeg' }), name: 'proof.jpg' }
+        : null
+    );
+
+    render(<BackgroundUploadManager />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    const [, request] = vi.mocked(global.fetch).mock.calls[0] as [
+      string,
+      { method: string; headers: Record<string, string>; body: FormData },
+    ];
+
+    expect(JSON.parse(String(request.body.get('payload')))).toEqual(
+      expect.objectContaining({
+        userId: 'resolved-user',
+      })
+    );
+    expect(deleteFiles).toHaveBeenCalledWith(['file-1', 'missing-file']);
+    expect(warnSpy).toHaveBeenCalledWith('Missing stored file for missing-file');
+  });
+
+  it('refreshes stale queue fingerprints and handles non-Error upload failures', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    vi.mocked(global.fetch).mockRejectedValue('boom');
+
+    const local = makeInspection('stale-fingerprint');
+    await inspectionRepository.save(local);
+    await inspectionRepository.saveFormData(local.id, { note: 'before' }, local);
+    const queueEntry = await syncQueue.enqueue(local, { note: 'before' });
+    await inspectionRepository.saveFormData(local.id, { note: 'after' }, local);
+    const refreshSpy = vi.spyOn(syncQueue, 'refreshFingerprint');
+
+    render(<BackgroundUploadManager />);
+
+    await waitFor(() => {
+      expect(refreshSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ inspectionId: queueEntry.inspectionId, fingerprint: queueEntry.fingerprint }),
+        local,
+        { note: 'after' }
+      );
+    });
+
+    const persistedEntry = await syncQueue.load(local.id);
+    expect(persistedEntry).toEqual(
+      expect.objectContaining({
+        inspectionId: 'stale-fingerprint',
+        status: 'failed',
+        lastError: 'Unknown upload error',
+      })
+    );
+    expect((await inspectionRepository.loadById(local.id))?.uploadStatus).toBe(UploadStatus.Failed);
+    expect(errorSpy).toHaveBeenCalled();
+  });
 });

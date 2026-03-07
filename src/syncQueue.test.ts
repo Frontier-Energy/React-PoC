@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getUserId } from './auth';
 import { inspectionRepository } from './repositories/inspectionRepository';
-import { syncQueue } from './syncQueue';
+import { buildInspectionSyncFingerprint, syncQueue } from './syncQueue';
 import { FormType, type InspectionSession, UploadStatus } from './types';
+import { appDataStore } from './utils/appDataStore';
 
 vi.mock('./auth', () => ({
-  getUserId: () => 'user-123',
+  getUserId: vi.fn(() => 'user-123'),
 }));
 
 vi.mock('./config', async () => {
@@ -27,6 +29,7 @@ const makeInspection = (id: string, overrides?: Partial<InspectionSession>): Ins
 describe('syncQueue', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.mocked(getUserId).mockReturnValue('user-123');
   });
 
   it('reuses the same idempotency key when the queued payload has not changed', async () => {
@@ -96,5 +99,61 @@ describe('syncQueue', () => {
     expect(await syncQueue.claimNextReady('worker-a', now + 4_500)).toEqual(
       expect.objectContaining({ inspectionId: 'retryable', status: 'syncing' })
     );
+  });
+
+  it('sorts queue entries and coordinates worker leases', async () => {
+    const now = 50_000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    const inspectionA = makeInspection('a');
+    const inspectionB = makeInspection('b');
+
+    await syncQueue.enqueue(inspectionA, { note: 'later' });
+    await syncQueue.enqueue(inspectionB, { note: 'sooner' });
+
+    const entryA = await syncQueue.load('a');
+    await syncQueue.markFailed(entryA!, 'retry later', now);
+
+    const ordered = await syncQueue.list();
+    expect(ordered.map((entry) => entry.inspectionId)).toEqual(['b', 'a']);
+
+    expect(await syncQueue.tryAcquireWorkerLease('worker-a', now)).toBe(true);
+    expect(await syncQueue.tryAcquireWorkerLease('worker-b', now + 1)).toBe(false);
+    expect(await syncQueue.renewWorkerLease('worker-a', now + 2)).toBe(true);
+
+    await syncQueue.releaseWorkerLease('worker-b');
+    expect(await syncQueue.tryAcquireWorkerLease('worker-b', now + 3)).toBe(false);
+
+    await syncQueue.releaseWorkerLease('worker-a');
+    expect(await syncQueue.tryAcquireWorkerLease('worker-b', now + 4)).toBe(true);
+  });
+
+  it('handles fingerprint refresh, deletion, subscribe, and anonymous scopes', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(90_000);
+    const subscribeSpy = vi.spyOn(appDataStore, 'subscribe');
+    const listener = vi.fn();
+    syncQueue.subscribe(listener);
+    expect(subscribeSpy).toHaveBeenCalledWith('tenant-a:user-123', listener);
+
+    vi.mocked(getUserId).mockReturnValue(null);
+    const anonymousInspection = makeInspection('anon', { userId: undefined });
+    await inspectionRepository.saveFormData(anonymousInspection.id, { note: 'stored' }, anonymousInspection);
+
+    const queued = await syncQueue.ensureQueuedForInspection(anonymousInspection);
+    expect(queued.userId).toBeUndefined();
+
+    const unchanged = await syncQueue.refreshFingerprint(queued, anonymousInspection, { note: 'stored' });
+    expect(unchanged).toEqual(queued);
+
+    const changed = await syncQueue.refreshFingerprint(queued, anonymousInspection, { note: 'changed' });
+    expect(changed.idempotencyKey).not.toBe(queued.idempotencyKey);
+    expect(changed.attemptCount).toBe(0);
+    expect(buildInspectionSyncFingerprint(anonymousInspection, { note: 'changed' })).toBe(changed.fingerprint);
+
+    await syncQueue.markSucceeded(anonymousInspection.id, anonymousInspection);
+    expect(await syncQueue.load(anonymousInspection.id)).toBeNull();
+
+    await syncQueue.enqueue(makeInspection('delete-me'), {});
+    await syncQueue.delete('delete-me');
+    expect(await syncQueue.load('delete-me')).toBeNull();
   });
 });

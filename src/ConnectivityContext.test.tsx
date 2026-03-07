@@ -4,8 +4,14 @@ import { ConnectivityProvider, useConnectivity } from './ConnectivityContext';
 import { getConnectivityCheckUrl } from './config';
 
 function ConnectivityStatusProbe() {
-  const { status } = useConnectivity();
-  return <div>{status}</div>;
+  const { status, lastCheckedAt, checkIntervalMs } = useConnectivity();
+  return (
+    <div>
+      <div>{status}</div>
+      <div data-testid="checked-at">{lastCheckedAt ? 'checked' : 'pending'}</div>
+      <div data-testid="interval">{checkIntervalMs}</div>
+    </div>
+  );
 }
 
 class HookErrorBoundary extends Component<
@@ -75,6 +81,8 @@ describe('ConnectivityProvider', () => {
         cache: 'no-store',
       })
     );
+    expect(screen.getByTestId('checked-at')).toHaveTextContent('checked');
+    expect(screen.getByTestId('interval')).toHaveTextContent('60000');
   });
 
   it('sets offline when check fails', async () => {
@@ -143,5 +151,20 @@ describe('ConnectivityProvider', () => {
     unmount();
     rejectFetch?.(new Error('offline'));
     await Promise.resolve();
+  });
+
+  it('keeps the checking state when the request aborts', async () => {
+    vi.spyOn(global, 'fetch').mockRejectedValue(new DOMException('aborted', 'AbortError'));
+
+    render(
+      <ConnectivityProvider checkIntervalMs={60000}>
+        <ConnectivityStatusProbe />
+      </ConnectivityProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('checking')).toBeInTheDocument();
+      expect(screen.getByTestId('checked-at')).toHaveTextContent('checked');
+    });
   });
 });

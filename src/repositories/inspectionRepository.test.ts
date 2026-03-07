@@ -127,6 +127,21 @@ describe('inspectionRepository', () => {
     expect(await inspectionRepository.loadById('scoped-id')).toBeNull();
   });
 
+  it('exposes storage scope helpers and subscription events', async () => {
+    const listener = vi.fn();
+    const unsubscribe = inspectionRepository.subscribe(listener);
+    const inspection = makeInspection('helper-check');
+
+    expect(inspectionRepository.getStorageScopeKey()).toBe('tenant-a:user-123');
+    expect(inspectionRepository.isInspectionStorageKey(getInspectionStorageKey('helper-check'))).toBe(true);
+    expect(inspectionRepository.isInspectionStorageKey(getFormDataStorageKey('helper-check'))).toBe(false);
+
+    await inspectionRepository.save(inspection);
+
+    expect(listener).toHaveBeenCalled();
+    unsubscribe();
+  });
+
   it('saves inspection and current session records', async () => {
     const inspection = makeInspection('save-test', { uploadStatus: UploadStatus.InProgress });
     const normalizedInspection = { ...inspection, tenantId: 'tenant-a', userId: 'user-123' };

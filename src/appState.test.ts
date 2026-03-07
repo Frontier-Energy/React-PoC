@@ -86,4 +86,100 @@ describe('appState', () => {
 
     unsubscribe();
   });
+
+  it('maps tenant storage events and stops notifying after unsubscribe', () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAppPreferenceState(listener);
+
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'appTenantPreference',
+        newValue: 'tenant-b',
+      })
+    );
+
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-b' }),
+      ['tenantId']
+    );
+
+    unsubscribe();
+    listener.mockClear();
+
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'appTenantPreference',
+        newValue: 'tenant-c',
+      })
+    );
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('normalizes storage-event values and ignores unrelated keys', () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAppPreferenceState(listener);
+
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'unrelated',
+        newValue: 'value',
+      })
+    );
+
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'appThemePreference',
+        newValue: '  harbor  ',
+      })
+    );
+
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'appFontPreference',
+        newValue: '   ',
+      })
+    );
+
+    window.dispatchEvent(
+      new StorageEvent('storage', {
+        key: 'appLanguagePreference',
+        newValue: 'fr',
+      })
+    );
+
+    expect(listener).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ theme: 'harbor' }),
+      ['theme']
+    );
+    expect(listener).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ font: null }),
+      ['font']
+    );
+    expect(listener).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ language: null }),
+      ['language']
+    );
+
+    unsubscribe();
+  });
+
+  it('no-ops when window is unavailable', () => {
+    const originalWindow = globalThis.window;
+    vi.stubGlobal('window', undefined);
+
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAppPreferenceState(listener);
+
+    setThemePreference('night');
+    unsubscribe();
+
+    expect(unsubscribe).toBeTypeOf('function');
+    expect(listener).not.toHaveBeenCalled();
+
+    vi.stubGlobal('window', originalWindow);
+  });
 });

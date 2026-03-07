@@ -2,6 +2,7 @@ import {
   clearUserId,
   getUserId,
   getUserRoles,
+  hasRole,
   hasPermission,
   isLoggedInAdmin,
   parseRolesFromAuthPayload,
@@ -45,5 +46,31 @@ describe('auth storage helpers', () => {
     clearUserId();
     expect(getUserId()).toBeNull();
     expect(getUserRoles()).toEqual(['user']);
+  });
+
+  it('falls back safely for malformed or empty stored roles', () => {
+    localStorage.setItem('userRoles', '{invalid');
+    expect(getUserRoles()).toEqual(['user']);
+
+    localStorage.setItem('userRoles', JSON.stringify([]));
+    expect(getUserRoles()).toEqual(['user']);
+
+    localStorage.setItem('userRoles', JSON.stringify(['   ', 42, 'Admin']));
+    expect(getUserRoles()).toEqual(['admin']);
+  });
+
+  it('evaluates role and permission checks across positive and negative cases', () => {
+    setUserId('user-123', ['custom-role']);
+
+    expect(hasRole('CUSTOM-ROLE')).toBe(true);
+    expect(hasPermission('tenant.select')).toBe(false);
+    expect(isLoggedInAdmin()).toBe(false);
+  });
+
+  it('parses malformed auth payload variants back to the default role', () => {
+    expect(parseRolesFromAuthPayload(null)).toEqual(['user']);
+    expect(parseRolesFromAuthPayload('admin')).toEqual(['user']);
+    expect(parseRolesFromAuthPayload({ roles: [] })).toEqual(['user']);
+    expect(parseRolesFromAuthPayload({ role: 42 })).toEqual(['user']);
   });
 });
