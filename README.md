@@ -1,27 +1,28 @@
 # QHVAC Inspection Tool
 
-A modern, offline-first inspection form application built with React, TypeScript, and Cloudscape Design Components. This Progressive Web App (PWA) works seamlessly online and offline, with all data persisted locally.
+An offline-first inspection application built with React, TypeScript, and Cloudscape Design Components. The app runs as a PWA, stores working data locally in IndexedDB, and syncs queued inspections to the API when connectivity returns.
 
 ## Features
 
-- [x] **Offline-First**: Works without internet connection after first visit
-- [x] **PWA Support**: Installable on desktop and mobile
-- [x] **Dynamic Forms**: JSON-based form schemas with conditional visibility
-- [x] **Form Validation**: Multiple validation rule types with real-time feedback
-- [x] **Data Persistence**: localStorage-based data storage
-- [x] **Multi-Form Types**: Support for Electrical and HVAC inspections
-- [x] **Inspection Management**: View, filter, sort, and delete inspections
-- [x] **Session Management**: Editable session names and upload status tracking
-- [x] **Responsive Design**: Works on desktop, tablet, and mobile
+- [x] **Offline-first workflow**: cached shell plus durable local data storage
+- [x] **IndexedDB persistence**: inspections, current session, form data, sync queue, and worker leases
+- [x] **Background upload queue**: retries failed uploads with backoff and idempotency keys
+- [x] **Tenant-aware app model**: tenant bootstrap controls branding, enabled forms, and login requirements
+- [x] **User-scoped data isolation**: inspection storage is partitioned by tenant and user
+- [x] **Dynamic forms**: schema-driven sections, conditional visibility, and validation
+- [x] **Attachment support**: uploaded files and signatures are stored locally and included in sync
+- [x] **Localization**: bundled fallback labels with API-loaded translations
+- [x] **Responsive PWA**: installable on desktop and mobile
 
 ## Tech Stack
 
-- **Frontend**: React 18.3 + TypeScript 5.6
-- **UI Components**: Cloudscape Design Components 3.0
-- **Routing**: React Router 6.26
-- **Build Tool**: Vite 7.3
-- **PWA**: vite-plugin-pwa with Workbox
-- **Package Manager**: npm
+- **Frontend**: React 18 + TypeScript
+- **UI**: Cloudscape Design Components
+- **Routing**: React Router
+- **Build**: Vite
+- **PWA**: `vite-plugin-pwa` with service worker registration in `src/main.tsx`
+- **Testing**: Vitest + Testing Library
+- **Storage**: IndexedDB for app data and files, `localStorage` for lightweight preferences and auth state
 
 ## Getting Started
 
@@ -32,38 +33,35 @@ A modern, offline-first inspection form application built with React, TypeScript
 
 ### Local Development
 
-1. Clone the repository
-
 ```bash
 git clone https://github.com/yourusername/React-PoC.git
 cd React-PoC
-```
-
-2. Install dependencies
-
-```bash
 npm install
-```
-
-3. Start the development server
-
-```bash
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`.
+The dev server runs at `http://localhost:5173`.
 
-### Building for Production
+### Environment
+
+The app uses `VITE_API_BASE_URL` when provided. If it is unset, the code falls back to the default API base URL defined in `src/config.ts`.
+
+### Build
 
 ```bash
 npm run build
 ```
 
-This creates an optimized `dist` folder ready for deployment.
+### Tests
 
-### Testing Offline Mode
+```bash
+npm test
+npm run lint
+```
 
-1. Build and preview the production app:
+## Offline Behavior
+
+1. Build and preview the app:
 
 ```bash
 npm run build
@@ -71,198 +69,150 @@ npm run preview
 ```
 
 2. Open the app in Chrome or Edge.
-3. Open DevTools (`F12`) -> Network tab.
-4. Click the dropdown at the top left (currently `Online`).
-5. Select `Offline`.
-6. Refresh the page. The app should load from cache.
-7. Confirm that cached assets and `localStorage` still let the app function.
+3. In DevTools, switch the Network tab from `Online` to `Offline`.
+4. Refresh the page to confirm the PWA shell loads from cache.
+5. Create or edit an inspection.
+6. Confirm that inspection data remains available offline and sync resumes after reconnecting.
+
+## Application Model
+
+This is no longer a simple single-tenant form demo.
+
+- **Tenant bootstrap**: the app requests `/tenant-config` and merges the response with local tenant defaults.
+- **Tenant selection**: the active tenant comes from stored preference first, then hostname fallback.
+- **Login gating**: routes are protected when the tenant bootstrap marks login as required.
+- **Localization**: the app starts with bundled fallback labels, then fetches translations for the selected language.
+- **Background sync**: a headless `BackgroundUploadManager` continuously drains the local sync queue while online.
+
+## Storage Model
+
+Inspection persistence is split by responsibility.
+
+### IndexedDB
+
+Primary inspection data lives in IndexedDB.
+
+- `react-poc-app-data`
+- Stores: `inspections`, `currentSessions`, `formData`, `syncQueue`, `workerLeases`, `meta`
+- Scope key format: `{tenantId}:{userId}`
+- Migrates legacy inspection records from older `localStorage` keys on first access
+
+Attachment blobs live in a second IndexedDB database.
+
+- `react-poc-form-files`
+- Store: `files`
+
+### localStorage
+
+`localStorage` is still used, but only for lightweight browser state.
+
+- Tenant preference
+- Theme preference
+- Font preference
+- Language preference
+- User auth state (`userId`, roles)
+- Legacy customization values that are lazily migrated into newer preference keys
+
+## Sync Model
+
+Unsynced inspections are queued locally and uploaded in the background.
+
+- Queue entries are stored per tenant/user scope.
+- Each queue record keeps a durable idempotency key.
+- Failed uploads are retried with exponential backoff and jitter.
+- A worker lease in IndexedDB prevents multiple tabs from processing the same queue concurrently.
+- Uploaded inspections are removed from the queue after success.
 
 ## Project Structure
 
 ```text
 src/
+|-- BackgroundUploadManager.tsx    # Online/offline-aware queue processor
+|-- ConnectivityContext.tsx        # Connectivity checks and status state
+|-- Layout.tsx                     # Shared app shell for authenticated routes
+|-- LocalizationContext.tsx        # Language state and translation loading
+|-- TenantBootstrapContext.tsx     # Tenant bootstrap fetch + config state
+|-- appPreferences.ts              # localStorage-backed UI preferences
+|-- appState.ts                    # Preference state + cross-tab notifications
+|-- auth.ts                        # Simple auth persistence and permissions
+|-- config.ts                      # Tenant resolution and API URL builders
+|-- main.tsx                       # App bootstrap + provider composition
+|-- routes.tsx                     # Route tree and auth guards
+|-- syncQueue.ts                   # Local sync queue and worker lease logic
 |-- components/
-|   `-- FormRenderer.tsx      # Dynamic form rendering engine
+|   `-- FormRenderer.tsx           # Schema-driven form renderer
 |-- pages/
-|   |-- Home.tsx              # Home page
-|   |-- FillForm.tsx          # Form filling page
-|   |-- MyInspections.tsx     # Inspection management page
-|   |-- NewForm.tsx           # Form type selection
-|   `-- NewInspection.tsx     # Inspection creation
+|   |-- Home.tsx
+|   |-- Login.tsx
+|   |-- Register.tsx
+|   |-- NewInspection.tsx
+|   |-- FillForm.tsx
+|   |-- MyInspections.tsx
+|   `-- DebugInspection.tsx
+|-- repositories/
+|   `-- inspectionRepository.ts    # Inspection/form data persistence layer
 |-- resources/
-|   |-- electrical.json       # Electrical form schema
-|   `-- hvac.json             # HVAC form schema
-|-- utils/
-|   `-- FormValidator.ts      # Validation and visibility logic
-|-- Layout.tsx                # App layout with sidebar
-|-- routes.tsx                # Route definitions
-|-- types.ts                  # TypeScript interfaces
-`-- main.tsx                  # App entry point
+|   |-- electrical.json
+|   |-- electrical-sf.json
+|   |-- hvac.json
+|   |-- safety-checklist.json
+|   `-- translations/
+`-- utils/
+    |-- appDataStore.ts            # IndexedDB storage + localStorage migration
+    |-- fileStorage.ts             # IndexedDB file/blob storage
+    `-- FormValidator.ts           # Validation and visibility logic
 ```
 
-## Form Schemas
+## Forms and Content
 
-Forms are defined in JSON files under `src/resources/`:
+Form schemas are loaded from the API at `/form-schemas/:formType`. The repository still includes local schema assets under `src/resources/` for supported form types:
 
-- **Electrical**: `/src/resources/electrical.json`
-- **HVAC**: `/src/resources/hvac.json`
+- `electrical`
+- `electrical-sf`
+- `hvac`
+- `safety-checklist`
 
-Each form includes:
+Translations are fetched from `/translations/:language` with bundled fallback labels used when the request fails.
 
-- Field definitions with types, labels, and validation rules
-- Conditional visibility logic
-- External ID mappings for data export
+## Routes
 
-## Data Storage
-
-All inspection data is stored in the browser's `localStorage`:
-
-- `inspection_{sessionId}`: Persistent session metadata
-- `formData_{sessionId}`: Form field responses with external IDs
-- `currentSession`: Active session reference
-
-Data persists across:
-
-- Page refreshes
-- Browser restarts
-- Offline usage
-- Multiple browser windows
+- `/` redirects to `/home` or `/login` based on tenant bootstrap and auth state
+- `/login` handles tenant-aware login
+- `/register` handles tenant-aware registration
+- `/home` shows the main landing page
+- `/new-inspection` starts a new inspection
+- `/fill-form/:sessionId` edits an inspection session
+- `/my-inspections` lists saved inspections for the active tenant/user scope
+- `/debug-inspection/:sessionId` inspects stored data for a session
 
 ## Deployment to Azure
 
-### Prerequisites
+The project is set up for Azure Static Web Apps.
 
-- Azure account ([Create free account](https://azure.microsoft.com/free))
-- GitHub repository (public or private)
-- GitHub account with repo access
+- Build output: `dist`
+- SPA routing should fall back to `index.html`
+- The frontend expects the API endpoints described in `src/config.ts`
 
-### Setup Instructions
-
-1. **Create Azure Static Web App**
-
-   - Go to [Azure Portal](https://portal.azure.com)
-   - Click "Create a resource"
-   - Search for and select "Static Web App"
-   - Fill in details:
-     - **Resource Group**: Create new or select existing
-     - **Name**: `qhvac-inspection-tool` (or preferred name)
-     - **Region**: Select closest to your users
-     - **SKU**: Free or Standard
-     - **Source**: GitHub
-     - **GitHub Account**: Sign in and authorize Azure
-     - **Organization**: Select your GitHub org
-     - **Repository**: Select `React-PoC`
-     - **Branch**: `main`
-     - **Build Presets**: Custom
-     - **App location**: `/`
-     - **API location**: (leave blank)
-     - **Output location**: `dist`
-   - Click "Review + Create" -> "Create"
-
-2. **Azure Auto-Configuration**
-
-   After creation, Azure will:
-
-   - Generate a deployment token
-   - Automatically add `AZURE_STATIC_WEB_APPS_TOKEN` to GitHub repo secrets
-   - Trigger the first deployment workflow
-
-3. **Verify Deployment**
-
-   - Go to GitHub -> your repo -> **Actions** tab
-   - Watch the `Deploy to Azure Static Web Apps` workflow run
-   - Once complete, the app is live
-   - View the app URL in the Azure Portal under the Static Web App resource
-
-### GitHub Secrets
-
-The deployment workflow requires one secret:
-
-- **`AZURE_STATIC_WEB_APPS_TOKEN`**: Automatically set by Azure during Static Web App creation
-
-To verify the secret is present:
-
-1. Go to GitHub -> your repo -> Settings -> Secrets and variables -> Actions
-2. Confirm that `AZURE_STATIC_WEB_APPS_TOKEN` is listed
-3. If it is missing, create it manually:
-   - In Azure Portal, open your Static Web App
-   - Click "Manage deployment token"
-   - Copy the token
-   - Add it to GitHub repo secrets with key `AZURE_STATIC_WEB_APPS_TOKEN`
-
-### CI/CD Workflow
-
-The GitHub Actions workflow (`.github/workflows/deploy.yml`) automatically:
-
-- [x] Installs dependencies
-- [x] Runs TypeScript type checking
-- [x] Builds an optimized production bundle
-- [x] Deploys to Azure Static Web Apps
-- [x] Configures SPA routing (all routes -> `index.html`)
-- [x] Sets cache headers for optimal performance
-- [x] Includes security headers (XSS and clickjacking protection)
-
-**Deployment triggers:**
-
-- Commits to `main`
-- Pull requests to `main`
-
-### Post-Deployment
-
-Once deployed:
-
-1. **Update App URL**: Share the Azure Static Web App URL with users
-2. **Custom Domain** (optional):
-   - In Azure Portal -> Custom domains
-   - Add your own domain (for example, `inspections.yourdomain.com`)
-3. **HTTPS**: Automatic (Azure provides free SSL)
-4. **Offline Support**: PWA works fully offline after first visit
+The existing GitHub Actions workflow builds and deploys the app on pushes and pull requests to `main`.
 
 ## Scripts
 
 ```bash
-npm run dev       # Start development server
-npm run build     # Build for production
-npm run preview   # Preview the production build locally
-npm run typecheck # Run TypeScript checks
-npm run lint      # Run type checks and ESLint
+npm run dev
+npm run build
+npm run preview
+npm run typecheck
+npm run lint
+npm test
+npm run test:coverage
 ```
-
-## Adding a Feature with specKit
-
-Use the `create-new-feature.ps1` helper to scaffold a new feature spec:
-
-```powershell
-.\.specify\scripts\powershell\create-new-feature.ps1 -SpecPath "specs\001-new-feature\spec.md"
-```
-
-## Validation Rules
-
-Forms support these validation types:
-
-- `minLength`: Minimum string length
-- `maxLength`: Maximum string length
-- `min`: Minimum numeric value
-- `max`: Maximum numeric value
-- `pattern`: Regex pattern matching
-- `custom`: Custom validation function
-
-## Conditional Field Visibility
-
-Fields can be shown or hidden based on other field values using:
-
-- `equals`: Exact value match
-- `notEquals`: Value does not match
-- `contains`: String contains substring
-- `greaterThan`: Numeric comparison
-- `lessThan`: Numeric comparison
 
 ## Browser Support
 
-- Chrome/Edge 90+
+- Chrome / Edge 90+
 - Firefox 88+
 - Safari 14+
-- All modern mobile browsers
+- Modern mobile browsers
 
 ## License
 
