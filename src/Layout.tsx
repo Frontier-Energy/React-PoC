@@ -80,7 +80,7 @@ export function Layout() {
   const navigate = useNavigate();
   const { status, lastCheckedAt } = useConnectivity();
   const { labels, language } = useLocalization();
-  const { config, refreshConfig } = useTenantBootstrap();
+  const { config, diagnostics, refreshConfig } = useTenantBootstrap();
   const [activeDrawerId, setActiveDrawerId] = useState<string | null>(null);
   const [themePreferenceState, setThemePreferenceState] = useState<string | null>(() => getAppPreferenceState().theme);
   const [fontPreferenceState, setFontPreferenceState] = useState<string | null>(() => getAppPreferenceState().font);
@@ -194,6 +194,8 @@ export function Layout() {
   }));
   const canSelectTenant = isLoggedInAdmin() && hasPermission('tenant.select');
   const isLoggedIn = Boolean(getUserId());
+  const bootstrapStatusLabel = labels.bootstrap.status[diagnostics.status];
+  const bootstrapSourceLabel = labels.bootstrap.source[diagnostics.source];
 
   useEffect(() => {
     document.body.classList.add('app-theme');
@@ -450,6 +452,31 @@ export function Layout() {
           <Box fontSize="body-s" color="text-body-secondary">
             {labels.customization.preferencesSaved}
           </Box>
+          {canSelectTenant ? (
+            <SpaceBetween size="xs">
+              <Header variant="h3">{labels.bootstrap.diagnosticsHeader}</Header>
+              <Box>
+                <strong>{labels.bootstrap.statusLabel}:</strong> {bootstrapStatusLabel}
+              </Box>
+              <Box>
+                <strong>{labels.bootstrap.sourceLabel}:</strong> {bootstrapSourceLabel}
+              </Box>
+              <Box>
+                <strong>{labels.bootstrap.tenantLabel}:</strong> {diagnostics.activeTenantId}
+              </Box>
+              <Box>
+                <strong>{labels.bootstrap.lastAttemptLabel}:</strong>{' '}
+                {diagnostics.lastAttemptAt ? new Date(diagnostics.lastAttemptAt).toLocaleString() : labels.common.notProvided}
+              </Box>
+              <Box>
+                <strong>{labels.bootstrap.lastSuccessLabel}:</strong>{' '}
+                {diagnostics.lastSuccessAt ? new Date(diagnostics.lastSuccessAt).toLocaleString() : labels.common.notProvided}
+              </Box>
+              <Box>
+                <strong>{labels.bootstrap.errorLabel}:</strong> {diagnostics.errorMessage ?? labels.common.notProvided}
+              </Box>
+            </SpaceBetween>
+          ) : null}
         </SpaceBetween>
       ),
     },

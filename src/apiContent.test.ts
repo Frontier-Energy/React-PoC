@@ -49,6 +49,27 @@ describe('apiContent', () => {
     });
   });
 
+  it('merges fetched translations onto bundled fallback labels', async () => {
+    const partialLabels = {
+      ...getFallbackLabels('en'),
+      bootstrap: undefined,
+      app: {
+        ...getFallbackLabels('en').app,
+        title: 'Custom Title',
+      },
+    };
+    const response = new Response(JSON.stringify(partialLabels), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    vi.spyOn(global, 'fetch').mockResolvedValue(response);
+
+    await expect(fetchTranslations('en')).resolves.toMatchObject({
+      app: { title: 'Custom Title' },
+      bootstrap: { supportLink: 'QControl filure, please contact support' },
+    });
+  });
+
   it('rejects when the translations response is not ok', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 401 } as Response);
 

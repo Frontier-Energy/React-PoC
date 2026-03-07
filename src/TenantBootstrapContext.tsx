@@ -1,8 +1,9 @@
-import { Box, Header } from '@cloudscape-design/components';
+import { Box, Header, Link } from '@cloudscape-design/components';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { setLanguagePreference } from './appState';
 import { useLocalization } from './LocalizationContext';
 import {
+  readCachedTenantBootstrapConfig,
   fetchTenantBootstrapConfig,
   getDefaultTenantBootstrapConfig,
   getDefaultTenantBootstrapConfigForTenant,
@@ -10,9 +11,22 @@ import {
   type TenantBootstrapConfig,
 } from './tenantBootstrap';
 
+type BootstrapSource = 'network' | 'cache' | 'defaults';
+type BootstrapStatus = 'loading' | 'ready' | 'degraded';
+
+export interface TenantBootstrapDiagnostics {
+  status: BootstrapStatus;
+  source: BootstrapSource;
+  activeTenantId: string;
+  lastAttemptAt?: string;
+  lastSuccessAt?: string;
+  errorMessage?: string;
+}
+
 interface TenantBootstrapContextValue {
   loading: boolean;
   config: TenantBootstrapConfig;
+  diagnostics: TenantBootstrapDiagnostics;
   refreshConfig: (tenantId?: string) => Promise<void>;
 }
 
@@ -22,14 +36,37 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
   const { labels } = useLocalization();
   const [config, setConfig] = useState<TenantBootstrapConfig>(() => getDefaultTenantBootstrapConfig());
   const [loading, setLoading] = useState(true);
+  const [diagnostics, setDiagnostics] = useState<TenantBootstrapDiagnostics>(() => ({
+    status: 'loading',
+    source: 'defaults',
+    activeTenantId: getDefaultTenantBootstrapConfig().tenantId,
+  }));
   const requestIdRef = useRef(0);
 
   const refreshConfig = useCallback(
     async (tenantId?: string) => {
       const requestId = ++requestIdRef.current;
       const fallbackConfig = getDefaultTenantBootstrapConfigForTenant(tenantId);
-      setConfig(fallbackConfig);
-      persistSelectedTenant(fallbackConfig.tenantId);
+      const cachedConfig = readCachedTenantBootstrapConfig(tenantId);
+      const fallbackSource = cachedConfig ? 'cache' : 'defaults';
+      const immediateConfig = cachedConfig?.config ?? fallbackConfig;
+      const attemptAt = new Date().toISOString();
+
+      setLoading(true);
+      setConfig(immediateConfig);
+      persistSelectedTenant(immediateConfig.tenantId);
+      if (immediateConfig.language) {
+        setLanguagePreference(immediateConfig.language);
+      }
+      setDiagnostics((current) => ({
+        ...current,
+        status: 'loading',
+        source: fallbackSource,
+        activeTenantId: immediateConfig.tenantId,
+        lastAttemptAt: attemptAt,
+        lastSuccessAt: current.lastSuccessAt ?? cachedConfig?.savedAt,
+        errorMessage: undefined,
+      }));
       try {
         const resolvedConfig = await fetchTenantBootstrapConfig(tenantId);
         if (requestId !== requestIdRef.current) {
@@ -37,34 +74,48 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
         }
         setConfig(resolvedConfig);
         persistSelectedTenant(resolvedConfig.tenantId);
+        const successAt = new Date().toISOString();
+        setDiagnostics({
+          status: 'ready',
+          source: 'network',
+          activeTenantId: resolvedConfig.tenantId,
+          lastAttemptAt: successAt,
+          lastSuccessAt: successAt,
+          errorMessage: undefined,
+        });
         if (resolvedConfig.language) {
           setLanguagePreference(resolvedConfig.language);
         }
-      } catch {
+      } catch (error) {
         if (requestId !== requestIdRef.current) {
           return;
         }
-        setConfig(fallbackConfig);
-        persistSelectedTenant(fallbackConfig.tenantId);
+        const nextConfig = cachedConfig?.config ?? fallbackConfig;
+        setConfig(nextConfig);
+        persistSelectedTenant(nextConfig.tenantId);
+        setDiagnostics((current) => ({
+          status: 'degraded',
+          source: fallbackSource,
+          activeTenantId: nextConfig.tenantId,
+          lastAttemptAt: attemptAt,
+          lastSuccessAt: cachedConfig?.savedAt ?? current.lastSuccessAt,
+          errorMessage: error instanceof Error ? error.message : 'Bootstrap failed',
+        }));
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     },
     []
   );
 
   useEffect(() => {
-    let active = true;
     const load = async () => {
-      try {
-        await refreshConfig();
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+      await refreshConfig();
     };
-    load();
+    void load();
     return () => {
-      active = false;
       requestIdRef.current += 1;
     };
   }, [refreshConfig]);
@@ -73,20 +124,32 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
     () => ({
       loading,
       config,
+      diagnostics,
       refreshConfig,
     }),
-    [loading, config, refreshConfig]
+    [loading, config, diagnostics, refreshConfig]
   );
 
-  if (loading) {
-    return (
-      <Box padding="l">
-        <Header variant="h1">{labels.common.loading}</Header>
-      </Box>
-    );
-  }
-
-  return <TenantBootstrapContext.Provider value={value}>{children}</TenantBootstrapContext.Provider>;
+  return (
+    <TenantBootstrapContext.Provider value={value}>
+      {diagnostics.status === 'degraded' ? (
+        <div className="bootstrap-banner" role="alert">
+          <Header variant="h3">
+            {diagnostics.source === 'cache' ? labels.bootstrap.staleCacheTitle : labels.bootstrap.defaultsTitle}
+          </Header>
+          <Box variant="p">
+            {diagnostics.source === 'cache' ? labels.bootstrap.staleCacheBody : labels.bootstrap.defaultsBody}
+          </Box>
+          {diagnostics.source === 'defaults' ? (
+            <Link href="https://frontierenergy.com" external externalIconAriaLabel={labels.app.brand}>
+              {labels.bootstrap.supportLink}
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+      {children}
+    </TenantBootstrapContext.Provider>
+  );
 }
 
 export function useTenantBootstrap() {

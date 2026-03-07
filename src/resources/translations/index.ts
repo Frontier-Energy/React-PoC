@@ -24,6 +24,33 @@ export interface AppLabels {
   brand: string;
 }
 
+export interface BootstrapLabels {
+  loading: string;
+  staleCacheTitle: string;
+  staleCacheBody: string;
+  defaultsTitle: string;
+  defaultsBody: string;
+  supportLink: string;
+  diagnosticsHeader: string;
+  diagnosticsUnavailable: string;
+  statusLabel: string;
+  sourceLabel: string;
+  tenantLabel: string;
+  lastSuccessLabel: string;
+  lastAttemptLabel: string;
+  errorLabel: string;
+  source: {
+    network: string;
+    cache: string;
+    defaults: string;
+  };
+  status: {
+    loading: string;
+    ready: string;
+    degraded: string;
+  };
+}
+
 export interface NavLabels {
   newInspection: string;
   myInspections: string;
@@ -259,6 +286,7 @@ export interface Labels {
   languageName: string;
   common: CommonLabels;
   app: AppLabels;
+  bootstrap: BootstrapLabels;
   nav: NavLabels;
   drawers: DrawersLabels;
   connectivity: ConnectivityLabels;

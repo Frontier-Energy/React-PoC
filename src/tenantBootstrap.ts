@@ -3,6 +3,9 @@ import { getActiveTenant, getTenantById, getTenantBootstrapUrl } from './config'
 import { isLanguageCode, type LanguageCode } from './resources/translations';
 import { FormType } from './types';
 
+export const TENANT_BOOTSTRAP_CACHE_STORAGE_KEY = 'tenantBootstrapCache';
+export const DEFAULT_TENANT_BOOTSTRAP_TIMEOUT_MS = 4000;
+
 export interface TenantBootstrapConfig {
   tenantId: string;
   displayName: string;
@@ -14,6 +17,11 @@ export interface TenantBootstrapConfig {
   language?: LanguageCode;
   enabledForms: FormType[];
   loginRequired: boolean;
+}
+
+export interface CachedTenantBootstrapConfig {
+  savedAt: string;
+  config: TenantBootstrapConfig;
 }
 
 interface TenantBootstrapResponse {
@@ -56,6 +64,55 @@ const resolveOptionalBoolean = (...values: Array<boolean | undefined>): boolean 
   values.find((value) => typeof value === 'boolean');
 const resolveDefaultEnabledFormsForTenant = (tenantId: string): FormType[] =>
   DEFAULT_ENABLED_FORMS_BY_TENANT[tenantId.toLowerCase()] ?? DEFAULT_ENABLED_FORMS;
+const isTenantBootstrapConfig = (value: unknown): value is TenantBootstrapConfig => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Partial<TenantBootstrapConfig>;
+  return (
+    typeof candidate.tenantId === 'string' &&
+    typeof candidate.displayName === 'string' &&
+    typeof candidate.theme === 'string' &&
+    typeof candidate.font === 'string' &&
+    typeof candidate.showLeftFlyout === 'boolean' &&
+    typeof candidate.showRightFlyout === 'boolean' &&
+    typeof candidate.showInspectionStatsButton === 'boolean' &&
+    Array.isArray(candidate.enabledForms) &&
+    candidate.enabledForms.every((formType) => typeof formType === 'string' && isFormType(formType)) &&
+    typeof candidate.loginRequired === 'boolean' &&
+    (candidate.language === undefined || isLanguageCode(candidate.language))
+  );
+};
+const normalizeTenantBootstrapCacheKey = (tenantId: string) => tenantId.trim().toLowerCase();
+
+const readTenantBootstrapCacheStore = (): Record<string, CachedTenantBootstrapConfig> => {
+  const stored = localStorage.getItem(TENANT_BOOTSTRAP_CACHE_STORAGE_KEY);
+  if (!stored) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(stored) as Record<string, CachedTenantBootstrapConfig>;
+    return Object.entries(parsed).reduce<Record<string, CachedTenantBootstrapConfig>>((result, [key, value]) => {
+      if (
+        value &&
+        typeof value === 'object' &&
+        typeof value.savedAt === 'string' &&
+        isTenantBootstrapConfig(value.config)
+      ) {
+        result[key] = value;
+      }
+      return result;
+    }, {});
+  } catch {
+    return {};
+  }
+};
+
+const writeTenantBootstrapCacheStore = (cache: Record<string, CachedTenantBootstrapConfig>) => {
+  localStorage.setItem(TENANT_BOOTSTRAP_CACHE_STORAGE_KEY, JSON.stringify(cache));
+};
 
 export const getDefaultTenantBootstrapConfig = (): TenantBootstrapConfig => {
   const activeTenant = getActiveTenant();
@@ -142,14 +199,56 @@ export const mapTenantBootstrapResponse = (
   };
 };
 
-export const fetchTenantBootstrapConfig = async (tenantId?: string): Promise<TenantBootstrapConfig> => {
+export const readCachedTenantBootstrapConfig = (tenantId?: string): CachedTenantBootstrapConfig | null => {
   const defaults = getDefaultTenantBootstrapConfigForTenant(tenantId);
-  const response = await fetch(getTenantBootstrapUrl(defaults.tenantId));
-  if (!response.ok) {
-    throw new Error(`Tenant bootstrap request failed with status ${response.status}`);
+  const cache = readTenantBootstrapCacheStore();
+  return cache[normalizeTenantBootstrapCacheKey(defaults.tenantId)] ?? null;
+};
+
+export const cacheTenantBootstrapConfig = (config: TenantBootstrapConfig, savedAt = new Date().toISOString()) => {
+  const cache = readTenantBootstrapCacheStore();
+  cache[normalizeTenantBootstrapCacheKey(config.tenantId)] = {
+    savedAt,
+    config,
+  };
+  writeTenantBootstrapCacheStore(cache);
+};
+
+export const clearCachedTenantBootstrapConfig = (tenantId?: string) => {
+  const defaults = getDefaultTenantBootstrapConfigForTenant(tenantId);
+  const cache = readTenantBootstrapCacheStore();
+  delete cache[normalizeTenantBootstrapCacheKey(defaults.tenantId)];
+  writeTenantBootstrapCacheStore(cache);
+};
+
+export const fetchTenantBootstrapConfig = async (
+  tenantId?: string,
+  options?: { timeoutMs?: number }
+): Promise<TenantBootstrapConfig> => {
+  const defaults = getDefaultTenantBootstrapConfigForTenant(tenantId);
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TENANT_BOOTSTRAP_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(getTenantBootstrapUrl(defaults.tenantId), {
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Tenant bootstrap request failed with status ${response.status}`);
+    }
+    const payload = (await response.json()) as TenantBootstrapResponse;
+    const resolvedConfig = mapTenantBootstrapResponse(payload, defaults);
+    cacheTenantBootstrapConfig(resolvedConfig);
+    return resolvedConfig;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Tenant bootstrap request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
-  const payload = (await response.json()) as TenantBootstrapResponse;
-  return mapTenantBootstrapResponse(payload, defaults);
 };
 
 export const persistSelectedTenant = (tenantId: string) => {

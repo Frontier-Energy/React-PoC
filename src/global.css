@@ -46,6 +46,20 @@ body.app-theme {
   /* background-color: #000000; */
 }
 
+.bootstrap-banner {
+  margin: 16px;
+  padding: 16px;
+  border: 1px solid #d13212;
+  border-radius: var(--app-border-radius);
+  background: linear-gradient(135deg, #fff5f5 0%, #fff0e8 100%);
+  color: #5f1d13;
+}
+
+.bootstrap-banner a {
+  color: #a61b12;
+  font-weight: 700;
+}
+
 .app-content {
   min-height: 100%;
   display: flex;

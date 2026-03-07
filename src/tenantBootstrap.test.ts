@@ -1,11 +1,16 @@
 import { FormType } from './types';
 import { LEGACY_CUSTOMIZATION_STORAGE_KEY, TENANT_PREFERENCE_STORAGE_KEY } from './appPreferences';
 import {
+  cacheTenantBootstrapConfig,
+  clearCachedTenantBootstrapConfig,
+  DEFAULT_TENANT_BOOTSTRAP_TIMEOUT_MS,
   fetchTenantBootstrapConfig,
   getDefaultTenantBootstrapConfig,
   getDefaultTenantBootstrapConfigForTenant,
   mapTenantBootstrapResponse,
   persistSelectedTenant,
+  readCachedTenantBootstrapConfig,
+  TENANT_BOOTSTRAP_CACHE_STORAGE_KEY,
 } from './tenantBootstrap';
 
 describe('tenantBootstrap', () => {
@@ -192,7 +197,10 @@ describe('tenantBootstrap', () => {
 
     const config = await fetchTenantBootstrapConfig('qhvac');
 
-    expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining('tenantId=qhvac'));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('tenantId=qhvac'),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(config.tenantId).toBe('qhvac');
     expect(config.enabledForms).toEqual([FormType.HVAC]);
   });
@@ -204,6 +212,68 @@ describe('tenantBootstrap', () => {
     } as Response);
 
     await expect(fetchTenantBootstrapConfig()).rejects.toThrow('Tenant bootstrap request failed with status 500');
+  });
+
+  it('caches resolved bootstrap configs by tenant', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        tenantId: 'opscentral',
+        formTypes: [FormType.SafetyChecklist],
+      }),
+    } as Response);
+
+    const config = await fetchTenantBootstrapConfig();
+    const cached = readCachedTenantBootstrapConfig(config.tenantId);
+
+    expect(cached?.config).toEqual(config);
+    expect(cached?.savedAt).toBeTruthy();
+  });
+
+  it('reads and clears cached bootstrap config safely', () => {
+    const defaults = getDefaultTenantBootstrapConfigForTenant('qhvac');
+    cacheTenantBootstrapConfig(defaults, '2026-03-07T10:00:00.000Z');
+
+    expect(readCachedTenantBootstrapConfig('qhvac')).toEqual({
+      savedAt: '2026-03-07T10:00:00.000Z',
+      config: defaults,
+    });
+
+    clearCachedTenantBootstrapConfig('qhvac');
+
+    expect(readCachedTenantBootstrapConfig('qhvac')).toBeNull();
+  });
+
+  it('ignores malformed cache payloads', () => {
+    localStorage.setItem(TENANT_BOOTSTRAP_CACHE_STORAGE_KEY, '{not-json');
+
+    expect(readCachedTenantBootstrapConfig()).toBeNull();
+  });
+
+  it('throws a timeout error when bootstrap exceeds the timeout window', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(global, 'fetch').mockImplementation(
+      () =>
+        new Promise<Response>((_, reject) => {
+          const abortError = new Error('aborted');
+          abortError.name = 'AbortError';
+          const timeoutId = window.setTimeout(() => reject(abortError), DEFAULT_TENANT_BOOTSTRAP_TIMEOUT_MS);
+          void timeoutId;
+        })
+    );
+
+    try {
+      const request = fetchTenantBootstrapConfig().catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(DEFAULT_TENANT_BOOTSTRAP_TIMEOUT_MS);
+
+      const error = await request;
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe(
+        `Tenant bootstrap request timed out after ${DEFAULT_TENANT_BOOTSTRAP_TIMEOUT_MS}ms`
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('persists only the selected tenant preference', () => {
