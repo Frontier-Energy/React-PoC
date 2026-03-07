@@ -9,9 +9,10 @@ function ConnectivityStatusProbe() {
 
 describe('ConnectivityProvider', () => {
   it('throws when useConnectivity is used outside provider', () => {
-    expect(() => render(<ConnectivityStatusProbe />)).toThrow(
-      'useConnectivity must be used within a ConnectivityProvider'
-    );
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => render(<ConnectivityStatusProbe />)).toThrow('useConnectivity must be used within a ConnectivityProvider');
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('sets online when check succeeds', async () => {

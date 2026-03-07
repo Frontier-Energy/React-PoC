@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LocalizationProvider } from '../LocalizationContext';
 import { Login } from './Login';
+import { getFallbackLabels } from '../resources/translations/fallback';
 
 const { navigateMock, setUserIdMock } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
@@ -80,6 +81,29 @@ vi.mock('@cloudscape-design/components', async () => {
 });
 
 describe('Login', () => {
+  const buildTranslationResponse = (language: 'en' | 'es') =>
+    new Response(JSON.stringify(getFallbackLabels(language)), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  const withLoginResponse = (response: Response | Promise<Response>) => {
+    vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/auth/login')) {
+        return Promise.resolve(response);
+      }
+      if (url.includes('/translations/es')) {
+        return Promise.resolve(buildTranslationResponse('es'));
+      }
+      if (url.includes('/translations/en')) {
+        return Promise.resolve(buildTranslationResponse('en'));
+      }
+
+      throw new Error(`Unexpected fetch call in Login test: ${url}`);
+    });
+  };
+
   beforeEach(() => {
     navigateMock.mockReset();
     setUserIdMock.mockReset();
@@ -93,7 +117,7 @@ describe('Login', () => {
       </LocalizationProvider>
     );
 
-    expect(await screen.findByText('Login')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Login' })).toBeInTheDocument();
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
@@ -110,7 +134,7 @@ describe('Login', () => {
   });
 
   it('logs in and navigates when lookup returns a user id', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    withLoginResponse({
       ok: true,
       json: async () => ({ userId: 'abc-123' }),
     } as Response);
@@ -133,7 +157,7 @@ describe('Login', () => {
   });
 
   it('assigns admin role for @frontierenergy.com emails during login', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    withLoginResponse({
       ok: true,
       json: async () => ({ userId: 'abc-123' }),
     } as Response);
@@ -156,7 +180,7 @@ describe('Login', () => {
   });
 
   it('shows missing-user-id error when lookup response has no user id', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    withLoginResponse({
       ok: true,
       json: async () => ({}),
     } as Response);
@@ -179,7 +203,20 @@ describe('Login', () => {
 
   it('shows lookup error when fetch fails', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('network error'));
+    vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/auth/login')) {
+        return Promise.reject(new Error('network error'));
+      }
+      if (url.includes('/translations/es')) {
+        return Promise.resolve(buildTranslationResponse('es'));
+      }
+      if (url.includes('/translations/en')) {
+        return Promise.resolve(buildTranslationResponse('en'));
+      }
+
+      throw new Error(`Unexpected fetch call in Login test: ${url}`);
+    });
 
     render(
       <LocalizationProvider>
@@ -199,7 +236,7 @@ describe('Login', () => {
 
   it('shows missing-user-id error when lookup returns non-ok response', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    withLoginResponse({
       ok: false,
       status: 401,
     } as Response);

@@ -12,6 +12,7 @@ interface LocalizationContextValue {
 }
 
 const LocalizationContext = createContext<LocalizationContextValue | undefined>(undefined);
+const areLabelsEqual = (left: Labels, right: Labels) => JSON.stringify(left) === JSON.stringify(right);
 
 const readStoredLanguage = (): LanguageCode => {
   return getAppPreferenceState().language ?? defaultLanguage;
@@ -32,13 +33,14 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    setLabels(getFallbackLabels(language));
+    const fallbackLabels = getFallbackLabels(language);
+    setLabels((current) => (areLabelsEqual(current, fallbackLabels) ? current : fallbackLabels));
 
     const load = async () => {
       try {
         const resolvedLabels = await fetchTranslations(language);
         if (active) {
-          setLabels(resolvedLabels);
+          setLabels((current) => (areLabelsEqual(current, resolvedLabels) ? current : resolvedLabels));
         }
       } catch (error) {
         if (active) {

@@ -111,6 +111,7 @@ describe('BackgroundUploadManager', () => {
   });
 
   it('marks failed uploads for retry with backoff while keeping the same idempotency key', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(Math, 'random').mockReturnValue(0);
     vi.mocked(global.fetch).mockResolvedValue({ ok: false, status: 500 } as Response);
 
@@ -138,6 +139,7 @@ describe('BackgroundUploadManager', () => {
     expect((persistedEntry?.nextAttemptAt ?? 0) - (persistedEntry?.lastAttemptAt ?? 0)).toBeGreaterThanOrEqual(4_500);
     expect(inspectionRepository.loadById(local.id)?.uploadStatus).toBe(UploadStatus.Failed);
     expect(deleteFiles).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('coordinates across tabs through the shared worker lease', async () => {

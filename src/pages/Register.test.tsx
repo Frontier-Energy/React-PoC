@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LocalizationProvider } from '../LocalizationContext';
 import { Register } from './Register';
+import { getFallbackLabels } from '../resources/translations/fallback';
 
 const { navigateMock, setUserIdMock } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
@@ -83,6 +84,29 @@ vi.mock('@cloudscape-design/components', async () => {
 });
 
 describe('Register', () => {
+  const buildTranslationResponse = (language: 'en' | 'es') =>
+    new Response(JSON.stringify(getFallbackLabels(language)), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  const withRegisterResponse = (response: Response | Promise<Response>) => {
+    vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/auth/register')) {
+        return Promise.resolve(response);
+      }
+      if (url.includes('/translations/es')) {
+        return Promise.resolve(buildTranslationResponse('es'));
+      }
+      if (url.includes('/translations/en')) {
+        return Promise.resolve(buildTranslationResponse('en'));
+      }
+
+      throw new Error(`Unexpected fetch call in Register test: ${url}`);
+    });
+  };
+
   const fillRequiredFields = () => {
     fireEvent.change(screen.getByPlaceholderText('you@example.com'), { target: { value: 'me@example.com' } });
     fireEvent.change(screen.getByPlaceholderText('First name'), { target: { value: 'Jane' } });
@@ -109,7 +133,7 @@ describe('Register', () => {
   });
 
   it('registers and navigates to inspections when response contains user id', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    withRegisterResponse({
       ok: true,
       json: async () => ({ userID: 'registered-user' }),
     } as Response);
@@ -130,7 +154,7 @@ describe('Register', () => {
   });
 
   it('navigates to login when registration succeeds without a user id', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    withRegisterResponse({
       ok: true,
       json: async () => ({}),
     } as Response);
@@ -152,7 +176,7 @@ describe('Register', () => {
 
   it('handles successful response with non-JSON payload by warning and navigating to login', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    withRegisterResponse({
       ok: true,
       json: async () => {
         throw new Error('not json');
@@ -175,7 +199,7 @@ describe('Register', () => {
   });
 
   it('shows invalid-input message for 400 responses', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    withRegisterResponse({
       ok: false,
       status: 400,
       json: async () => ({}),
@@ -199,7 +223,8 @@ describe('Register', () => {
   });
 
   it('shows server-error message for non-400/422 failures', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue({
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    withRegisterResponse({
       ok: false,
       status: 500,
       json: async () => ({}),
@@ -218,10 +243,25 @@ describe('Register', () => {
       'Registration failed due to a server error. Please try again later.'
     );
     expect(errors.length).toBeGreaterThan(0);
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('falls back to generic registration error when thrown value is not an Error instance', async () => {
-    vi.spyOn(global, 'fetch').mockRejectedValue('network down');
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/auth/register')) {
+        return Promise.reject('network down');
+      }
+      if (url.includes('/translations/es')) {
+        return Promise.resolve(buildTranslationResponse('es'));
+      }
+      if (url.includes('/translations/en')) {
+        return Promise.resolve(buildTranslationResponse('en'));
+      }
+
+      throw new Error(`Unexpected fetch call in Register test: ${url}`);
+    });
 
     render(
       <LocalizationProvider>
@@ -234,6 +274,7 @@ describe('Register', () => {
 
     const errors = await screen.findAllByText('Unable to register. Please try again.');
     expect(errors.length).toBeGreaterThan(0);
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('navigates to login when Back to Login is clicked', () => {

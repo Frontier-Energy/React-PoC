@@ -7,9 +7,11 @@ import {
 } from './appPreferences';
 import { LocalizationProvider, useLocalization } from './LocalizationContext';
 import type { Labels } from './resources/translations';
+import { getFallbackLabels } from './resources/translations/fallback';
 
 const makeLabels = (language: 'en' | 'es'): Labels =>
   ({
+    ...getFallbackLabels(language),
     languageName: language === 'en' ? 'English' : 'Espanol',
     home: {
       title: language === 'en' ? 'Inspection Forms' : 'Formularios de inspeccion',
@@ -52,9 +54,10 @@ describe('LocalizationContext', () => {
   });
 
   it('throws when useLocalization is used outside provider', () => {
-    expect(() => render(<LocalizationProbe />)).toThrow(
-      'useLocalization must be used within a LocalizationProvider'
-    );
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => render(<LocalizationProbe />)).toThrow('useLocalization must be used within a LocalizationProvider');
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('uses default language when no storage exists', () => {

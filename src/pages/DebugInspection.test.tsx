@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LocalizationProvider } from '../LocalizationContext';
 import { DebugInspection } from './DebugInspection';
 import type { InspectionSession } from '../types';
@@ -35,6 +35,33 @@ const {
   };
 });
 
+const {
+  fetchFormSchemaMock,
+  getFileMock,
+  getFileReferencesMock,
+  createObjectUrlMock,
+  revokeObjectUrlMock,
+  anchorClickMock,
+} = vi.hoisted(() => ({
+  fetchFormSchemaMock: vi.fn(async () => ({
+    formName: 'Schema',
+    sections: [
+      {
+        title: 'Evidence',
+        fields: [
+          { id: 'fileSingle', label: 'Single File', type: 'file', externalID: 'ext.fileSingle' },
+          { id: 'signature', label: 'Signature', type: 'signature' },
+        ],
+      },
+    ],
+  })),
+  getFileMock: vi.fn(async () => null),
+  getFileReferencesMock: vi.fn(() => []),
+  createObjectUrlMock: vi.fn(() => 'blob:preview-url'),
+  revokeObjectUrlMock: vi.fn(),
+  anchorClickMock: vi.fn(),
+}));
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return {
@@ -60,10 +87,7 @@ vi.mock('../repositories/inspectionRepository', () => ({
 }));
 
 vi.mock('../apiContent', () => ({
-  fetchFormSchema: vi.fn(async () => ({
-    formName: 'Schema',
-    sections: [],
-  })),
+  fetchFormSchema: (...args: unknown[]) => fetchFormSchemaMock(...args),
   fetchTranslations: vi.fn(async () => ({
     languageName: 'English',
     common: {
@@ -274,11 +298,11 @@ vi.mock('../apiContent', () => ({
 }));
 
 vi.mock('../utils/fileStorage', () => ({
-  getFile: vi.fn(async () => null),
+  getFile: (...args: unknown[]) => getFileMock(...args),
 }));
 
 vi.mock('../utils/formDataUtils', () => ({
-  getFileReferences: vi.fn(() => []),
+  getFileReferences: (...args: unknown[]) => getFileReferencesMock(...args),
 }));
 
 vi.mock('@cloudscape-design/components', async () => {
@@ -291,8 +315,24 @@ vi.mock('@cloudscape-design/components', async () => {
       </button>
     ),
     Container: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-    Header: ({ children }: { children: React.ReactNode }) => <h1>{children}</h1>,
-    Modal: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    Header: ({ children, actions }: { children: React.ReactNode; actions?: React.ReactNode }) => (
+      <div>
+        {actions}
+        <h1>{children}</h1>
+      </div>
+    ),
+    Modal: ({
+      children,
+      footer,
+    }: {
+      children: React.ReactNode;
+      footer?: React.ReactNode;
+    }) => (
+      <div>
+        {children}
+        {footer}
+      </div>
+    ),
     SpaceBetween: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   };
 });
@@ -306,12 +346,59 @@ const renderPage = () =>
 
 describe('DebugInspection', () => {
   beforeEach(() => {
+    const originalCreateElement = document.createElement.bind(document);
     setSessionId('scoped-session');
     navigateMock.mockReset();
     loadByIdMock.mockClear();
     loadByIdMock.mockImplementation(() => scopedInspection);
     loadFormDataMock.mockClear();
-    loadFormDataMock.mockImplementation(() => ({ 'ext.fileSingle': { id: 'file-1' } }));
+    loadFormDataMock.mockImplementation(() => ({
+      'ext.fileSingle': { id: 'file-1', name: 'proof.jpg', type: 'image/jpeg', size: 128 },
+    }));
+    fetchFormSchemaMock.mockClear();
+    fetchFormSchemaMock.mockImplementation(async () => ({
+      formName: 'Schema',
+      sections: [
+        {
+          title: 'Evidence',
+          fields: [
+            { id: 'fileSingle', label: 'Single File', type: 'file', externalID: 'ext.fileSingle' },
+            { id: 'signature', label: 'Signature', type: 'signature' },
+          ],
+        },
+      ],
+    }));
+    getFileMock.mockClear();
+    getFileMock.mockResolvedValue(null);
+    getFileReferencesMock.mockClear();
+    getFileReferencesMock.mockImplementation((value?: unknown) => {
+      if (!value || typeof value !== 'object') {
+        return [];
+      }
+
+      return [value];
+    });
+    createObjectUrlMock.mockClear();
+    revokeObjectUrlMock.mockClear();
+    anchorClickMock.mockClear();
+    vi.stubGlobal(
+      'URL',
+      Object.assign(globalThis.URL, {
+        createObjectURL: createObjectUrlMock,
+        revokeObjectURL: revokeObjectUrlMock,
+      })
+    );
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      if (tagName === 'a') {
+        return {
+          click: anchorClickMock,
+          href: '',
+          download: '',
+        } as unknown as HTMLAnchorElement;
+      }
+
+      return originalCreateElement(tagName);
+    });
   });
 
   it('loads form data using the resolved inspection scope', async () => {
@@ -324,5 +411,87 @@ describe('DebugInspection', () => {
       });
       expect(loadFormDataMock).toHaveBeenCalledWith('scoped-session', scopedInspection);
     });
+  });
+
+  it('shows a missing inspection id error when the route param is absent', async () => {
+    setSessionId(undefined);
+
+    renderPage();
+
+    expect(await screen.findByText(/Inspection ID is required\./)).toBeInTheDocument();
+    expect(loadByIdMock).not.toHaveBeenCalled();
+  });
+
+  it('renders the no-files state when the inspection exists but has no files', async () => {
+    getFileReferencesMock.mockReturnValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText('No files or signatures found.')).toBeInTheDocument();
+  });
+
+  it('shows the schema load error when the schema request fails', async () => {
+    fetchFormSchemaMock.mockRejectedValue(new Error('schema failed'));
+
+    renderPage();
+
+    expect(await screen.findByText('Failed to load form schema.')).toBeInTheDocument();
+  });
+
+  it('renders file metadata and downloads stored files', async () => {
+    getFileMock.mockResolvedValueOnce({
+      blob: new Blob(['abc'], { type: 'image/jpeg' }),
+      name: 'proof.jpg',
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('proof.jpg')).toBeInTheDocument();
+    expect(screen.getByText('128 B')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }));
+
+    await waitFor(() => {
+      expect(anchorClickMock).toHaveBeenCalled();
+      expect(createObjectUrlMock).toHaveBeenCalled();
+      expect(revokeObjectUrlMock).toHaveBeenCalledWith('blob:preview-url');
+    });
+  });
+
+  it('opens and closes an image preview for previewable files', async () => {
+    getFileMock.mockResolvedValueOnce({
+      blob: new Blob(['abc'], { type: 'image/jpeg' }),
+      name: 'proof.jpg',
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Preview' }));
+
+    expect(await screen.findByAltText('proof.jpg')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    await waitFor(() => {
+      expect(revokeObjectUrlMock).toHaveBeenCalledWith('blob:preview-url');
+    });
+  });
+
+  it('does not preview non-image files and shows a placeholder instead', async () => {
+    loadFormDataMock.mockImplementation(() => ({ signature: { id: 'file-2', name: 'signed.pdf', type: 'application/pdf', size: 2048 } }));
+    getFileReferencesMock.mockImplementation((value?: unknown) => (value ? [value] : []));
+
+    renderPage();
+
+    expect(await screen.findByText('signed.pdf')).toBeInTheDocument();
+    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Preview' })).not.toBeInTheDocument();
+  });
+
+  it('navigates back to the inspection list when the header action is clicked', async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to My Inspections' }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/my-inspections');
   });
 });

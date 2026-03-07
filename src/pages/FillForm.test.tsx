@@ -594,11 +594,13 @@ describe('FillForm', () => {
   });
 
   it('shows schema load error when form type module cannot be loaded', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     setSessionStorage('durability-session', { formType: 'missing-form' });
 
     renderPage();
 
     expect(await screen.findByText('Error loading form schema')).toBeInTheDocument();
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('keeps showing loading while the schema request is still in flight', async () => {
