@@ -1,25 +1,28 @@
-import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box, Table, Header, SpaceBetween, FormField, Select, Link } from '@cloudscape-design/components';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box, Link } from '@cloudscape-design/components';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 import { useConnectivity } from './ConnectivityContext';
 import {
-  clearFontPreference,
-  clearThemePreference,
   getAppPreferenceState,
-  setFontPreference,
-  setLanguagePreference,
-  setSelectedTenantId,
-  setThemePreference,
   subscribeToAppPreferenceState,
 } from './appState';
 import { clearUserId, getUserId, hasPermission, isLoggedInAdmin } from './auth';
 import { UploadStatus } from './types';
 import type { SelectProps, SideNavigationProps } from '@cloudscape-design/components';
 import { useLocalization } from './LocalizationContext';
-import { formatTemplate, isLanguageCode } from './resources/translations';
+import { formatTemplate } from './resources/translations';
 import { getActiveTenant, getTenantById, TENANTS } from './config';
 import { inspectionRepository } from './repositories/inspectionRepository';
 import { useTenantBootstrap } from './TenantBootstrapContext';
+
+const CustomizationDrawer = lazy(async () => {
+  const module = await import('./layout/CustomizationDrawer');
+  return { default: module.CustomizationDrawer };
+});
+const InspectionStatsDrawer = lazy(async () => {
+  const module = await import('./layout/InspectionStatsDrawer');
+  return { default: module.InspectionStatsDrawer };
+});
 
 const themeStyles: Record<
   string,
@@ -299,33 +302,12 @@ export function Layout() {
               </span>
             ),
           },
-          content: (
-            <SpaceBetween size="s">
-              <Header variant="h3">{labels.inspectionStats.header}</Header>
-              <Table
-                variant="embedded"
-                trackBy="status"
-                columnDefinitions={[
-                  {
-                    id: 'status',
-                    header: labels.inspectionStats.statusHeader,
-                    cell: (item) => item.label,
-                  },
-                  {
-                    id: 'count',
-                    header: labels.inspectionStats.countHeader,
-                    cell: (item) => item.count,
-                  },
-                ]}
-                items={statsItems}
-                empty={
-                  <Box textAlign="center" color="inherit">
-                    <b>{labels.inspectionStats.empty}</b>
-                  </Box>
-                }
-              />
-            </SpaceBetween>
-          ),
+          content:
+            activeDrawerId === 'inspection-stats' ? (
+              <Suspense fallback={<Box>Loading...</Box>}>
+                <InspectionStatsDrawer labels={labels} statsItems={statsItems} />
+              </Suspense>
+            ) : null,
         },
       ]
       : []),
@@ -347,138 +329,28 @@ export function Layout() {
           </span>
         ),
       },
-      content: (
-        <SpaceBetween size="s">
-          <Header variant="h3">{labels.customization.header}</Header>
-          <Box fontWeight="bold">{labels.customization.userLevelHeader}</Box>
-          <FormField label={labels.customization.themeLabel}>
-            <Select
-              selectedOption={
-                themeOptions.find((option) => option.value === activeTheme) ?? themeOptions[0]
-              }
-              onChange={(event) => {
-                const nextTheme = event.detail.selectedOption.value ?? activeTheme;
-                setThemePreference(nextTheme);
-              }}
-              options={themeOptions}
+      content:
+        activeDrawerId === 'customization' ? (
+          <Suspense fallback={<Box>Loading...</Box>}>
+            <CustomizationDrawer
+              labels={labels}
+              language={language}
+              activeTheme={activeTheme}
+              activeFont={activeFont}
+              configTenantId={config.tenantId}
+              canSelectTenant={canSelectTenant}
+              isLoggedIn={isLoggedIn}
+              themeOptions={themeOptions}
+              fontOptions={fontOptions}
+              languageOptions={languageOptions}
+              tenantOptions={tenantOptions}
+              refreshConfig={refreshConfig}
+              diagnostics={diagnostics}
+              bootstrapStatusLabel={bootstrapStatusLabel}
+              bootstrapSourceLabel={bootstrapSourceLabel}
             />
-          </FormField>
-          <FormField label={labels.customization.fontLabel}>
-            <Select
-              selectedOption={
-                fontOptions.find((option) => option.value === activeFont) ?? fontOptions[0]
-              }
-              onChange={(event) => {
-                const nextFont = event.detail.selectedOption.value ?? activeFont;
-                setFontPreference(nextFont);
-              }}
-              options={fontOptions}
-            />
-          </FormField>
-          <FormField label={labels.customization.languageLabel}>
-            <Select
-              selectedOption={
-                languageOptions.find((option) => option.value === language) ?? languageOptions[0]
-              }
-              onChange={(event) => {
-                const selectedValue = event.detail.selectedOption.value;
-                const nextLanguage = isLanguageCode(selectedValue) ? selectedValue : language;
-                setLanguagePreference(nextLanguage);
-              }}
-              options={languageOptions}
-            />
-          </FormField>
-          <Box fontWeight="bold">{labels.customization.adminLevelHeader}</Box>
-          {canSelectTenant ? (
-            <FormField label={labels.customization.tenantLabel}>
-              <Select
-                selectedOption={
-                  tenantOptions.find((option) => option.value === config.tenantId) ?? tenantOptions[0]
-                }
-                onChange={(event) => {
-                  const selectedTenantId = event.detail.selectedOption.value;
-                  const nextTenant = selectedTenantId ? getTenantById(selectedTenantId) : undefined;
-                  if (!nextTenant) {
-                    return;
-                  }
-                  setSelectedTenantId(nextTenant.tenantId);
-                  clearThemePreference();
-                  clearFontPreference();
-                  void refreshConfig(nextTenant.tenantId);
-                }}
-                options={tenantOptions}
-              />
-            </FormField>
-          ) : (
-            <SpaceBetween size="xs">
-              <Box fontSize="body-s" color="text-body-secondary">
-                {labels.customization.adminTenantAccessNotice}
-              </Box>
-              {!isLoggedIn ? (
-                <SpaceBetween size="xxs">
-                  <Link
-                    href="/register"
-                    onFollow={(event) => {
-                      event.preventDefault();
-                      navigate('/register');
-                    }}
-                  >
-                    {labels.customization.registerLink}
-                  </Link>
-                  <Link
-                    href="/login"
-                    onFollow={(event) => {
-                      event.preventDefault();
-                      navigate('/login');
-                    }}
-                  >
-                    {labels.customization.loginLink}
-                  </Link>
-                </SpaceBetween>
-              ) : (
-                <Link
-                  href="#/logout"
-                  onFollow={(event) => {
-                    event.preventDefault();
-                    clearUserId();
-                    navigate('/login');
-                  }}
-                >
-                  {labels.nav.logout}
-                </Link>
-              )}
-            </SpaceBetween>
-          )}
-          <Box fontSize="body-s" color="text-body-secondary">
-            {labels.customization.preferencesSaved}
-          </Box>
-          {canSelectTenant ? (
-            <SpaceBetween size="xs">
-              <Header variant="h3">{labels.bootstrap.diagnosticsHeader}</Header>
-              <Box>
-                <strong>{labels.bootstrap.statusLabel}:</strong> {bootstrapStatusLabel}
-              </Box>
-              <Box>
-                <strong>{labels.bootstrap.sourceLabel}:</strong> {bootstrapSourceLabel}
-              </Box>
-              <Box>
-                <strong>{labels.bootstrap.tenantLabel}:</strong> {diagnostics.activeTenantId}
-              </Box>
-              <Box>
-                <strong>{labels.bootstrap.lastAttemptLabel}:</strong>{' '}
-                {diagnostics.lastAttemptAt ? new Date(diagnostics.lastAttemptAt).toLocaleString() : labels.common.notProvided}
-              </Box>
-              <Box>
-                <strong>{labels.bootstrap.lastSuccessLabel}:</strong>{' '}
-                {diagnostics.lastSuccessAt ? new Date(diagnostics.lastSuccessAt).toLocaleString() : labels.common.notProvided}
-              </Box>
-              <Box>
-                <strong>{labels.bootstrap.errorLabel}:</strong> {diagnostics.errorMessage ?? labels.common.notProvided}
-              </Box>
-            </SpaceBetween>
-          ) : null}
-        </SpaceBetween>
-      ),
+          </Suspense>
+        ) : null,
     },
   ];
 

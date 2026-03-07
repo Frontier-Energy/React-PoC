@@ -1,15 +1,45 @@
+import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
-import type { ReactNode } from 'react';
-import { Layout } from './Layout';
-import { Home } from './pages/Home';
-import { NewInspection } from './pages/NewInspection';
-import { FillForm } from './pages/FillForm';
-import { MyInspections } from './pages/MyInspections';
-import { DebugInspection } from './pages/DebugInspection';
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
 import { getUserId } from './auth';
+import { RouteFallback } from './components/RouteFallback';
 import { useTenantBootstrap } from './TenantBootstrapContext';
+
+const Layout = lazy(async () => {
+  const module = await import('./Layout');
+  return { default: module.Layout };
+});
+const Home = lazy(async () => {
+  const module = await import('./pages/Home');
+  return { default: module.Home };
+});
+const NewInspection = lazy(async () => {
+  const module = await import('./pages/NewInspection');
+  return { default: module.NewInspection };
+});
+const FillForm = lazy(async () => {
+  const module = await import('./pages/FillForm');
+  return { default: module.FillForm };
+});
+const MyInspections = lazy(async () => {
+  const module = await import('./pages/MyInspections');
+  return { default: module.MyInspections };
+});
+const DebugInspection = lazy(async () => {
+  const module = await import('./pages/DebugInspection');
+  return { default: module.DebugInspection };
+});
+const Login = lazy(async () => {
+  const module = await import('./pages/Login');
+  return { default: module.Login };
+});
+const Register = lazy(async () => {
+  const module = await import('./pages/Register');
+  return { default: module.Register };
+});
+
+function withSuspense(children: ReactNode) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+}
 
 function DefaultRouteRedirect() {
   const { config } = useTenantBootstrap();
@@ -35,20 +65,20 @@ function RequireUser({ children }: { children: ReactNode }) {
 
 export const router = createBrowserRouter([
   { path: '/', element: <DefaultRouteRedirect /> },
-  { path: '/login', element: <Login /> },
-  { path: '/register', element: <Register /> },
+  { path: '/login', element: withSuspense(<Login />) },
+  { path: '/register', element: withSuspense(<Register />) },
   {
     element: (
       <RequireUser>
-        <Layout />
+        {withSuspense(<Layout />)}
       </RequireUser>
     ),
     children: [
-      { path: '/home', element: <Home /> },
-      { path: '/new-inspection', element: <NewInspection /> },
-      { path: '/fill-form/:sessionId', element: <FillForm /> },
-      { path: '/debug-inspection/:sessionId', element: <DebugInspection /> },
-      { path: '/my-inspections', element: <MyInspections /> },
+      { path: '/home', element: withSuspense(<Home />) },
+      { path: '/new-inspection', element: withSuspense(<NewInspection />) },
+      { path: '/fill-form/:sessionId', element: withSuspense(<FillForm />) },
+      { path: '/debug-inspection/:sessionId', element: withSuspense(<DebugInspection />) },
+      { path: '/my-inspections', element: withSuspense(<MyInspections />) },
     ],
   },
 ]);

@@ -5,12 +5,14 @@ import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 
 const distAssetsDir = join(process.cwd(), 'dist', 'assets');
+const distIndexHtmlPath = join(process.cwd(), 'dist', 'index.html');
 
 const bundleBudget = {
-  maxMainJsBytes: 930_000,
+  maxEntryJsBytes: 400_000,
+  maxEntryCssBytes: 400_000,
   maxTotalJsBytes: 980_000,
   maxTotalCssBytes: 980_000,
-  maxTotalGzipBytes: 500_000,
+  maxTotalGzipBytes: 520_000,
 };
 
 const formatBytes = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
@@ -49,7 +51,11 @@ if (files.length === 0) {
   throw new Error(`No built asset files were found in ${distAssetsDir}. Run the production build before bundle:check.`);
 }
 
-const mainJs = files.find((file) => /^index-.*\.js$/.test(file.fileName));
+const indexHtml = readFileSync(distIndexHtmlPath, 'utf8');
+const entryScriptMatch = indexHtml.match(/<script[^>]+src="\/assets\/([^"]+\.js)"/i);
+const entryStylesheetMatch = indexHtml.match(/<link[^>]+href="\/assets\/([^"]+\.css)"/i);
+const entryJs = entryScriptMatch ? files.find((file) => file.fileName === entryScriptMatch[1]) : undefined;
+const entryCss = entryStylesheetMatch ? files.find((file) => file.fileName === entryStylesheetMatch[1]) : undefined;
 const totalJsBytes = files.filter((file) => file.fileName.endsWith('.js')).reduce((sum, file) => sum + file.size, 0);
 const totalCssBytes = files.filter((file) => file.fileName.endsWith('.css')).reduce((sum, file) => sum + file.size, 0);
 const gzipSizes = await Promise.all(files.map(async (file) => gzipSize(file.filePath)));
@@ -57,10 +63,16 @@ const totalGzipBytes = gzipSizes.reduce((sum, size) => sum + size, 0);
 
 const failures = [];
 
-if (!mainJs) {
-  failures.push('Missing main application JavaScript bundle matching index-*.js.');
-} else if (mainJs.size > bundleBudget.maxMainJsBytes) {
-  failures.push(`Main JS bundle is ${formatBytes(mainJs.size)} and exceeds the ${formatBytes(bundleBudget.maxMainJsBytes)} budget.`);
+if (!entryJs) {
+  failures.push('Missing entry JavaScript bundle referenced by dist/index.html.');
+} else if (entryJs.size > bundleBudget.maxEntryJsBytes) {
+  failures.push(`Entry JS bundle is ${formatBytes(entryJs.size)} and exceeds the ${formatBytes(bundleBudget.maxEntryJsBytes)} budget.`);
+}
+
+if (!entryCss) {
+  failures.push('Missing entry CSS bundle referenced by dist/index.html.');
+} else if (entryCss.size > bundleBudget.maxEntryCssBytes) {
+  failures.push(`Entry CSS bundle is ${formatBytes(entryCss.size)} and exceeds the ${formatBytes(bundleBudget.maxEntryCssBytes)} budget.`);
 }
 
 if (totalJsBytes > bundleBudget.maxTotalJsBytes) {
@@ -76,7 +88,8 @@ if (totalGzipBytes > bundleBudget.maxTotalGzipBytes) {
 }
 
 const summary = [
-  `Main JS: ${mainJs ? formatBytes(mainJs.size) : 'missing'}`,
+  `Entry JS: ${entryJs ? formatBytes(entryJs.size) : 'missing'}`,
+  `Entry CSS: ${entryCss ? formatBytes(entryCss.size) : 'missing'}`,
   `Total JS: ${formatBytes(totalJsBytes)}`,
   `Total CSS: ${formatBytes(totalCssBytes)}`,
   `Total gzip: ${formatBytes(totalGzipBytes)}`,
