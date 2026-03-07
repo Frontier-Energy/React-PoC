@@ -44,5 +44,19 @@
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.18",
     "workbox-window": "^7.4.0"
+  },
+  "overrides": {
+    "vite": {
+      "rollup": "4.59.0"
+    },
+    "workbox-build": {
+      "rollup": "2.80.0"
+    },
+    "filelist": {
+      "minimatch": "5.1.9"
+    },
+    "@rollup/plugin-terser": {
+      "serialize-javascript": "7.0.4"
+    }
   }
 }
