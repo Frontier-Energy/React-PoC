@@ -101,6 +101,45 @@ describe('syncQueue', () => {
     );
   });
 
+  it('moves entries to dead-letter after repeated failures and allows manual requeue', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const now = 200_000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+
+    const inspection = makeInspection('dead-letterable');
+    await syncQueue.enqueue(inspection, {});
+
+    let claimed = await syncQueue.claimNextReady('worker-a', now);
+    let failed = await syncQueue.markFailed(claimed!, 'first failure', now);
+    expect(failed.status).toBe('failed');
+
+    claimed = await syncQueue.claimNextReady('worker-a', failed.nextAttemptAt);
+    failed = await syncQueue.markFailed(claimed!, 'second failure', failed.nextAttemptAt);
+    expect(failed.status).toBe('failed');
+
+    claimed = await syncQueue.claimNextReady('worker-a', failed.nextAttemptAt);
+    failed = await syncQueue.markFailed(claimed!, 'third failure', failed.nextAttemptAt);
+    expect(failed).toEqual(
+      expect.objectContaining({
+        inspectionId: 'dead-letterable',
+        status: 'dead-letter',
+        deadLetterReason: 'third failure',
+      })
+    );
+    expect(await syncQueue.claimNextReady('worker-a', failed.nextAttemptAt + 1)).toBeNull();
+
+    const retried = await syncQueue.retry(failed, failed.nextAttemptAt + 2);
+    expect(retried).toEqual(
+      expect.objectContaining({
+        inspectionId: 'dead-letterable',
+        status: 'pending',
+        attemptCount: 0,
+        deadLetterReason: undefined,
+      })
+    );
+  });
+
   it('sorts queue entries and coordinates worker leases', async () => {
     const now = 50_000;
     vi.spyOn(Date, 'now').mockReturnValue(now);
@@ -155,5 +194,31 @@ describe('syncQueue', () => {
     await syncQueue.enqueue(makeInspection('delete-me'), {});
     await syncQueue.delete('delete-me');
     expect(await syncQueue.load('delete-me')).toBeNull();
+  });
+
+  it('exposes queue diagnostics and worker lease state', async () => {
+    const now = 300_000;
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+
+    await syncQueue.enqueue(makeInspection('diag-a'), {});
+    await syncQueue.enqueue(makeInspection('diag-b'), {});
+    const claimed = await syncQueue.claimNextReady('worker-a', now);
+    await syncQueue.markFailed(claimed!, 'boom', now);
+    await syncQueue.tryAcquireWorkerLease('worker-a', now);
+
+    const diagnostics = await syncQueue.getDiagnostics();
+    expect(diagnostics.metrics).toEqual(
+      expect.objectContaining({
+        totalCount: 2,
+        syncingCount: 0,
+        failedCount: 1,
+        deadLetterCount: 0,
+      })
+    );
+    expect(diagnostics.workerLease).toEqual(
+      expect.objectContaining({
+        ownerId: 'worker-a',
+      })
+    );
   });
 });

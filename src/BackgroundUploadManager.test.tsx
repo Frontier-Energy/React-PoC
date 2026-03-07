@@ -17,6 +17,22 @@ const { getConnectivityStatus, setConnectivityStatus } = vi.hoisted(() => {
   };
 });
 
+const syncMonitorMock = vi.hoisted(() => ({
+  noteWakeUp: vi.fn(),
+  markPaused: vi.fn(),
+  markBusy: vi.fn(),
+  markCycleStarted: vi.fn(),
+  markCycleCompleted: vi.fn(),
+  markLeaseAcquired: vi.fn(),
+  markLeaseUnavailable: vi.fn(),
+  markLeaseLost: vi.fn(),
+  markInspectionClaimed: vi.fn(),
+  markInspectionDeleted: vi.fn(),
+  markInspectionSucceeded: vi.fn(),
+  markInspectionFailed: vi.fn(),
+  refresh: vi.fn(async () => {}),
+}));
+
 vi.mock('./ConnectivityContext', () => ({
   useConnectivity: () => ({ status: getConnectivityStatus() }),
 }));
@@ -39,6 +55,10 @@ vi.mock('./auth', () => ({
   getUserId: vi.fn(),
 }));
 
+vi.mock('./syncMonitor', () => ({
+  syncMonitor: syncMonitorMock,
+}));
+
 const makeInspection = (id: string, overrides?: Partial<InspectionSession>): InspectionSession => ({
   id,
   name: `Inspection ${id}`,
@@ -56,6 +76,7 @@ describe('BackgroundUploadManager', () => {
     vi.mocked(getFile).mockResolvedValue(null);
     vi.mocked(deleteFiles).mockResolvedValue();
     vi.mocked(getUserId).mockReturnValue(null);
+    Object.values(syncMonitorMock).forEach((mock) => mock.mockClear());
   });
 
   it('uploads queued inspections with a durable idempotency key and transitions to uploaded', async () => {
@@ -79,6 +100,7 @@ describe('BackgroundUploadManager', () => {
     expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'local-1', uploadStatus: UploadStatus.Uploaded }));
     expect(saveCurrentSpy).toHaveBeenCalled();
     expect(await syncQueue.load(local.id)).toBeNull();
+    expect(syncMonitorMock.markInspectionSucceeded).toHaveBeenCalledWith('local-1');
 
     const [, request] = vi.mocked(global.fetch).mock.calls[0] as [
       string,
@@ -140,6 +162,7 @@ describe('BackgroundUploadManager', () => {
     expect((await inspectionRepository.loadById(local.id))?.uploadStatus).toBe(UploadStatus.Failed);
     expect(deleteFiles).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();
+    expect(syncMonitorMock.markInspectionFailed).toHaveBeenCalled();
   });
 
   it('coordinates across tabs through the shared worker lease', async () => {

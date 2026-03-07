@@ -245,6 +245,47 @@ export interface DebugInspectionLabels {
   title: string;
   backToMyInspections: string;
   filesHeader: string;
+  syncHeader: string;
+  syncMetricsHeader: string;
+  syncEventsHeader: string;
+  syncInspectionHeader: string;
+  syncRefresh: string;
+  syncEmptyEvents: string;
+  syncNotQueued: string;
+  syncStateLabel: string;
+  syncWorkerLeaseLabel: string;
+  syncScopeLabel: string;
+  syncLastSuccessLabel: string;
+  syncLastFailureLabel: string;
+  syncLastErrorLabel: string;
+  syncStatusLabels: {
+    idle: string;
+    running: string;
+    paused: string;
+    blocked: string;
+  };
+  syncMetrics: {
+    total: string;
+    ready: string;
+    pending: string;
+    syncing: string;
+    failed: string;
+    deadLetter: string;
+    oldestAge: string;
+    nextAttempt: string;
+  };
+  syncInspection: {
+    status: string;
+    attempts: string;
+    nextAttempt: string;
+    lastAttempt: string;
+    lastError: string;
+    deadLetterReason: string;
+    idempotencyKey: string;
+    retryNow: string;
+    moveToDeadLetter: string;
+    requeueDeadLetter: string;
+  };
   schemaLoadError: string;
   noFilesFound: string;
   table: {

@@ -72,17 +72,93 @@ const {
   anchorClickMock: vi.fn(),
 }));
 
+const { syncMonitorSnapshot, syncMonitorRefreshMock, syncQueueLoadMock, syncQueueRetryMock, syncQueueDeadLetterMock } = vi.hoisted(() => ({
+  syncMonitorSnapshot: {
+    scopeKey: 'tenant-a:impersonated-user',
+    state: 'idle',
+    lastUpdatedAt: 123,
+    lastCycleStartedAt: 120,
+    lastCycleCompletedAt: 123,
+    lastSuccessfulSyncAt: 122,
+    lastFailedSyncAt: null,
+    pauseReason: null,
+    lastError: null,
+    queue: {
+      generatedAt: 123,
+      workerLease: null,
+      entries: [],
+      metrics: {
+        totalCount: 1,
+        readyCount: 1,
+        pendingCount: 1,
+        syncingCount: 0,
+        failedCount: 0,
+        deadLetterCount: 0,
+        oldestEntryAgeMs: 500,
+        nextAttemptAt: 123,
+      },
+    },
+    recentEvents: [],
+  },
+  syncMonitorRefreshMock: vi.fn(async () => {}),
+  syncQueueLoadMock: vi.fn(async () => null),
+  syncQueueRetryMock: vi.fn(async () => {}),
+  syncQueueDeadLetterMock: vi.fn(async () => {}),
+}));
+
 const { debugLabels } = vi.hoisted(() => ({
   debugLabels: {
     common: {
       unknown: 'Unknown',
       download: 'Download',
       preview: 'Preview',
+      notProvided: 'Not provided',
     },
     debugInspection: {
       title: 'Debug Inspection',
       backToMyInspections: 'Back to My Inspections',
       filesHeader: 'Files in Form',
+      syncHeader: 'Sync Diagnostics',
+      syncMetricsHeader: 'Queue Metrics',
+      syncEventsHeader: 'Recent Events',
+      syncInspectionHeader: 'Inspection Queue Entry',
+      syncRefresh: 'Refresh sync diagnostics',
+      syncEmptyEvents: 'No sync events recorded yet.',
+      syncNotQueued: 'This inspection is not currently queued.',
+      syncStateLabel: 'Subsystem state',
+      syncWorkerLeaseLabel: 'Worker lease',
+      syncScopeLabel: 'Scope',
+      syncLastSuccessLabel: 'Last successful sync',
+      syncLastFailureLabel: 'Last failed sync',
+      syncLastErrorLabel: 'Last error',
+      syncStatusLabels: {
+        idle: 'Idle',
+        running: 'Running',
+        paused: 'Paused',
+        blocked: 'Blocked',
+      },
+      syncMetrics: {
+        total: 'Total entries',
+        ready: 'Ready now',
+        pending: 'Pending',
+        syncing: 'Syncing',
+        failed: 'Retry pending',
+        deadLetter: 'Dead-letter',
+        oldestAge: 'Oldest age',
+        nextAttempt: 'Next attempt',
+      },
+      syncInspection: {
+        status: 'Queue status',
+        attempts: 'Attempt count',
+        nextAttempt: 'Next attempt',
+        lastAttempt: 'Last attempt',
+        lastError: 'Last error',
+        deadLetterReason: 'Dead-letter reason',
+        idempotencyKey: 'Idempotency key',
+        retryNow: 'Retry now',
+        moveToDeadLetter: 'Send to dead-letter',
+        requeueDeadLetter: 'Requeue dead-letter',
+      },
       schemaLoadError: 'Failed to load form schema.',
       noFilesFound: 'No files or signatures found.',
       table: {
@@ -347,6 +423,22 @@ vi.mock('../utils/formDataUtils', () => ({
   getFileReferences: (...args: unknown[]) => getFileReferencesMock(...args),
 }));
 
+vi.mock('../syncMonitor', () => ({
+  useSyncMonitor: () => syncMonitorSnapshot,
+  syncMonitor: {
+    refresh: (...args: unknown[]) => syncMonitorRefreshMock(...args),
+  },
+}));
+
+vi.mock('../syncQueue', () => ({
+  syncQueue: {
+    load: (...args: unknown[]) => syncQueueLoadMock(...args),
+    retry: (...args: unknown[]) => syncQueueRetryMock(...args),
+    moveToDeadLetter: (...args: unknown[]) => syncQueueDeadLetterMock(...args),
+    subscribe: () => () => {},
+  },
+}));
+
 vi.mock('@cloudscape-design/components', async () => {
   const React = await vi.importActual<typeof import('react')>('react');
   return {
@@ -434,6 +526,13 @@ describe('DebugInspection', () => {
     createObjectUrlMock.mockClear();
     revokeObjectUrlMock.mockClear();
     anchorClickMock.mockClear();
+    syncMonitorRefreshMock.mockClear();
+    syncQueueLoadMock.mockReset();
+    syncQueueLoadMock.mockResolvedValue(null);
+    syncQueueRetryMock.mockReset();
+    syncQueueRetryMock.mockResolvedValue(undefined);
+    syncQueueDeadLetterMock.mockReset();
+    syncQueueDeadLetterMock.mockResolvedValue(undefined);
     vi.stubGlobal(
       'URL',
       Object.assign(globalThis.URL, {
@@ -458,6 +557,10 @@ describe('DebugInspection', () => {
     renderPage();
 
     await waitFor(() => {
+      expect(syncQueueLoadMock).toHaveBeenCalledWith('scoped-session', {
+        tenantId: 'tenant-a',
+        userId: 'impersonated-user',
+      });
       expect(loadByIdMock).toHaveBeenCalledWith('scoped-session', {
         tenantId: 'tenant-a',
         userId: 'impersonated-user',
@@ -638,5 +741,19 @@ describe('DebugInspection', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Back to My Inspections' }));
 
     expect(navigateMock).toHaveBeenCalledWith('/my-inspections');
+  });
+
+  it('renders sync diagnostics and refreshes them on demand', async () => {
+    renderPage();
+
+    expect(await screen.findByText('Sync Diagnostics')).toBeInTheDocument();
+    expect(screen.getByText(/Subsystem state: Idle/)).toBeInTheDocument();
+    expect(screen.getByText(/Total entries: 1/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh sync diagnostics' }));
+
+    await waitFor(() => {
+      expect(syncMonitorRefreshMock).toHaveBeenCalled();
+    });
   });
 });

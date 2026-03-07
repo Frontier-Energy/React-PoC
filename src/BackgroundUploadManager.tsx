@@ -3,6 +3,7 @@ import { getUserId } from './auth';
 import { useConnectivity } from './ConnectivityContext';
 import { getUploadInspectionUrl } from './config';
 import { inspectionRepository } from './repositories/inspectionRepository';
+import { syncMonitor } from './syncMonitor';
 import { buildInspectionSyncFingerprint, syncQueue, type SyncQueueEntry } from './syncQueue';
 import { FormDataValue, InspectionSession, UploadStatus } from './types';
 import { getFileReferences, serializeFormValue } from './utils/formDataUtils';
@@ -95,9 +96,12 @@ const processNextQueuedInspection = async (workerId: string) => {
     return false;
   }
 
+  syncMonitor.markInspectionClaimed(queueEntry);
+
   const inspection = await inspectionRepository.loadById(queueEntry.inspectionId, queueEntry);
   if (!inspection) {
     await syncQueue.delete(queueEntry.inspectionId, queueEntry);
+    syncMonitor.markInspectionDeleted(queueEntry.inspectionId);
     return true;
   }
 
@@ -114,10 +118,15 @@ const processNextQueuedInspection = async (workerId: string) => {
     await uploadInspection(inspection, effectiveQueueEntry);
     await syncQueue.markSucceeded(inspection.id, inspection);
     await persistInspectionStatus(inspection, UploadStatus.Uploaded);
+    syncMonitor.markInspectionSucceeded(inspection.id);
   } catch (error) {
     console.error('Failed to upload inspection:', inspection.id, error);
-    await syncQueue.markFailed(effectiveQueueEntry, error instanceof Error ? error.message : 'Unknown upload error');
+    const failedEntry = await syncQueue.markFailed(
+      effectiveQueueEntry,
+      error instanceof Error ? error.message : 'Unknown upload error'
+    );
     await persistInspectionStatus(inspection, UploadStatus.Failed);
+    syncMonitor.markInspectionFailed(failedEntry, failedEntry.lastError ?? 'Unknown upload error');
   }
 
   return true;
@@ -131,21 +140,34 @@ export function BackgroundUploadManager() {
   useEffect(() => {
     const workerId = workerIdRef.current;
 
-    const runSyncCycle = async () => {
+    const runSyncCycle = async (source: string) => {
+      syncMonitor.noteWakeUp(source);
+
       if (connectivityStatus !== 'online' || syncInProgressRef.current) {
+        if (connectivityStatus !== 'online') {
+          syncMonitor.markPaused('offline');
+        } else {
+          syncMonitor.markBusy('cycle already running');
+        }
         return;
       }
 
       syncInProgressRef.current = true;
+      syncMonitor.markCycleStarted(workerId);
 
       try {
         await syncQueue.ensureQueuedForPendingInspections(await inspectionRepository.loadAll());
+        await syncMonitor.refresh();
         if (!(await syncQueue.tryAcquireWorkerLease(workerId))) {
+          syncMonitor.markLeaseUnavailable(workerId);
           return;
         }
 
+        syncMonitor.markLeaseAcquired(workerId);
+
         while (connectivityStatus === 'online') {
           if (!(await syncQueue.renewWorkerLease(workerId))) {
+            syncMonitor.markLeaseLost(workerId);
             break;
           }
 
@@ -157,14 +179,16 @@ export function BackgroundUploadManager() {
       } finally {
         await syncQueue.releaseWorkerLease(workerId);
         syncInProgressRef.current = false;
+        syncMonitor.markCycleCompleted();
+        await syncMonitor.refresh();
       }
     };
 
     const handleQueueWakeup = () => {
-      void runSyncCycle();
+      void runSyncCycle('queue event');
     };
 
-    void runSyncCycle();
+    void runSyncCycle('effect mount');
 
     const intervalId = window.setInterval(handleQueueWakeup, SYNC_CHECK_INTERVAL_MS);
     const unsubscribe = syncQueue.subscribe(handleQueueWakeup);

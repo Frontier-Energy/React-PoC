@@ -1,12 +1,7 @@
 import { ANONYMOUS_USER_SCOPE } from '../domain/storageScope';
-import type { SyncQueueEntry } from '../domain/syncQueue';
+import type { SyncQueueDiagnostics, SyncQueueEntry, SyncQueueMetrics, SyncWorkerLease } from '../domain/syncQueue';
 import { UploadStatus, type FormDataValue, type InspectionSession } from '../types';
 import type { StorageScope } from '../utils/appDataStore';
-
-interface WorkerLease {
-  ownerId: string;
-  expiresAt: number;
-}
 
 export interface SyncQueueStore {
   getScopeKey(scope: StorageScope): string;
@@ -15,8 +10,8 @@ export interface SyncQueueStore {
   listQueueEntries(scope: StorageScope): Promise<SyncQueueEntry[]>;
   putQueueEntry(scope: StorageScope, storageKey: string, value: SyncQueueEntry): Promise<void>;
   deleteQueueEntry(scope: StorageScope, storageKey: string): Promise<void>;
-  getWorkerLease(scope: StorageScope): Promise<WorkerLease | null>;
-  putWorkerLease(scope: StorageScope, value: WorkerLease): Promise<void>;
+  getWorkerLease(scope: StorageScope): Promise<SyncWorkerLease | null>;
+  putWorkerLease(scope: StorageScope, value: SyncWorkerLease): Promise<void>;
   deleteWorkerLease(scope: StorageScope): Promise<void>;
 }
 
@@ -43,6 +38,7 @@ const WORKER_LEASE_DURATION_MS = 45_000;
 const ENTRY_PROCESSING_LEASE_DURATION_MS = 60_000;
 const INITIAL_RETRY_DELAY_MS = 5_000;
 const MAX_RETRY_DELAY_MS = 5 * 60_000;
+const MAX_AUTO_RETRY_ATTEMPTS = 3;
 
 const stableSerialize = (value: unknown): unknown => {
   if (Array.isArray(value)) {
@@ -100,6 +96,11 @@ export const createSyncQueueService = ({
     userId: inspection.userId ?? resolveUserId() ?? ANONYMOUS_USER_SCOPE,
   });
 
+  const getExplicitScope = (inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>): StorageScope =>
+    inspection
+      ? { tenantId: inspection.tenantId, userId: inspection.userId ?? ANONYMOUS_USER_SCOPE }
+      : getScope();
+
   const getEntryScope = (entry: Pick<SyncQueueEntry, 'tenantId' | 'userId'>): StorageScope => ({
     tenantId: entry.tenantId,
     userId: entry.userId ?? ANONYMOUS_USER_SCOPE,
@@ -117,6 +118,30 @@ export const createSyncQueueService = ({
     return Math.round(exponentialDelay * jitterMultiplier);
   };
 
+  const toMetrics = (entries: SyncQueueEntry[], currentTime: number): SyncQueueMetrics => {
+    const nextAttemptAt = entries
+      .filter((entry) => entry.status !== 'dead-letter')
+      .reduce<number | null>((earliest, entry) => {
+        if (earliest === null || entry.nextAttemptAt < earliest) {
+          return entry.nextAttemptAt;
+        }
+        return earliest;
+      }, null);
+
+    return {
+      totalCount: entries.length,
+      readyCount: entries.filter(
+        (entry) => entry.status !== 'dead-letter' && entry.nextAttemptAt <= currentTime && !isEntryLocked(entry, currentTime)
+      ).length,
+      pendingCount: entries.filter((entry) => entry.status === 'pending').length,
+      syncingCount: entries.filter((entry) => entry.status === 'syncing').length,
+      failedCount: entries.filter((entry) => entry.status === 'failed').length,
+      deadLetterCount: entries.filter((entry) => entry.status === 'dead-letter').length,
+      oldestEntryAgeMs: entries.length > 0 ? currentTime - Math.min(...entries.map((entry) => entry.createdAt)) : null,
+      nextAttemptAt,
+    };
+  };
+
   return {
     createWorkerId() {
       return `sync-worker:${createId()}`;
@@ -126,12 +151,13 @@ export const createSyncQueueService = ({
       return store.subscribe(inspectionRepository.getStorageScopeKey(), listener);
     },
 
-    async load(inspectionId: string) {
-      return store.getQueueEntry(getQueueKey(inspectionId));
+    async load(inspectionId: string, inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>) {
+      const scope = getExplicitScope(inspection);
+      return store.getQueueEntry(getQueueKey(inspectionId, scope));
     },
 
-    async list() {
-      const entries = await store.listQueueEntries(resolveActiveScope());
+    async list(scope = resolveActiveScope()) {
+      const entries = await store.listQueueEntries(scope);
       return entries.sort((left, right) => {
         if (left.nextAttemptAt !== right.nextAttemptAt) {
           return left.nextAttemptAt - right.nextAttemptAt;
@@ -139,6 +165,20 @@ export const createSyncQueueService = ({
 
         return left.createdAt - right.createdAt;
       });
+    },
+
+    async getWorkerLease(scope = resolveActiveScope()) {
+      return store.getWorkerLease(scope);
+    },
+
+    async getDiagnostics(scope = resolveActiveScope(), currentTime = now()): Promise<SyncQueueDiagnostics> {
+      const entries = await this.list(scope);
+      return {
+        generatedAt: currentTime,
+        entries,
+        workerLease: await store.getWorkerLease(scope),
+        metrics: toMetrics(entries, currentTime),
+      };
     },
 
     async enqueue(inspection: InspectionSession, formData: Record<string, FormDataValue>) {
@@ -161,6 +201,8 @@ export const createSyncQueueService = ({
         nextAttemptAt: timestamp,
         createdAt: existing?.createdAt ?? timestamp,
         updatedAt: timestamp,
+        deadLetteredAt: undefined,
+        deadLetterReason: undefined,
       };
 
       await store.putQueueEntry(inspectionScope, getQueueKey(entry.inspectionId, inspectionScope), entry);
@@ -194,7 +236,7 @@ export const createSyncQueueService = ({
     },
 
     async delete(inspectionId: string, inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>) {
-      const scope = inspection ? { tenantId: inspection.tenantId, userId: inspection.userId ?? ANONYMOUS_USER_SCOPE } : getScope();
+      const scope = getExplicitScope(inspection);
       await store.deleteQueueEntry(scope, getQueueKey(inspectionId, scope));
     },
 
@@ -206,7 +248,7 @@ export const createSyncQueueService = ({
         return false;
       }
 
-      const nextLease: WorkerLease = {
+      const nextLease: SyncWorkerLease = {
         ownerId,
         expiresAt: currentTime + WORKER_LEASE_DURATION_MS,
       };
@@ -231,7 +273,9 @@ export const createSyncQueueService = ({
     },
 
     async claimNextReady(ownerId: string, currentTime = now()) {
-      const readyEntry = (await this.list()).find((entry) => entry.nextAttemptAt <= currentTime && !isEntryLocked(entry, currentTime));
+      const readyEntry = (await this.list()).find(
+        (entry) => entry.status !== 'dead-letter' && entry.nextAttemptAt <= currentTime && !isEntryLocked(entry, currentTime)
+      );
       if (!readyEntry) {
         return null;
       }
@@ -265,6 +309,8 @@ export const createSyncQueueService = ({
         nextAttemptAt: timestamp,
         updatedAt: timestamp,
         lastError: undefined,
+        deadLetteredAt: undefined,
+        deadLetterReason: undefined,
       };
 
       const scope = getInspectionScope(inspection);
@@ -274,16 +320,54 @@ export const createSyncQueueService = ({
 
     async markFailed(entry: SyncQueueEntry, errorMessage: string, currentTime = now()) {
       const attemptCount = entry.attemptCount + 1;
+      const deadLettered = attemptCount >= MAX_AUTO_RETRY_ATTEMPTS;
       const updatedEntry: SyncQueueEntry = {
         ...entry,
-        status: 'failed',
+        status: deadLettered ? 'dead-letter' : 'failed',
         attemptCount,
-        nextAttemptAt: currentTime + computeRetryDelay(attemptCount),
+        nextAttemptAt: deadLettered ? currentTime : currentTime + computeRetryDelay(attemptCount),
         updatedAt: currentTime,
         lastAttemptAt: currentTime,
         lastError: errorMessage,
         processingOwnerId: undefined,
         processingExpiresAt: undefined,
+        deadLetteredAt: deadLettered ? currentTime : undefined,
+        deadLetterReason: deadLettered ? errorMessage : undefined,
+      };
+
+      const scope = getEntryScope(updatedEntry);
+      await store.putQueueEntry(scope, getQueueKey(updatedEntry.inspectionId, scope), updatedEntry);
+      return updatedEntry;
+    },
+
+    async moveToDeadLetter(entry: SyncQueueEntry, reason: string, currentTime = now()) {
+      const updatedEntry: SyncQueueEntry = {
+        ...entry,
+        status: 'dead-letter',
+        updatedAt: currentTime,
+        lastError: entry.lastError ?? reason,
+        processingOwnerId: undefined,
+        processingExpiresAt: undefined,
+        deadLetteredAt: currentTime,
+        deadLetterReason: reason,
+      };
+
+      const scope = getEntryScope(updatedEntry);
+      await store.putQueueEntry(scope, getQueueKey(updatedEntry.inspectionId, scope), updatedEntry);
+      return updatedEntry;
+    },
+
+    async retry(entry: SyncQueueEntry, currentTime = now()) {
+      const updatedEntry: SyncQueueEntry = {
+        ...entry,
+        status: 'pending',
+        attemptCount: 0,
+        nextAttemptAt: currentTime,
+        updatedAt: currentTime,
+        processingOwnerId: undefined,
+        processingExpiresAt: undefined,
+        deadLetteredAt: undefined,
+        deadLetterReason: undefined,
       };
 
       const scope = getEntryScope(updatedEntry);

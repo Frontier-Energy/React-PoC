@@ -1,8 +1,11 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useCallback, useMemo, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, Container, Header, Modal, SpaceBetween } from '@cloudscape-design/components';
 import { fetchFormSchema } from '../apiContent';
+import type { SyncQueueEntry } from '../domain/syncQueue';
 import type { FileReference, FormSchema } from '../types';
+import { syncMonitor, useSyncMonitor } from '../syncMonitor';
+import { syncQueue } from '../syncQueue';
 import { getFile } from '../utils/fileStorage';
 import { getFileReferences } from '../utils/formDataUtils';
 import { useLocalization } from '../LocalizationContext';
@@ -13,11 +16,13 @@ export function DebugInspection() {
   const location = useLocation();
   const navigate = useNavigate();
   const { labels } = useLocalization();
+  const syncSnapshot = useSyncMonitor();
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [queueEntry, setQueueEntry] = useState<SyncQueueEntry | null>(null);
   const inspectionScopeState = useMemo(() => (
     location.state &&
     typeof location.state === 'object' &&
@@ -35,6 +40,21 @@ export function DebugInspection() {
     inspection?: Awaited<ReturnType<typeof inspectionRepository.loadById>> | null;
     formData?: Awaited<ReturnType<typeof inspectionRepository.loadFormData>> | null;
   }>({});
+
+  const loadQueueEntry = useCallback(async () => {
+    if (!sessionId) {
+      setQueueEntry(null);
+      return;
+    }
+
+    const scope = inspectionScopeTenantId
+      ? { tenantId: inspectionScopeTenantId, userId: inspectionScopeUserId }
+      : inspectionData.inspection
+        ? { tenantId: inspectionData.inspection.tenantId, userId: inspectionData.inspection.userId }
+        : undefined;
+
+    setQueueEntry(await syncQueue.load(sessionId, scope));
+  }, [inspectionData.inspection, inspectionScopeTenantId, inspectionScopeUserId, sessionId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +91,15 @@ export function DebugInspection() {
       cancelled = true;
     };
   }, [inspectionScopeTenantId, inspectionScopeUserId, labels.debugInspection.errors.missingInspectionId, sessionId]);
+
+  useEffect(() => {
+    void loadQueueEntry();
+    const unsubscribe = syncQueue.subscribe(() => {
+      void loadQueueEntry();
+    });
+
+    return unsubscribe;
+  }, [loadQueueEntry]);
 
   useEffect(() => {
     const loadSchema = async () => {
@@ -165,6 +194,59 @@ export function DebugInspection() {
     }
   };
 
+  const formatTimestamp = (value: number | null | undefined) => {
+    if (!value) {
+      return labels.common.notProvided;
+    }
+
+    return new Date(value).toLocaleString();
+  };
+
+  const formatDuration = (value: number | null | undefined) => {
+    if (value == null) {
+      return labels.common.notProvided;
+    }
+
+    if (value < 1000) {
+      return `${value} ms`;
+    }
+
+    if (value < 60_000) {
+      return `${(value / 1000).toFixed(1)} s`;
+    }
+
+    return `${(value / 60_000).toFixed(1)} min`;
+  };
+
+  const handleRefreshSyncDiagnostics = () => {
+    void syncMonitor.refresh();
+    void loadQueueEntry();
+  };
+
+  const handleRetryQueueEntry = () => {
+    if (!queueEntry) {
+      return;
+    }
+
+    void (async () => {
+      await syncQueue.retry(queueEntry);
+      await syncMonitor.refresh();
+      await loadQueueEntry();
+    })();
+  };
+
+  const handleMoveToDeadLetter = () => {
+    if (!queueEntry) {
+      return;
+    }
+
+    void (async () => {
+      await syncQueue.moveToDeadLetter(queueEntry, 'Moved to dead-letter by operator');
+      await syncMonitor.refresh();
+      await loadQueueEntry();
+    })();
+  };
+
   return (
     <SpaceBetween size="l">
       <Header
@@ -181,6 +263,83 @@ export function DebugInspection() {
         <Box padding="m">
           <pre>{JSON.stringify(inspectionData, null, 2)}</pre>
         </Box>
+      </Container>
+      <Container>
+        <SpaceBetween size="s">
+          <Header
+            variant="h2"
+            actions={
+              <Button onClick={handleRefreshSyncDiagnostics}>
+                {labels.debugInspection.syncRefresh}
+              </Button>
+            }
+          >
+            {labels.debugInspection.syncHeader}
+          </Header>
+          <Box>{labels.debugInspection.syncScopeLabel}: {syncSnapshot.scopeKey}</Box>
+          <Box>{labels.debugInspection.syncStateLabel}: {labels.debugInspection.syncStatusLabels[syncSnapshot.state]}</Box>
+          <Box>
+            {labels.debugInspection.syncWorkerLeaseLabel}: {syncSnapshot.queue.workerLease
+              ? `${syncSnapshot.queue.workerLease.ownerId} (${formatTimestamp(syncSnapshot.queue.workerLease.expiresAt)})`
+              : labels.common.notProvided}
+          </Box>
+          <Box>{labels.debugInspection.syncLastSuccessLabel}: {formatTimestamp(syncSnapshot.lastSuccessfulSyncAt)}</Box>
+          <Box>{labels.debugInspection.syncLastFailureLabel}: {formatTimestamp(syncSnapshot.lastFailedSyncAt)}</Box>
+          <Box>{labels.debugInspection.syncLastErrorLabel}: {syncSnapshot.lastError || labels.common.notProvided}</Box>
+          <Header variant="h3">{labels.debugInspection.syncMetricsHeader}</Header>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '0.75rem',
+            }}
+          >
+            <Box>{labels.debugInspection.syncMetrics.total}: {syncSnapshot.queue.metrics.totalCount}</Box>
+            <Box>{labels.debugInspection.syncMetrics.ready}: {syncSnapshot.queue.metrics.readyCount}</Box>
+            <Box>{labels.debugInspection.syncMetrics.pending}: {syncSnapshot.queue.metrics.pendingCount}</Box>
+            <Box>{labels.debugInspection.syncMetrics.syncing}: {syncSnapshot.queue.metrics.syncingCount}</Box>
+            <Box>{labels.debugInspection.syncMetrics.failed}: {syncSnapshot.queue.metrics.failedCount}</Box>
+            <Box>{labels.debugInspection.syncMetrics.deadLetter}: {syncSnapshot.queue.metrics.deadLetterCount}</Box>
+            <Box>{labels.debugInspection.syncMetrics.oldestAge}: {formatDuration(syncSnapshot.queue.metrics.oldestEntryAgeMs)}</Box>
+            <Box>{labels.debugInspection.syncMetrics.nextAttempt}: {formatTimestamp(syncSnapshot.queue.metrics.nextAttemptAt)}</Box>
+          </div>
+          <Header variant="h3">{labels.debugInspection.syncInspectionHeader}</Header>
+          {queueEntry ? (
+            <SpaceBetween size="xs">
+              <Box>{labels.debugInspection.syncInspection.status}: {queueEntry.status}</Box>
+              <Box>{labels.debugInspection.syncInspection.attempts}: {queueEntry.attemptCount}</Box>
+              <Box>{labels.debugInspection.syncInspection.nextAttempt}: {formatTimestamp(queueEntry.nextAttemptAt)}</Box>
+              <Box>{labels.debugInspection.syncInspection.lastAttempt}: {formatTimestamp(queueEntry.lastAttemptAt)}</Box>
+              <Box>{labels.debugInspection.syncInspection.lastError}: {queueEntry.lastError || labels.common.notProvided}</Box>
+              <Box>{labels.debugInspection.syncInspection.deadLetterReason}: {queueEntry.deadLetterReason || labels.common.notProvided}</Box>
+              <Box>{labels.debugInspection.syncInspection.idempotencyKey}: {queueEntry.idempotencyKey}</Box>
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button onClick={handleRetryQueueEntry}>
+                  {queueEntry.status === 'dead-letter'
+                    ? labels.debugInspection.syncInspection.requeueDeadLetter
+                    : labels.debugInspection.syncInspection.retryNow}
+                </Button>
+                {queueEntry.status !== 'dead-letter' && (
+                  <Button onClick={handleMoveToDeadLetter}>
+                    {labels.debugInspection.syncInspection.moveToDeadLetter}
+                  </Button>
+                )}
+              </SpaceBetween>
+            </SpaceBetween>
+          ) : (
+            <Box color="text-body-secondary">{labels.debugInspection.syncNotQueued}</Box>
+          )}
+          <Header variant="h3">{labels.debugInspection.syncEventsHeader}</Header>
+          {syncSnapshot.recentEvents.length === 0 ? (
+            <Box color="text-body-secondary">{labels.debugInspection.syncEmptyEvents}</Box>
+          ) : (
+            syncSnapshot.recentEvents.map((event) => (
+              <Box key={event.id}>
+                {formatTimestamp(event.at)} [{event.level}] {event.message}
+              </Box>
+            ))
+          )}
+        </SpaceBetween>
       </Container>
       <Container>
         <SpaceBetween size="s">
