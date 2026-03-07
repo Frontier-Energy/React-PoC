@@ -1,4 +1,15 @@
 import { getAppPreferenceState } from './appState';
+import {
+  DEFAULT_TENANT_ID,
+  GOVERNED_SERVICE_PATHS,
+  GOVERNED_TENANTS,
+  getEnvironmentById,
+  resolveApiBaseUrlForHostname,
+  resolveEnvironmentIdFromHostname,
+  TENANT_HOSTNAME_SUFFIX,
+  type EnvironmentDefinition,
+  type TenantDefinition,
+} from './governedConfig';
 import { createAppConfigService } from './services/appConfigService';
 
 export interface AppConfig {
@@ -12,84 +23,36 @@ export interface AppConfig {
   translationsPath: string;
 }
 
-export interface TenantDefinition {
-  tenantId: string;
-  displayName: string;
-  uiDefaults: {
-    theme: string;
-    font: string;
-    showLeftFlyout: boolean;
-    showRightFlyout: boolean;
-    showInspectionStatsButton: boolean;
-  };
-}
+export type { TenantDefinition } from './governedConfig';
 
-export const DEFAULT_TENANT_NAME = 'frontierDemo';
-const DEFAULT_API_BASE_URL = 'https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io';
-export const TENANTS: TenantDefinition[] = [
-  {
-    tenantId: DEFAULT_TENANT_NAME,
-    displayName: 'Frontier Demo',
-    uiDefaults: {
-      theme: 'mist',
-      font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
-      showLeftFlyout: true,
-      showRightFlyout: true,
-      showInspectionStatsButton: false,
-    },
-  },
-  {
-    tenantId: 'qhvac',
-    displayName: 'QHVAC',
-    uiDefaults: {
-      theme: 'harbor',
-      font: 'Tahoma, "Trebuchet MS", Arial, sans-serif',
-      showLeftFlyout: true,
-      showRightFlyout: true,
-      showInspectionStatsButton: false,
-    },
-  },
-  {
-    tenantId: 'opscentral',
-    displayName: 'Ops Central',
-    uiDefaults: {
-      theme: 'sand',
-      font: 'Georgia, "Times New Roman", serif',
-      showLeftFlyout: true,
-      showRightFlyout: true,
-      showInspectionStatsButton: false,
-    },
-  },
-  {
-    tenantId: 'lire',
-    displayName: 'LIRE',
-    uiDefaults: {
-      theme: 'mist',
-      font: '"Source Sans Pro", "Helvetica Neue", Arial, sans-serif',
-      showLeftFlyout: false,
-      showRightFlyout: true,
-      showInspectionStatsButton: false,
-    },
-  },
-];
+export const DEFAULT_TENANT_NAME = DEFAULT_TENANT_ID;
+export const TENANTS: TenantDefinition[] = GOVERNED_TENANTS;
 
 const resolveApiBaseUrl = (): string => {
-  const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
-  const apiBaseUrl = configuredApiBaseUrl || DEFAULT_API_BASE_URL;
-  return apiBaseUrl.replace(/\/+$/, '');
+  const hostname = typeof window === 'undefined' ? null : window.location.hostname;
+  return resolveApiBaseUrlForHostname(hostname);
 };
 
 const appConfigService = createAppConfigService({
   tenants: TENANTS,
   defaultTenantName: DEFAULT_TENANT_NAME,
+  tenantHostnameSuffix: TENANT_HOSTNAME_SUFFIX,
   resolveStoredTenantName: () => getAppPreferenceState().tenantId,
   resolveHostname: () => (typeof window === 'undefined' ? null : window.location.hostname),
   resolveApiBaseUrl,
+  servicePaths: GOVERNED_SERVICE_PATHS,
 });
 
 export const getTenantById = appConfigService.getTenantById;
 export const resolveTenantNameFromHostname = appConfigService.resolveTenantNameFromHostname;
 export const getActiveTenant = appConfigService.getActiveTenant;
+export { resolveEnvironmentIdFromHostname };
+export const getEnvironmentConfigById = (environmentId: string): EnvironmentDefinition | undefined =>
+  getEnvironmentById(environmentId);
+export const getActiveEnvironment = (): EnvironmentDefinition | undefined => {
+  const hostname = typeof window === 'undefined' ? null : window.location.hostname;
+  return getEnvironmentById(resolveEnvironmentIdFromHostname(hostname));
+};
 
 const getAppConfig = (tenantId?: string): AppConfig => appConfigService.getAppConfig(tenantId);
 

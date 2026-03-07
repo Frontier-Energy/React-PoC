@@ -1,21 +1,31 @@
-import type { TenantDefinition, AppConfig } from '../config';
+import type { TenantDefinition } from '../governedConfig';
+import type { AppConfig } from '../config';
 
 export interface AppConfigServiceDependencies {
   tenants: TenantDefinition[];
   defaultTenantName: string;
+  tenantHostnameSuffix: string;
   resolveStoredTenantName: () => string | null;
   resolveHostname: () => string | null;
   resolveApiBaseUrl: () => string;
+  servicePaths: {
+    uploadInspectionPath: string;
+    loginPath: string;
+    registerPath: string;
+    tenantBootstrapPath: string;
+    formSchemasPath: string;
+    translationsPath: string;
+  };
 }
-
-const QCONTROL_DOMAIN_SUFFIX = ['qcontrol', 'frontierenergy', 'com'] as const;
 
 export const createAppConfigService = ({
   tenants,
   defaultTenantName,
+  tenantHostnameSuffix,
   resolveStoredTenantName,
   resolveHostname,
   resolveApiBaseUrl,
+  servicePaths,
 }: AppConfigServiceDependencies) => {
   const getTenantById = (tenantId: string) =>
     tenants.find((tenant) => tenant.tenantId.toLowerCase() === tenantId.toLowerCase());
@@ -26,18 +36,20 @@ export const createAppConfigService = ({
       return defaultTenantName;
     }
 
-    const parts = normalized.split('.');
-    const hasExpectedShape = parts.length === 4
-      && parts[1] === QCONTROL_DOMAIN_SUFFIX[0]
-      && parts[2] === QCONTROL_DOMAIN_SUFFIX[1]
-      && parts[3] === QCONTROL_DOMAIN_SUFFIX[2]
-      && parts[0].length > 0;
+    const suffix = tenantHostnameSuffix.trim().toLowerCase();
+    const suffixPrefix = `.${suffix}`;
+    const hasExpectedShape = normalized.endsWith(suffixPrefix) && normalized.length > suffixPrefix.length;
 
     if (!hasExpectedShape) {
       return defaultTenantName;
     }
 
-    return getTenantById(parts[0])?.tenantId ?? defaultTenantName;
+    const tenantSegment = normalized.slice(0, normalized.length - suffixPrefix.length);
+    if (!tenantSegment || tenantSegment.includes('.')) {
+      return defaultTenantName;
+    }
+
+    return getTenantById(tenantSegment)?.tenantId ?? defaultTenantName;
   };
 
   const resolveActiveTenantName = (): string => {
@@ -64,12 +76,12 @@ export const createAppConfigService = ({
     return {
       tenantName: activeTenant.tenantId,
       apiBaseUrl: resolveApiBaseUrl(),
-      uploadInspectionPath: '/inspections',
-      loginPath: '/auth/login',
-      registerPath: '/auth/register',
-      tenantBootstrapPath: '/tenant-config',
-      formSchemasPath: '/form-schemas',
-      translationsPath: '/translations',
+      uploadInspectionPath: servicePaths.uploadInspectionPath,
+      loginPath: servicePaths.loginPath,
+      registerPath: servicePaths.registerPath,
+      tenantBootstrapPath: servicePaths.tenantBootstrapPath,
+      formSchemasPath: servicePaths.formSchemasPath,
+      translationsPath: servicePaths.translationsPath,
     };
   };
 

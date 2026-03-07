@@ -1,5 +1,7 @@
 import {
   DEFAULT_TENANT_NAME,
+  getActiveEnvironment,
+  getEnvironmentConfigById,
   getActiveTenant,
   getConnectivityCheckUrl,
   getFormSchemaUrl,
@@ -9,6 +11,7 @@ import {
   getTenantById,
   getTranslationsUrl,
   getUploadInspectionUrl,
+  resolveEnvironmentIdFromHostname,
   resolveTenantNameFromHostname,
 } from './config';
 import { LEGACY_CUSTOMIZATION_STORAGE_KEY, TENANT_PREFERENCE_STORAGE_KEY } from './appPreferences';
@@ -37,6 +40,13 @@ describe('config', () => {
     expect(getActiveTenant().tenantId).toBe('opscentral');
   });
 
+  it('resolves the active environment from governed host mappings', () => {
+    expect(resolveEnvironmentIdFromHostname('localhost')).toBe('beta');
+    expect(resolveEnvironmentIdFromHostname('qhvac.qcontrol.frontierenergy.com')).toBe('production');
+    expect(resolveEnvironmentIdFromHostname('unknown-host')).toBe('beta');
+    expect(getEnvironmentConfigById('beta')?.displayName).toBe('Beta');
+  });
+
   it('falls back to default tenant when legacy customization is invalid json', () => {
     localStorage.setItem(LEGACY_CUSTOMIZATION_STORAGE_KEY, '{invalid');
     expect(getActiveTenant().tenantId).toBe(DEFAULT_TENANT_NAME);
@@ -49,6 +59,17 @@ describe('config', () => {
     expect(getRegisterUrl()).toContain('/auth/register');
     expect(getTenantBootstrapUrl()).toContain('/tenant-config');
     expect(getConnectivityCheckUrl()).toBe(getTenantBootstrapUrl());
+  });
+
+  it('uses the Beta API environment in local development', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'localhost',
+      },
+    });
+
+    expect(getActiveEnvironment()?.environmentId).toBe('beta');
+    expect(getUploadInspectionUrl()).toContain('azurecontainerapps.io');
   });
 
   it('builds bootstrap and content urls for an explicitly requested tenant', () => {

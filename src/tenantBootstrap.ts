@@ -51,19 +51,14 @@ interface TenantBootstrapResponse {
 }
 
 const DEFAULT_ENABLED_FORMS = Object.values(FormType);
-const LOGIN_OPTIONAL_TENANTS = new Set(['lire']);
-const DEFAULT_ENABLED_FORMS_BY_TENANT: Partial<Record<string, FormType[]>> = {
-  frontierdemo: DEFAULT_ENABLED_FORMS,
-  qhvac: [FormType.Electrical, FormType.ElectricalSF, FormType.HVAC],
-  opscentral: [FormType.SafetyChecklist],
-  lire: [],
-};
 
 const isFormType = (value: string): value is FormType => DEFAULT_ENABLED_FORMS.includes(value as FormType);
 const resolveOptionalBoolean = (...values: Array<boolean | undefined>): boolean | undefined =>
   values.find((value) => typeof value === 'boolean');
 const resolveDefaultEnabledFormsForTenant = (tenantId: string): FormType[] =>
-  DEFAULT_ENABLED_FORMS_BY_TENANT[tenantId.toLowerCase()] ?? DEFAULT_ENABLED_FORMS;
+  getTenantById(tenantId)?.bootstrapDefaults.enabledForms ?? DEFAULT_ENABLED_FORMS;
+const resolveDefaultLoginRequiredForTenant = (tenantId: string): boolean =>
+  getTenantById(tenantId)?.bootstrapDefaults.loginRequired ?? true;
 const isTenantBootstrapConfig = (value: unknown): value is TenantBootstrapConfig => {
   if (!value || typeof value !== 'object') {
     return false;
@@ -125,7 +120,7 @@ export const getDefaultTenantBootstrapConfig = (): TenantBootstrapConfig => {
     showRightFlyout: activeTenant.uiDefaults.showRightFlyout,
     showInspectionStatsButton: activeTenant.uiDefaults.showInspectionStatsButton,
     enabledForms: resolveDefaultEnabledFormsForTenant(activeTenant.tenantId),
-    loginRequired: !LOGIN_OPTIONAL_TENANTS.has(activeTenant.tenantId.toLowerCase()),
+    loginRequired: resolveDefaultLoginRequiredForTenant(activeTenant.tenantId),
   };
 };
 
@@ -141,7 +136,7 @@ export const getDefaultTenantBootstrapConfigForTenant = (tenantId?: string): Ten
     showRightFlyout: activeTenant.uiDefaults.showRightFlyout,
     showInspectionStatsButton: activeTenant.uiDefaults.showInspectionStatsButton,
     enabledForms: resolveDefaultEnabledFormsForTenant(activeTenant.tenantId),
-    loginRequired: !LOGIN_OPTIONAL_TENANTS.has(activeTenant.tenantId.toLowerCase()),
+    loginRequired: resolveDefaultLoginRequiredForTenant(activeTenant.tenantId),
   };
 };
 

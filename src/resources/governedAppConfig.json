@@ -1,0 +1,98 @@
+{
+  "defaultEnvironmentId": "beta",
+  "defaultTenantId": "frontierDemo",
+  "tenantHostnameSuffix": "qcontrol.frontierenergy.com",
+  "servicePaths": {
+    "uploadInspectionPath": "/inspections",
+    "loginPath": "/auth/login",
+    "registerPath": "/auth/register",
+    "tenantBootstrapPath": "/tenant-config",
+    "formSchemasPath": "/form-schemas",
+    "translationsPath": "/translations"
+  },
+  "environments": [
+    {
+      "environmentId": "beta",
+      "displayName": "Beta",
+      "apiBaseUrl": "https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io",
+      "hostnames": ["localhost", "127.0.0.1"],
+      "hostnameSuffixes": []
+    },
+    {
+      "environmentId": "uat",
+      "displayName": "UAT",
+      "apiBaseUrl": "https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io",
+      "hostnames": [],
+      "hostnameSuffixes": []
+    },
+    {
+      "environmentId": "production",
+      "displayName": "Production",
+      "apiBaseUrl": "https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io",
+      "hostnames": [],
+      "hostnameSuffixes": [".qcontrol.frontierenergy.com"]
+    }
+  ],
+  "tenants": [
+    {
+      "tenantId": "frontierDemo",
+      "displayName": "Frontier Demo",
+      "uiDefaults": {
+        "theme": "mist",
+        "font": "\"Source Sans Pro\", \"Helvetica Neue\", Arial, sans-serif",
+        "showLeftFlyout": true,
+        "showRightFlyout": true,
+        "showInspectionStatsButton": false
+      },
+      "bootstrapDefaults": {
+        "enabledForms": ["electrical", "electrical-sf", "hvac", "safety-checklist"],
+        "loginRequired": true
+      }
+    },
+    {
+      "tenantId": "qhvac",
+      "displayName": "QHVAC",
+      "uiDefaults": {
+        "theme": "harbor",
+        "font": "Tahoma, \"Trebuchet MS\", Arial, sans-serif",
+        "showLeftFlyout": true,
+        "showRightFlyout": true,
+        "showInspectionStatsButton": false
+      },
+      "bootstrapDefaults": {
+        "enabledForms": ["electrical", "electrical-sf", "hvac"],
+        "loginRequired": true
+      }
+    },
+    {
+      "tenantId": "opscentral",
+      "displayName": "Ops Central",
+      "uiDefaults": {
+        "theme": "sand",
+        "font": "Georgia, \"Times New Roman\", serif",
+        "showLeftFlyout": true,
+        "showRightFlyout": true,
+        "showInspectionStatsButton": false
+      },
+      "bootstrapDefaults": {
+        "enabledForms": ["safety-checklist"],
+        "loginRequired": true
+      }
+    },
+    {
+      "tenantId": "lire",
+      "displayName": "LIRE",
+      "uiDefaults": {
+        "theme": "mist",
+        "font": "\"Source Sans Pro\", \"Helvetica Neue\", Arial, sans-serif",
+        "showLeftFlyout": false,
+        "showRightFlyout": true,
+        "showInspectionStatsButton": false
+      },
+      "bootstrapDefaults": {
+        "enabledForms": [],
+        "loginRequired": false
+      }
+    }
+  ]
+}
