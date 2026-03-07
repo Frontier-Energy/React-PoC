@@ -27,8 +27,18 @@ jobs:
           node-version: '20'
       - name: Install dependencies
         run: npm ci
+      - name: Enforce lint gates
+        run: npm run lint
+      - name: Enforce typecheck gates
+        run: npm run typecheck
       - name: Enforce test coverage gates
         run: npm run test:coverage
+      - name: Enforce dependency audit gates
+        run: npm run audit:deps
+      - name: Build production bundle
+        run: npm run build
+      - name: Enforce bundle-size regression gates
+        run: npm run bundle:check
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1

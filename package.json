@@ -8,10 +8,13 @@
     "build": "tsc -p tsconfig.app.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
-    "lint": "npm run typecheck && eslint .",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "audit:deps": "npm audit --audit-level=high",
+    "bundle:check": "node ./scripts/check-bundle-size.mjs",
+    "ci:verify": "npm run lint && npm run typecheck && npm run test:coverage && npm run audit:deps && npm run build && npm run bundle:check"
   },
   "dependencies": {
     "@cloudscape-design/components": "^3.0.0",

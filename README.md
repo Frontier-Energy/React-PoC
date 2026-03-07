@@ -105,6 +105,21 @@ npm run build
 ```bash
 npm test
 npm run lint
+npm run typecheck
+npm run test:coverage
+```
+
+### Release Governance
+
+CI enforces release gates before deployment:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test:coverage
+npm run audit:deps
+npm run build
+npm run bundle:check
 ```
 
 ## Offline Behavior
@@ -255,6 +270,9 @@ npm run typecheck
 npm run lint
 npm test
 npm run test:coverage
+npm run audit:deps
+npm run bundle:check
+npm run ci:verify
 ```
 
 ## Browser Support

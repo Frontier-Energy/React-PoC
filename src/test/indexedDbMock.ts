@@ -20,6 +20,8 @@ const queueError = (request: IDBRequest<unknown>, error: Error) => {
   }, 0);
 };
 
+const asVersionChangeEvent = (type: string) => new Event(type) as IDBVersionChangeEvent;
+
 export const createIndexedDbMock = () => {
   const databases = new Map<string, Map<string, StoreState>>();
 
@@ -128,7 +130,7 @@ export const createIndexedDbMock = () => {
 
       setTimeout(() => {
         (request as { result: IDBDatabase }).result = db;
-        request.onupgradeneeded?.(new Event('upgradeneeded'));
+        request.onupgradeneeded?.(asVersionChangeEvent('upgradeneeded'));
         request.onsuccess?.(new Event('success'));
       }, 0);
 
@@ -156,7 +158,7 @@ export const createIndexedDbMock = () => {
         indexedDB: {
           open: () => {
             const request = {} as IDBOpenDBRequest;
-            queueError(request, new Error(errorMessage));
+            queueError(request as IDBRequest<unknown>, new Error(errorMessage));
             return request;
           },
           deleteDatabase: indexedDB.deleteDatabase.bind(indexedDB),
