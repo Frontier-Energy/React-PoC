@@ -1,4 +1,5 @@
 import { getAppPreferenceState } from './appState';
+import { createAppConfigService } from './services/appConfigService';
 
 export interface AppConfig {
   tenantName: string;
@@ -25,7 +26,6 @@ export interface TenantDefinition {
 
 export const DEFAULT_TENANT_NAME = 'frontierDemo';
 const DEFAULT_API_BASE_URL = 'https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io';
-const QCONTROL_DOMAIN_SUFFIX = ['qcontrol', 'frontierenergy', 'com'] as const;
 export const TENANTS: TenantDefinition[] = [
   {
     tenantId: DEFAULT_TENANT_NAME,
@@ -73,69 +73,25 @@ export const TENANTS: TenantDefinition[] = [
   },
 ];
 
-export const getTenantById = (tenantId: string) =>
-  TENANTS.find((tenant) => tenant.tenantId.toLowerCase() === tenantId.toLowerCase());
-
-export const resolveTenantNameFromHostname = (hostname: string): string => {
-  const normalized = hostname.trim().toLowerCase();
-  if (!normalized) {
-    return DEFAULT_TENANT_NAME;
-  }
-
-  const parts = normalized.split('.');
-  const hasExpectedShape = parts.length === 4
-    && parts[1] === QCONTROL_DOMAIN_SUFFIX[0]
-    && parts[2] === QCONTROL_DOMAIN_SUFFIX[1]
-    && parts[3] === QCONTROL_DOMAIN_SUFFIX[2]
-    && parts[0].length > 0;
-
-  if (!hasExpectedShape) {
-    return DEFAULT_TENANT_NAME;
-  }
-
-  return getTenantById(parts[0])?.tenantId ?? DEFAULT_TENANT_NAME;
-};
-
-const readStoredTenantName = (): string | null => {
-  const storedTenantId = getAppPreferenceState().tenantId;
-  return storedTenantId && getTenantById(storedTenantId) ? storedTenantId : null;
-};
-
-const resolveActiveTenantName = (): string => {
-  const storedTenantName = readStoredTenantName();
-  if (storedTenantName) {
-    return storedTenantName;
-  }
-  if (typeof window === 'undefined') {
-    return DEFAULT_TENANT_NAME;
-  }
-  return resolveTenantNameFromHostname(window.location.hostname);
-};
-
 const resolveApiBaseUrl = (): string => {
   const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
   const apiBaseUrl = configuredApiBaseUrl || DEFAULT_API_BASE_URL;
   return apiBaseUrl.replace(/\/+$/, '');
 };
 
-export const getActiveTenant = (): TenantDefinition => {
-  const resolvedTenantName = resolveActiveTenantName();
-  return getTenantById(resolvedTenantName) ?? TENANTS[0];
-};
+const appConfigService = createAppConfigService({
+  tenants: TENANTS,
+  defaultTenantName: DEFAULT_TENANT_NAME,
+  resolveStoredTenantName: () => getAppPreferenceState().tenantId,
+  resolveHostname: () => (typeof window === 'undefined' ? null : window.location.hostname),
+  resolveApiBaseUrl,
+});
 
-const getAppConfig = (tenantId?: string): AppConfig => {
-  const activeTenant = tenantId ? getTenantById(tenantId) ?? getActiveTenant() : getActiveTenant();
-  return {
-    tenantName: activeTenant.tenantId,
-    apiBaseUrl: resolveApiBaseUrl(),
-    uploadInspectionPath: '/inspections',
-    loginPath: '/auth/login',
-    registerPath: '/auth/register',
-    tenantBootstrapPath: '/tenant-config',
-    formSchemasPath: '/form-schemas',
-    translationsPath: '/translations',
-  };
-};
+export const getTenantById = appConfigService.getTenantById;
+export const resolveTenantNameFromHostname = appConfigService.resolveTenantNameFromHostname;
+export const getActiveTenant = appConfigService.getActiveTenant;
+
+const getAppConfig = (tenantId?: string): AppConfig => appConfigService.getAppConfig(tenantId);
 
 export const getUploadInspectionUrl = () => {
   const appConfig = getAppConfig();

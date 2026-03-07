@@ -1,5 +1,5 @@
 import type { FormDataValue, InspectionSession } from '../types';
-import type { SyncQueueEntry } from '../syncQueue';
+import type { SyncQueueEntry } from '../domain/syncQueue';
 
 const DB_NAME = 'react-poc-app-data';
 const DB_VERSION = 1;
