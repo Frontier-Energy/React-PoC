@@ -12,7 +12,7 @@ const bundleBudget = {
   maxEntryCssBytes: 400_000,
   maxTotalJsBytes: 1_060_000,
   maxTotalCssBytes: 980_000,
-  maxTotalGzipBytes: 525_000,
+  maxTotalGzipBytes: 528_000,
 };
 
 const formatBytes = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;

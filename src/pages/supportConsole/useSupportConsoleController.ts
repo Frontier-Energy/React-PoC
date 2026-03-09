@@ -148,23 +148,31 @@ export const useSupportConsoleController = () => {
     return `${(value / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const setSuccess = (message: string) => setFlashMessage({ type: 'success', message });
-  const setFailure = (error: unknown) => {
-    const reason = error instanceof Error ? error.message : labels.support.alerts.actionFailed;
-    setFlashMessage({ type: 'error', message: `${labels.support.alerts.actionFailed} ${reason}`.trim() });
-  };
+  const setSuccess = useCallback((message: string) => {
+    setFlashMessage({ type: 'success', message });
+  }, []);
+  const setFailure = useCallback(
+    (error: unknown) => {
+      const reason = error instanceof Error ? error.message : labels.support.alerts.actionFailed;
+      setFlashMessage({ type: 'error', message: `${labels.support.alerts.actionFailed} ${reason}`.trim() });
+    },
+    [labels.support.alerts.actionFailed]
+  );
 
   const refreshSupportState = useCallback(async () => {
     await Promise.all([loadInspectionState(), syncMonitor.refresh()]);
   }, [loadInspectionState]);
 
-  const wrapAction = useCallback(async (action: () => Promise<void>) => {
-    try {
-      await action();
-    } catch (error) {
-      setFailure(error);
-    }
-  }, []);
+  const wrapAction = useCallback(
+    async (action: () => Promise<void>) => {
+      try {
+        await action();
+      } catch (error) {
+        setFailure(error);
+      }
+    },
+    [setFailure]
+  );
 
   const handleApplyTenant = () =>
     wrapAction(async () => {
