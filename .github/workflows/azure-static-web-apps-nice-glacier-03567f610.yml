@@ -9,58 +9,138 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
+concurrency:
+  group: swa-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  BUILD_ARTIFACT_NAME: static-web-app-dist
+
 jobs:
-  build_and_deploy_job:
+  verify:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    name: Verify
     runs-on: ubuntu-latest
-    name: Build and Deploy Job
-    env:
-      NODE_VERSION: '20'
+    timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           submodules: true
           lfs: false
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@1d0ff469b7ec7df4e25cc7f052b1e7b39e60b8c6
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --audit=false --fund=false
+
       - name: Enforce lint gates
         run: npm run lint
+
       - name: Enforce typecheck gates
         run: npm run typecheck
+
       - name: Enforce test coverage gates
         run: npm run test:coverage
+
       - name: Enforce dependency audit gates
         run: npm run audit:deps
+
       - name: Build production bundle
         run: npm run build
+
       - name: Enforce bundle-size regression gates
         run: npm run bundle:check
-      - name: Build And Deploy
-        id: builddeploy
-        uses: Azure/static-web-apps-deploy@v1
+
+      - name: Publish verified artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ env.BUILD_ARTIFACT_NAME }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy_preview:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    name: Deploy Preview
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    environment:
+      name: preview
+    steps:
+      - name: Download verified artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: ${{ env.BUILD_ARTIFACT_NAME }}
+          path: deploy-dist
+
+      - name: Upload preview to Azure Static Web Apps
+        id: deploy_preview
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_NICE_GLACIER_03567F610 }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/" # App source code path
-          api_location: "" # Api source code path - optional
-          output_location: "dist" # Built app content directory - optional
-          ###### End of Repository/Build Configurations ######
+          app_location: "deploy-dist"
+          skip_app_build: true
+          output_location: ""
+          production_branch: "main"
+
+  deploy_production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: Promote To Production
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    environment:
+      name: production
+    steps:
+      - name: Download verified artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: ${{ env.BUILD_ARTIFACT_NAME }}
+          path: deploy-dist
+
+      - name: Upload production bundle to Azure Static Web Apps
+        id: deploy_production
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_NICE_GLACIER_03567F610 }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "deploy-dist"
+          skip_app_build: true
+          output_location: ""
+          production_branch: "main"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
     name: Close Pull Request Job
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - name: Close Pull Request
         id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_NICE_GLACIER_03567F610 }}
           action: "close"
