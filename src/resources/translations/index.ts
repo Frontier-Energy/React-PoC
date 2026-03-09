@@ -272,6 +272,7 @@ export interface DebugInspectionLabels {
     pending: string;
     syncing: string;
     failed: string;
+    conflict: string;
     deadLetter: string;
     oldestAge: string;
     nextAttempt: string;
@@ -289,6 +290,18 @@ export interface DebugInspectionLabels {
     requeueDeadLetter: string;
   };
   schemaLoadError: string;
+  versionHeader: string;
+  versionClientRevision: string;
+  versionBaseServerRevision: string;
+  versionServerRevision: string;
+  versionUpdatedAt: string;
+  versionMergePolicy: string;
+  conflictHeader: string;
+  conflictDetectedAt: string;
+  conflictReason: string;
+  conflictServerRevision: string;
+  conflictServerUpdatedAt: string;
+  conflictFields: string;
   noFilesFound: string;
   table: {
     fileName: string;

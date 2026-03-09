@@ -1,4 +1,5 @@
 import type { ScopedEntity } from '../domain/storageScope';
+import { ensureInspectionSyncState, markInspectionEdited } from '../domain/inspectionSync';
 import { ANONYMOUS_USER_SCOPE } from '../domain/storageScope';
 import type { FormDataValue, InspectionSession } from '../types';
 import type { StorageScope } from '../utils/appDataStore';
@@ -43,10 +44,32 @@ export const createInspectionRepository = ({ store, resolveActiveScope }: Inspec
     inspection: InspectionSession,
     scope: StorageScope = resolveActiveScope()
   ): InspectionSession => ({
-    ...inspection,
+    ...ensureInspectionSyncState(inspection),
     tenantId: inspection.tenantId || scope.tenantId,
     userId: inspection.userId ?? (scope.userId === ANONYMOUS_USER_SCOPE ? undefined : scope.userId),
   });
+
+  const bumpInspectionRevision = async (inspectionId: string, scope: StorageScope) => {
+    const [inspection, currentSession] = await Promise.all([
+      store.getInspection(getInspectionKey(inspectionId, scope)),
+      store.getCurrentSession(scope),
+    ]);
+    const sourceInspection =
+      currentSession?.id === inspectionId ? currentSession : inspection;
+
+    if (!sourceInspection) {
+      return null;
+    }
+
+    const updatedInspection = normalizeInspectionForScope(markInspectionEdited(sourceInspection), scope);
+    await store.putInspection(scope, getInspectionKey(updatedInspection.id, scope), updatedInspection);
+
+    if (currentSession?.id === updatedInspection.id) {
+      await store.putCurrentSession(scope, updatedInspection);
+    }
+
+    return updatedInspection;
+  };
 
   return {
     getStorageScopeKey(): string {
@@ -163,6 +186,7 @@ export const createInspectionRepository = ({ store, resolveActiveScope }: Inspec
     ): Promise<void> {
       const scope = inspection ? getScopeForInspection(inspection) : resolveActiveScope();
       await store.putFormData(scope, getFormDataKey(inspectionId, scope), formData);
+      await bumpInspectionRevision(inspectionId, scope);
     },
 
     async updateFormDataEntry(
@@ -178,7 +202,9 @@ export const createInspectionRepository = ({ store, resolveActiveScope }: Inspec
         currentFormData[key] = value;
       }
 
-      await this.saveFormData(inspectionId, currentFormData, inspection);
+      const scope = inspection ? getScopeForInspection(inspection) : resolveActiveScope();
+      await store.putFormData(scope, getFormDataKey(inspectionId, scope), currentFormData);
+      await bumpInspectionRevision(inspectionId, scope);
     },
 
     async clearFormData(
@@ -187,6 +213,7 @@ export const createInspectionRepository = ({ store, resolveActiveScope }: Inspec
     ): Promise<void> {
       const scope = inspection ? getScopeForInspection(inspection) : resolveActiveScope();
       await store.deleteFormData(scope, getFormDataKey(inspectionId, scope));
+      await bumpInspectionRevision(inspectionId, scope);
     },
   };
 };

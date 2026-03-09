@@ -21,6 +21,7 @@ export interface SyncMonitorEvent {
     | 'inspection-claimed'
     | 'inspection-succeeded'
     | 'inspection-failed'
+    | 'inspection-conflicted'
     | 'inspection-dead-lettered'
     | 'inspection-deleted';
   message: string;
@@ -51,12 +52,13 @@ const emptyDiagnostics = (): SyncQueueDiagnostics => ({
     totalCount: 0,
     readyCount: 0,
     pendingCount: 0,
-    syncingCount: 0,
-    failedCount: 0,
-    deadLetterCount: 0,
-    oldestEntryAgeMs: null,
-    nextAttemptAt: null,
-  },
+      syncingCount: 0,
+      failedCount: 0,
+      deadLetterCount: 0,
+      conflictCount: 0,
+      oldestEntryAgeMs: null,
+      nextAttemptAt: null,
+    },
 });
 
 const createEventId = () => {
@@ -272,6 +274,22 @@ export const syncMonitor = {
         entry.status === 'dead-letter'
           ? `Inspection ${entry.inspectionId} moved to dead-letter: ${errorMessage}.`
           : `Inspection ${entry.inspectionId} failed and will retry: ${errorMessage}.`,
+      inspectionId: entry.inspectionId,
+    }, at);
+  },
+
+  markInspectionConflicted(entry: SyncQueueEntry, errorMessage: string) {
+    const at = Date.now();
+    updateSnapshot((current) => ({
+      ...current,
+      lastFailedSyncAt: at,
+      lastError: errorMessage,
+      lastUpdatedAt: at,
+    }));
+    pushEvent({
+      level: 'error',
+      type: 'inspection-conflicted',
+      message: `Inspection ${entry.inspectionId} requires conflict resolution: ${errorMessage}.`,
       inspectionId: entry.inspectionId,
     }, at);
   },

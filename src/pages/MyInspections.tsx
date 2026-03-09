@@ -29,6 +29,9 @@ export function MyInspections() {
   const failedInspections = inspections.filter(
     (inspection) => (inspection.uploadStatus || UploadStatus.Local) === UploadStatus.Failed
   );
+  const conflictedInspections = inspections.filter(
+    (inspection) => (inspection.uploadStatus || UploadStatus.Local) === UploadStatus.Conflict
+  );
 
   const loadInspections = useCallback(() => {
     void inspectionRepository.loadAll().then(setInspections);
@@ -140,13 +143,14 @@ export function MyInspections() {
   };
 
   const getUploadStatusBadge = (status: UploadStatus | undefined) => {
-    const badgeConfig: Record<UploadStatus, { color: 'blue' | 'green' | 'red' | 'grey'; label: string }> = {
-      [UploadStatus.Local]: { color: 'blue', label: labels.uploadStatus[UploadStatus.Local] },
-      [UploadStatus.InProgress]: { color: 'grey', label: labels.uploadStatus[UploadStatus.InProgress] },
-      [UploadStatus.Uploading]: { color: 'grey', label: labels.uploadStatus[UploadStatus.Uploading] },
-      [UploadStatus.Uploaded]: { color: 'green', label: labels.uploadStatus[UploadStatus.Uploaded] },
-      [UploadStatus.Failed]: { color: 'red', label: labels.uploadStatus[UploadStatus.Failed] },
-    };
+      const badgeConfig: Record<UploadStatus, { color: 'blue' | 'green' | 'red' | 'grey'; label: string }> = {
+        [UploadStatus.Local]: { color: 'blue', label: labels.uploadStatus[UploadStatus.Local] },
+        [UploadStatus.InProgress]: { color: 'grey', label: labels.uploadStatus[UploadStatus.InProgress] },
+        [UploadStatus.Uploading]: { color: 'grey', label: labels.uploadStatus[UploadStatus.Uploading] },
+        [UploadStatus.Uploaded]: { color: 'green', label: labels.uploadStatus[UploadStatus.Uploaded] },
+        [UploadStatus.Failed]: { color: 'red', label: labels.uploadStatus[UploadStatus.Failed] },
+        [UploadStatus.Conflict]: { color: 'red', label: labels.uploadStatus[UploadStatus.Conflict] },
+      };
 
     const config = badgeConfig[status || UploadStatus.Local];
     return <Badge color={config.color}>{config.label}</Badge>;
@@ -172,6 +176,7 @@ export function MyInspections() {
     { label: labels.uploadStatus[UploadStatus.Uploading], value: UploadStatus.Uploading },
     { label: labels.uploadStatus[UploadStatus.Uploaded], value: UploadStatus.Uploaded },
     { label: labels.uploadStatus[UploadStatus.Failed], value: UploadStatus.Failed },
+    { label: labels.uploadStatus[UploadStatus.Conflict], value: UploadStatus.Conflict },
   ];
 
   return (
@@ -217,6 +222,12 @@ export function MyInspections() {
       {failedInspections.length > 0 && (
         <Alert type="error">
           {formatPluralTemplate(labels.myInspections.failedUploadMessage, failedInspections.length)}
+        </Alert>
+      )}
+
+      {conflictedInspections.length > 0 && (
+        <Alert type="warning">
+          {labels.uploadStatus[UploadStatus.Conflict]}: {conflictedInspections.length}
         </Alert>
       )}
 
@@ -289,6 +300,9 @@ export function MyInspections() {
                     )}
                     {(item.uploadStatus || UploadStatus.Local) === UploadStatus.Failed && (
                       <Button onClick={() => handleRetryInspection(item)}>{labels.myInspections.table.buttons.retry}</Button>
+                    )}
+                    {(item.uploadStatus || UploadStatus.Local) === UploadStatus.Conflict && (
+                      <Button onClick={() => handleOpenInspection(item)}>{labels.myInspections.table.buttons.open}</Button>
                     )}
                     <Button onClick={() => handleRequestDeleteInspection(item)}>{labels.myInspections.table.buttons.delete}</Button>
                   </SpaceBetween>

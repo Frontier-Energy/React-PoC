@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchFormSchema } from '../../apiContent';
+import { markInspectionEdited } from '../../domain/inspectionSync';
 import { useLocalization } from '../../LocalizationContext';
 import { inspectionRepository } from '../../repositories/inspectionRepository';
 import { syncQueue } from '../../syncQueue';
@@ -327,10 +328,10 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
 
   const handleSessionNameChange = useCallback((name: string) => {
     if (session) {
-      const updatedSession: InspectionSession = {
+      const updatedSession = markInspectionEdited({
         ...session,
         name,
-      };
+      });
       setSession(updatedSession);
       void inspectionRepository.saveAsCurrent(updatedSession);
     }

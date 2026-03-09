@@ -97,6 +97,7 @@ export function Layout() {
     [UploadStatus.Uploading]: 0,
     [UploadStatus.Uploaded]: 0,
     [UploadStatus.Failed]: 0,
+    [UploadStatus.Conflict]: 0,
   }));
 
   const statusType = status === 'online' ? 'success' : status === 'offline' ? 'error' : 'in-progress';
@@ -120,6 +121,7 @@ export function Layout() {
         [UploadStatus.Uploading]: 0,
         [UploadStatus.Uploaded]: 0,
         [UploadStatus.Failed]: 0,
+        [UploadStatus.Conflict]: 0,
       };
 
       inspections.forEach((session) => {

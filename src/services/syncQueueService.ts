@@ -1,3 +1,4 @@
+import { ensureInspectionSyncState } from '../domain/inspectionSync';
 import { ANONYMOUS_USER_SCOPE } from '../domain/storageScope';
 import type { SyncQueueDiagnostics, SyncQueueEntry, SyncQueueMetrics, SyncWorkerLease } from '../domain/syncQueue';
 import { UploadStatus, type FormDataValue, type InspectionSession } from '../types';
@@ -17,6 +18,10 @@ export interface SyncQueueStore {
 
 export interface SyncQueueInspectionRepository {
   getStorageScopeKey(): string;
+  loadById(
+    inspectionId: string,
+    inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
+  ): Promise<InspectionSession | null>;
   loadFormData(
     inspectionId: string,
     inspection?: Pick<InspectionSession, 'tenantId' | 'userId'>
@@ -61,8 +66,10 @@ export const buildInspectionSyncFingerprint = (
   inspection: InspectionSession,
   formData: Record<string, FormDataValue>,
   resolveUserId: () => string | null = () => null
-) =>
-  JSON.stringify(
+) => {
+  const version = ensureInspectionSyncState(inspection).version;
+
+  return JSON.stringify(
     stableSerialize({
       inspection: {
         id: inspection.id,
@@ -70,10 +77,18 @@ export const buildInspectionSyncFingerprint = (
         formType: inspection.formType,
         tenantId: inspection.tenantId,
         userId: inspection.userId ?? resolveUserId() ?? '',
+        version: version
+          ? {
+              clientRevision: version.clientRevision,
+              baseServerRevision: version.baseServerRevision,
+              mergePolicy: version.mergePolicy,
+            }
+          : undefined,
       },
       formData,
     })
   );
+};
 
 export const createSyncQueueService = ({
   store,
@@ -131,12 +146,17 @@ export const createSyncQueueService = ({
     return {
       totalCount: entries.length,
       readyCount: entries.filter(
-        (entry) => entry.status !== 'dead-letter' && entry.nextAttemptAt <= currentTime && !isEntryLocked(entry, currentTime)
+        (entry) =>
+          entry.status !== 'dead-letter' &&
+          entry.status !== 'conflict' &&
+          entry.nextAttemptAt <= currentTime &&
+          !isEntryLocked(entry, currentTime)
       ).length,
       pendingCount: entries.filter((entry) => entry.status === 'pending').length,
       syncingCount: entries.filter((entry) => entry.status === 'syncing').length,
       failedCount: entries.filter((entry) => entry.status === 'failed').length,
       deadLetterCount: entries.filter((entry) => entry.status === 'dead-letter').length,
+      conflictCount: entries.filter((entry) => entry.status === 'conflict').length,
       oldestEntryAgeMs: entries.length > 0 ? currentTime - Math.min(...entries.map((entry) => entry.createdAt)) : null,
       nextAttemptAt,
     };
@@ -185,24 +205,35 @@ export const createSyncQueueService = ({
       const inspectionScope = getInspectionScope(inspection);
       const existing = await store.getQueueEntry(getQueueKey(inspection.id, inspectionScope));
       const timestamp = now();
-      const fingerprint = buildInspectionSyncFingerprint(inspection, formData, resolveUserId);
+      const persistedInspection =
+        (await inspectionRepository.loadById(inspection.id, inspection)) ?? inspection;
+      const normalizedInspection = ensureInspectionSyncState(persistedInspection, timestamp);
+      const version = normalizedInspection.version;
+      const fingerprint = buildInspectionSyncFingerprint(normalizedInspection, formData, resolveUserId);
 
       const entry: SyncQueueEntry = {
-        inspectionId: inspection.id,
+        inspectionId: normalizedInspection.id,
         tenantId: inspectionScope.tenantId,
         userId: inspectionScope.userId === ANONYMOUS_USER_SCOPE ? undefined : inspectionScope.userId,
         status: 'pending',
         fingerprint,
+        clientRevision: version?.clientRevision ?? 1,
+        baseServerRevision: version?.baseServerRevision ?? null,
+        mergePolicy: version?.mergePolicy ?? 'manual-on-version-mismatch',
         idempotencyKey:
           existing && existing.fingerprint === fingerprint
             ? existing.idempotencyKey
-            : `inspection-sync:${inspection.id}:${createId()}`,
+            : `inspection-sync:${normalizedInspection.id}:${createId()}`,
         attemptCount: existing?.fingerprint === fingerprint ? existing.attemptCount : 0,
         nextAttemptAt: timestamp,
         createdAt: existing?.createdAt ?? timestamp,
         updatedAt: timestamp,
         deadLetteredAt: undefined,
         deadLetterReason: undefined,
+        conflictDetectedAt: undefined,
+        conflictServerRevision: undefined,
+        conflictServerUpdatedAt: undefined,
+        conflictingFields: undefined,
       };
 
       await store.putQueueEntry(inspectionScope, getQueueKey(entry.inspectionId, inspectionScope), entry);
@@ -274,7 +305,11 @@ export const createSyncQueueService = ({
 
     async claimNextReady(ownerId: string, currentTime = now()) {
       const readyEntry = (await this.list()).find(
-        (entry) => entry.status !== 'dead-letter' && entry.nextAttemptAt <= currentTime && !isEntryLocked(entry, currentTime)
+        (entry) =>
+          entry.status !== 'dead-letter' &&
+          entry.status !== 'conflict' &&
+          entry.nextAttemptAt <= currentTime &&
+          !isEntryLocked(entry, currentTime)
       );
       if (!readyEntry) {
         return null;
@@ -295,7 +330,9 @@ export const createSyncQueueService = ({
     },
 
     async refreshFingerprint(entry: SyncQueueEntry, inspection: InspectionSession, formData: Record<string, FormDataValue>) {
-      const fingerprint = buildInspectionSyncFingerprint(inspection, formData, resolveUserId);
+      const normalizedInspection = ensureInspectionSyncState(inspection);
+      const version = normalizedInspection.version;
+      const fingerprint = buildInspectionSyncFingerprint(normalizedInspection, formData, resolveUserId);
       if (fingerprint === entry.fingerprint) {
         return entry;
       }
@@ -304,6 +341,9 @@ export const createSyncQueueService = ({
       const updatedEntry: SyncQueueEntry = {
         ...entry,
         fingerprint,
+        clientRevision: version?.clientRevision ?? 1,
+        baseServerRevision: version?.baseServerRevision ?? null,
+        mergePolicy: version?.mergePolicy ?? 'manual-on-version-mismatch',
         idempotencyKey: `inspection-sync:${inspection.id}:${createId()}`,
         attemptCount: 0,
         nextAttemptAt: timestamp,
@@ -311,6 +351,10 @@ export const createSyncQueueService = ({
         lastError: undefined,
         deadLetteredAt: undefined,
         deadLetterReason: undefined,
+        conflictDetectedAt: undefined,
+        conflictServerRevision: undefined,
+        conflictServerUpdatedAt: undefined,
+        conflictingFields: undefined,
       };
 
       const scope = getInspectionScope(inspection);
@@ -333,6 +377,44 @@ export const createSyncQueueService = ({
         processingExpiresAt: undefined,
         deadLetteredAt: deadLettered ? currentTime : undefined,
         deadLetterReason: deadLettered ? errorMessage : undefined,
+        conflictDetectedAt: undefined,
+        conflictServerRevision: undefined,
+        conflictServerUpdatedAt: undefined,
+        conflictingFields: undefined,
+      };
+
+      const scope = getEntryScope(updatedEntry);
+      await store.putQueueEntry(scope, getQueueKey(updatedEntry.inspectionId, scope), updatedEntry);
+      return updatedEntry;
+    },
+
+    async markConflict(
+      entry: SyncQueueEntry,
+      conflict: {
+        reason: string;
+        detectedAt?: number;
+        serverRevision?: string | null;
+        serverUpdatedAt?: number | null;
+        conflictingFields?: string[];
+      },
+      currentTime = now()
+    ) {
+      const detectedAt = conflict.detectedAt ?? currentTime;
+      const updatedEntry: SyncQueueEntry = {
+        ...entry,
+        status: 'conflict',
+        nextAttemptAt: Number.MAX_SAFE_INTEGER,
+        updatedAt: currentTime,
+        lastAttemptAt: currentTime,
+        lastError: conflict.reason,
+        processingOwnerId: undefined,
+        processingExpiresAt: undefined,
+        deadLetteredAt: undefined,
+        deadLetterReason: undefined,
+        conflictDetectedAt: detectedAt,
+        conflictServerRevision: conflict.serverRevision ?? undefined,
+        conflictServerUpdatedAt: conflict.serverUpdatedAt ?? undefined,
+        conflictingFields: conflict.conflictingFields,
       };
 
       const scope = getEntryScope(updatedEntry);
@@ -350,6 +432,10 @@ export const createSyncQueueService = ({
         processingExpiresAt: undefined,
         deadLetteredAt: currentTime,
         deadLetterReason: reason,
+        conflictDetectedAt: undefined,
+        conflictServerRevision: undefined,
+        conflictServerUpdatedAt: undefined,
+        conflictingFields: undefined,
       };
 
       const scope = getEntryScope(updatedEntry);
@@ -368,6 +454,10 @@ export const createSyncQueueService = ({
         processingExpiresAt: undefined,
         deadLetteredAt: undefined,
         deadLetterReason: undefined,
+        conflictDetectedAt: undefined,
+        conflictServerRevision: undefined,
+        conflictServerUpdatedAt: undefined,
+        conflictingFields: undefined,
       };
 
       const scope = getEntryScope(updatedEntry);

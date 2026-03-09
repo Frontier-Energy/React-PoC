@@ -264,6 +264,30 @@ export function DebugInspection() {
           <pre>{JSON.stringify(inspectionData, null, 2)}</pre>
         </Box>
       </Container>
+      {inspectionData.inspection ? (
+        <Container>
+          <SpaceBetween size="xs">
+            <Header variant="h2">{labels.debugInspection.versionHeader}</Header>
+            <Box>{labels.debugInspection.versionClientRevision}: {inspectionData.inspection.version?.clientRevision ?? labels.common.notProvided}</Box>
+            <Box>{labels.debugInspection.versionBaseServerRevision}: {inspectionData.inspection.version?.baseServerRevision ?? labels.common.notProvided}</Box>
+            <Box>{labels.debugInspection.versionServerRevision}: {inspectionData.inspection.version?.serverRevision ?? labels.common.notProvided}</Box>
+            <Box>{labels.debugInspection.versionUpdatedAt}: {formatTimestamp(inspectionData.inspection.version?.updatedAt)}</Box>
+            <Box>{labels.debugInspection.versionMergePolicy}: {inspectionData.inspection.version?.mergePolicy ?? labels.common.notProvided}</Box>
+          </SpaceBetween>
+        </Container>
+      ) : null}
+      {inspectionData.inspection?.conflict ? (
+        <Container>
+          <SpaceBetween size="xs">
+            <Header variant="h2">{labels.debugInspection.conflictHeader}</Header>
+            <Box>{labels.debugInspection.conflictDetectedAt}: {formatTimestamp(inspectionData.inspection.conflict.detectedAt)}</Box>
+            <Box>{labels.debugInspection.conflictReason}: {inspectionData.inspection.conflict.reason}</Box>
+            <Box>{labels.debugInspection.conflictServerRevision}: {inspectionData.inspection.conflict.serverRevision ?? labels.common.notProvided}</Box>
+            <Box>{labels.debugInspection.conflictServerUpdatedAt}: {formatTimestamp(inspectionData.inspection.conflict.serverUpdatedAt ?? null)}</Box>
+            <Box>{labels.debugInspection.conflictFields}: {(inspectionData.inspection.conflict.conflictingFields ?? []).join(', ') || labels.common.notProvided}</Box>
+          </SpaceBetween>
+        </Container>
+      ) : null}
       <Container>
         <SpaceBetween size="s">
           <Header
@@ -299,6 +323,7 @@ export function DebugInspection() {
             <Box>{labels.debugInspection.syncMetrics.pending}: {syncSnapshot.queue.metrics.pendingCount}</Box>
             <Box>{labels.debugInspection.syncMetrics.syncing}: {syncSnapshot.queue.metrics.syncingCount}</Box>
             <Box>{labels.debugInspection.syncMetrics.failed}: {syncSnapshot.queue.metrics.failedCount}</Box>
+            <Box>{labels.debugInspection.syncMetrics.conflict}: {syncSnapshot.queue.metrics.conflictCount}</Box>
             <Box>{labels.debugInspection.syncMetrics.deadLetter}: {syncSnapshot.queue.metrics.deadLetterCount}</Box>
             <Box>{labels.debugInspection.syncMetrics.oldestAge}: {formatDuration(syncSnapshot.queue.metrics.oldestEntryAgeMs)}</Box>
             <Box>{labels.debugInspection.syncMetrics.nextAttempt}: {formatTimestamp(syncSnapshot.queue.metrics.nextAttemptAt)}</Box>
@@ -313,13 +338,16 @@ export function DebugInspection() {
               <Box>{labels.debugInspection.syncInspection.lastError}: {queueEntry.lastError || labels.common.notProvided}</Box>
               <Box>{labels.debugInspection.syncInspection.deadLetterReason}: {queueEntry.deadLetterReason || labels.common.notProvided}</Box>
               <Box>{labels.debugInspection.syncInspection.idempotencyKey}: {queueEntry.idempotencyKey}</Box>
+              <Box>{labels.debugInspection.versionClientRevision}: {queueEntry.clientRevision}</Box>
+              <Box>{labels.debugInspection.versionBaseServerRevision}: {queueEntry.baseServerRevision ?? labels.common.notProvided}</Box>
+              <Box>{labels.debugInspection.versionMergePolicy}: {queueEntry.mergePolicy}</Box>
               <SpaceBetween direction="horizontal" size="xs">
                 <Button onClick={handleRetryQueueEntry}>
                   {queueEntry.status === 'dead-letter'
                     ? labels.debugInspection.syncInspection.requeueDeadLetter
                     : labels.debugInspection.syncInspection.retryNow}
                 </Button>
-                {queueEntry.status !== 'dead-letter' && (
+                {queueEntry.status !== 'dead-letter' && queueEntry.status !== 'conflict' && (
                   <Button onClick={handleMoveToDeadLetter}>
                     {labels.debugInspection.syncInspection.moveToDeadLetter}
                   </Button>

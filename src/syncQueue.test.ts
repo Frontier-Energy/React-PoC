@@ -140,6 +140,31 @@ describe('syncQueue', () => {
     );
   });
 
+  it('parks conflicting entries until an operator explicitly requeues them', async () => {
+    const inspection = makeInspection('conflicted');
+    const queued = await syncQueue.enqueue(inspection, { note: 'local edit' });
+
+    const conflicted = await syncQueue.markConflict(queued, {
+      reason: 'Server revision mismatch',
+      serverRevision: 'srv-10',
+      conflictingFields: ['note'],
+    });
+
+    expect(conflicted).toEqual(
+      expect.objectContaining({
+        inspectionId: 'conflicted',
+        status: 'conflict',
+        conflictServerRevision: 'srv-10',
+        conflictingFields: ['note'],
+      })
+    );
+    expect(await syncQueue.claimNextReady('worker-a', conflicted.updatedAt + 1)).toBeNull();
+
+    const retried = await syncQueue.retry(conflicted, conflicted.updatedAt + 2);
+    expect(retried.status).toBe('pending');
+    expect(retried.conflictDetectedAt).toBeUndefined();
+  });
+
   it('sorts queue entries and coordinates worker leases', async () => {
     const now = 50_000;
     vi.spyOn(Date, 'now').mockReturnValue(now);
@@ -212,6 +237,7 @@ describe('syncQueue', () => {
         totalCount: 2,
         syncingCount: 0,
         failedCount: 1,
+        conflictCount: 0,
         deadLetterCount: 0,
       })
     );

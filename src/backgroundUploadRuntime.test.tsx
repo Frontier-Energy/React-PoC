@@ -31,6 +31,7 @@ const syncMonitorMock = vi.hoisted(() => ({
   markInspectionDeleted: vi.fn(),
   markInspectionSucceeded: vi.fn(),
   markInspectionFailed: vi.fn(),
+  markInspectionConflicted: vi.fn(),
   refresh: vi.fn(async () => {}),
 }));
 
@@ -105,7 +106,9 @@ describe('backgroundUploadRuntime', () => {
     });
 
     expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'local-1', uploadStatus: UploadStatus.Uploading }));
-    expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'local-1', uploadStatus: UploadStatus.Uploaded }));
+    await vi.waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'local-1', uploadStatus: UploadStatus.Uploaded }));
+    });
     expect(saveCurrentSpy).toHaveBeenCalled();
     expect(await syncQueue.load(local.id)).toBeNull();
     await vi.waitFor(() => {
@@ -123,9 +126,46 @@ describe('backgroundUploadRuntime', () => {
       expect.objectContaining({
         sessionId: 'local-1',
         idempotencyKey: queueEntry.idempotencyKey,
+        version: expect.objectContaining({
+          clientRevision: expect.any(Number),
+          baseServerRevision: null,
+          mergePolicy: 'manual-on-version-mismatch',
+        }),
         queryParams: { note: 'ready' },
       })
     );
+  });
+
+  it('marks version conflicts without retrying and surfaces operator metadata', async () => {
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({
+        message: 'Server revision mismatch',
+        serverRevision: 'srv-9',
+        serverUpdatedAt: 123456,
+        conflictingFields: ['note'],
+      }),
+      headers: new Headers(),
+    } as Response);
+
+    const local = makeInspection('local-conflict');
+    const formData = { note: 'edited offline' };
+    await inspectionRepository.save(local);
+    await inspectionRepository.saveFormData(local.id, formData, local);
+    await syncQueue.enqueue(local, formData);
+
+    backgroundUploadRuntime.setConnectivityStatus('online');
+    backgroundUploadRuntime.start();
+
+    await vi.waitFor(async () => {
+      expect((await syncQueue.load(local.id))?.status).toBe('conflict');
+    });
+
+    expect((await inspectionRepository.loadById(local.id))?.uploadStatus).toBe(UploadStatus.Conflict);
+    await vi.waitFor(() => {
+      expect(syncMonitorMock.markInspectionConflicted).toHaveBeenCalled();
+    });
   });
 
   it('creates queue entries for legacy local inspections before syncing', async () => {
@@ -293,7 +333,7 @@ describe('backgroundUploadRuntime', () => {
     await vi.waitFor(() => {
       expect(refreshSpy).toHaveBeenCalledWith(
         expect.objectContaining({ inspectionId: queueEntry.inspectionId, fingerprint: queueEntry.fingerprint }),
-        local,
+        expect.objectContaining({ id: local.id, uploadStatus: UploadStatus.Local }),
         { note: 'after' }
       );
     });

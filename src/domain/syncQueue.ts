@@ -1,4 +1,6 @@
-export type QueueStatus = 'pending' | 'syncing' | 'failed' | 'dead-letter';
+import type { InspectionMergePolicy } from '../types';
+
+export type QueueStatus = 'pending' | 'syncing' | 'failed' | 'dead-letter' | 'conflict';
 
 export interface SyncQueueEntry {
   inspectionId: string;
@@ -7,6 +9,9 @@ export interface SyncQueueEntry {
   status: QueueStatus;
   fingerprint: string;
   idempotencyKey: string;
+  clientRevision: number;
+  baseServerRevision: string | null;
+  mergePolicy: InspectionMergePolicy;
   attemptCount: number;
   nextAttemptAt: number;
   createdAt: number;
@@ -17,6 +22,10 @@ export interface SyncQueueEntry {
   processingExpiresAt?: number;
   deadLetteredAt?: number;
   deadLetterReason?: string;
+  conflictDetectedAt?: number;
+  conflictServerRevision?: string | null;
+  conflictServerUpdatedAt?: number | null;
+  conflictingFields?: string[];
 }
 
 export interface SyncWorkerLease {
@@ -31,6 +40,7 @@ export interface SyncQueueMetrics {
   syncingCount: number;
   failedCount: number;
   deadLetterCount: number;
+  conflictCount: number;
   oldestEntryAgeMs: number | null;
   nextAttemptAt: number | null;
 }

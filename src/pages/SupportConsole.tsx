@@ -157,8 +157,10 @@ export function SupportConsole() {
         const uploadStatus = inspection.uploadStatus ?? UploadStatus.Local;
         return (
           uploadStatus === UploadStatus.Failed ||
+          uploadStatus === UploadStatus.Conflict ||
           uploadStatus === UploadStatus.Uploading ||
           entry?.status === 'failed' ||
+          entry?.status === 'conflict' ||
           entry?.status === 'dead-letter' ||
           entry?.status === 'syncing'
         );
@@ -289,6 +291,7 @@ export function SupportConsole() {
     { label: labels.debugInspection.syncStateLabel, value: labels.debugInspection.syncStatusLabels[syncSnapshot.state] },
     { label: labels.debugInspection.syncMetrics.total, value: String(syncSnapshot.queue.metrics.totalCount) },
     { label: labels.debugInspection.syncMetrics.failed, value: String(syncSnapshot.queue.metrics.failedCount) },
+    { label: labels.debugInspection.syncMetrics.conflict, value: String(syncSnapshot.queue.metrics.conflictCount) },
     { label: labels.debugInspection.syncMetrics.deadLetter, value: String(syncSnapshot.queue.metrics.deadLetterCount) },
     { label: labels.debugInspection.syncWorkerLeaseLabel, value: syncSnapshot.queue.workerLease?.ownerId ?? labels.common.notProvided },
     { label: labels.debugInspection.syncLastErrorLabel, value: syncSnapshot.lastError ?? labels.common.notProvided },
@@ -405,7 +408,7 @@ export function SupportConsole() {
                             ? labels.debugInspection.syncInspection.requeueDeadLetter
                             : labels.debugInspection.syncInspection.retryNow}
                         </Button>
-                        {entry.status !== 'dead-letter' ? (
+                        {entry.status !== 'dead-letter' && entry.status !== 'conflict' ? (
                           <Button onClick={() => void handleMoveToDeadLetter(entry)}>
                             {labels.debugInspection.syncInspection.moveToDeadLetter}
                           </Button>

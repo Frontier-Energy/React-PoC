@@ -11,6 +11,25 @@ export enum UploadStatus {
   Uploading = 'uploading',
   Uploaded = 'uploaded',
   Failed = 'failed',
+  Conflict = 'conflict',
+}
+
+export type InspectionMergePolicy = 'manual-on-version-mismatch';
+
+export interface InspectionVersionStamp {
+  clientRevision: number;
+  baseServerRevision: string | null;
+  serverRevision: string | null;
+  updatedAt: number;
+  mergePolicy: InspectionMergePolicy;
+}
+
+export interface InspectionConflictDetails {
+  detectedAt: number;
+  reason: string;
+  serverRevision?: string | null;
+  serverUpdatedAt?: number | null;
+  conflictingFields?: string[];
 }
 
 export interface FormFieldOption {
@@ -78,4 +97,6 @@ export interface InspectionSession {
   uploadStatus?: UploadStatus;
   tenantId: string;
   userId?: string;
+  version?: InspectionVersionStamp;
+  conflict?: InspectionConflictDetails | null;
 }

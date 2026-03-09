@@ -23,7 +23,7 @@ In bounds:
 - Tenant-aware runtime bootstrap, branding, language, and feature enablement
 - Per-tenant and per-user data isolation across local storage and sync processing
 - Role-based experience differences, especially for tenant selection and customization
-- Offline capture, attachment handling, retryable background synchronization, and conflict-resistant queue processing
+- Offline capture, attachment handling, retryable background synchronization, and explicit conflict resolution for multi-device edits
 - Platform-level administration surfaces for tenant configuration, rollout control, and operational support
 - Operational concerns such as audit trails, supportability, diagnostics, and SLA-oriented health visibility
 
@@ -187,6 +187,18 @@ Unsynced inspections are queued locally and uploaded in the background.
 - Failed uploads are retried with exponential backoff and jitter.
 - A worker lease in IndexedDB prevents multiple tabs from processing the same queue concurrently.
 - Uploaded inspections are removed from the queue after success.
+
+### Conflict Resolution
+
+Offline edits now follow an explicit optimistic-concurrency model instead of relying on generic retry behavior.
+
+- Each inspection carries a local `clientRevision`, the last acknowledged `baseServerRevision`, and a fixed merge policy of `manual-on-version-mismatch`.
+- Local form edits increment the client revision and clear any stale conflict marker before the next upload is queued.
+- Each queued upload sends the current client revision, the base server revision, and the merge policy together with the idempotency key.
+- If the backend accepts the upload, the inspection stays `Uploaded` and the server revision returned by the backend becomes the new local base revision.
+- If the backend responds with `409 Conflict`, the queue entry moves to a non-retrying `conflict` state and the inspection moves to `Conflict`.
+- Conflict handling is operator-visible in the inspection list, debug inspection screen, and support console, including the detected server revision, conflict timestamp, and any conflicting field list returned by the backend.
+- Automatic retries continue for transport and transient server failures, but not for version conflicts. A conflicted inspection must be reviewed and explicitly requeued after the operator or user resolves the data divergence.
 
 ## Project Structure
 

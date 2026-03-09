@@ -1,5 +1,6 @@
 import { getUserId } from './auth';
 import { getUploadInspectionUrl } from './config';
+import { markInspectionConflicted, markInspectionSyncSucceeded } from './domain/inspectionSync';
 import { inspectionRepository } from './repositories/inspectionRepository';
 import { syncMonitor } from './syncMonitor';
 import { buildInspectionSyncFingerprint, syncQueue, type SyncQueueEntry } from './syncQueue';
@@ -15,15 +16,32 @@ const emitInspectionStatusChanged = (inspection: InspectionSession) => {
   window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: inspection }));
 };
 
-const persistInspectionStatus = async (inspection: InspectionSession, status: UploadStatus) => {
-  const updatedInspection: InspectionSession = { ...inspection, uploadStatus: status };
-  await inspectionRepository.update(updatedInspection);
+class InspectionConflictError extends Error {
+  constructor(
+    readonly conflict: {
+      reason: string;
+      serverRevision?: string | null;
+      serverUpdatedAt?: number | null;
+      conflictingFields?: string[];
+    }
+  ) {
+    super(conflict.reason);
+    this.name = 'InspectionConflictError';
+  }
+}
+
+const persistInspection = async (inspection: InspectionSession) => {
+  await inspectionRepository.update(inspection);
   const currentSession = await inspectionRepository.loadCurrent();
   if (currentSession?.id === inspection.id) {
-    await inspectionRepository.saveCurrent(updatedInspection);
+    await inspectionRepository.saveCurrent(inspection);
   }
-  emitInspectionStatusChanged(updatedInspection);
-  return updatedInspection;
+  emitInspectionStatusChanged(inspection);
+  return inspection;
+};
+
+const persistInspectionStatus = async (inspection: InspectionSession, status: UploadStatus) => {
+  return persistInspection({ ...inspection, uploadStatus: status });
 };
 
 const createUploadRequest = async (
@@ -58,11 +76,29 @@ const createUploadRequest = async (
       idempotencyKey: queueEntry.idempotencyKey,
       name: inspection.name,
       userId: inspection.userId ?? getUserId() ?? '',
+      version: {
+        clientRevision: queueEntry.clientRevision,
+        baseServerRevision: queueEntry.baseServerRevision,
+        mergePolicy: queueEntry.mergePolicy,
+      },
       queryParams,
     })
   );
 
   return uploadForm;
+};
+
+const readResponseJson = async (response: Response): Promise<Record<string, unknown> | null> => {
+  if (typeof response.json !== 'function') {
+    return null;
+  }
+
+  try {
+    const body = await response.json();
+    return body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
 };
 
 const uploadInspection = async (inspection: InspectionSession, queueEntry: SyncQueueEntry) => {
@@ -77,6 +113,21 @@ const uploadInspection = async (inspection: InspectionSession, queueEntry: SyncQ
     body: uploadForm,
   });
 
+  if (response.status === 409) {
+    const payload = await readResponseJson(response);
+    throw new InspectionConflictError({
+      reason:
+        typeof payload?.message === 'string'
+          ? payload.message
+          : `Upload conflict for revision ${refreshedQueueEntry.clientRevision}`,
+      serverRevision: typeof payload?.serverRevision === 'string' ? payload.serverRevision : null,
+      serverUpdatedAt: typeof payload?.serverUpdatedAt === 'number' ? payload.serverUpdatedAt : null,
+      conflictingFields: Array.isArray(payload?.conflictingFields)
+        ? payload.conflictingFields.filter((field): field is string => typeof field === 'string')
+        : undefined,
+    });
+  }
+
   if (!response.ok) {
     throw new Error(`Upload failed with status ${response.status}`);
   }
@@ -88,6 +139,14 @@ const uploadInspection = async (inspection: InspectionSession, queueEntry: SyncQ
   if (uploadedFileIds.length > 0) {
     await deleteFiles(uploadedFileIds);
   }
+
+  const payload = await readResponseJson(response);
+  return {
+    serverRevision:
+      typeof payload?.serverRevision === 'string'
+        ? payload.serverRevision
+        : response.headers?.get?.('ETag') ?? null,
+  };
 };
 
 const processNextQueuedInspection = async (workerId: string) => {
@@ -115,11 +174,30 @@ const processNextQueuedInspection = async (workerId: string) => {
   await persistInspectionStatus(inspection, UploadStatus.Uploading);
 
   try {
-    await uploadInspection(inspection, effectiveQueueEntry);
+    const uploadResult = await uploadInspection(inspection, effectiveQueueEntry);
     await syncQueue.markSucceeded(inspection.id, inspection);
-    await persistInspectionStatus(inspection, UploadStatus.Uploaded);
+    await persistInspection({
+      ...markInspectionSyncSucceeded(inspection, { serverRevision: uploadResult.serverRevision }),
+      uploadStatus: UploadStatus.Uploaded,
+    });
     syncMonitor.markInspectionSucceeded(inspection.id);
   } catch (error) {
+    if (error instanceof InspectionConflictError) {
+      const conflictedEntry = await syncQueue.markConflict(effectiveQueueEntry, error.conflict);
+      await persistInspection({
+        ...markInspectionConflicted(inspection, {
+          detectedAt: Date.now(),
+          reason: error.conflict.reason,
+          serverRevision: error.conflict.serverRevision,
+          serverUpdatedAt: error.conflict.serverUpdatedAt,
+          conflictingFields: error.conflict.conflictingFields,
+        }),
+        uploadStatus: UploadStatus.Conflict,
+      });
+      syncMonitor.markInspectionConflicted(conflictedEntry, error.conflict.reason);
+      return true;
+    }
+
     console.error('Failed to upload inspection:', inspection.id, error);
     const failedEntry = await syncQueue.markFailed(
       effectiveQueueEntry,
