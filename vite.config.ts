@@ -1,8 +1,26 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        passes: 2,
+      },
+      module: true,
+    },
+  },
+  resolve: {
+    alias: [
+      {
+        find: /^@cloudscape-design\/components$/,
+        replacement: fileURLToPath(new URL('./src/cloudscape-components.ts', import.meta.url)),
+      },
+    ],
+  },
   plugins: [
     react(),
     VitePWA({

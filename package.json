@@ -14,7 +14,7 @@
     "test:coverage": "vitest run --coverage",
     "audit:deps": "npm audit --audit-level=high",
     "bundle:check": "node ./scripts/check-bundle-size.mjs",
-    "ci:verify": "npm run lint && npm run typecheck && npm run test:coverage && npm run audit:deps && npm run build && npm run bundle:check"
+    "ci:verify": "eslint . && tsc -p tsconfig.app.json --noEmit && vitest run --coverage && npm audit --audit-level=high && tsc -p tsconfig.app.json && vite build && node ./scripts/check-bundle-size.mjs"
   },
   "dependencies": {
     "@cloudscape-design/components": "^3.0.0",

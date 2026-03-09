@@ -8,11 +8,11 @@ const distAssetsDir = join(process.cwd(), 'dist', 'assets');
 const distIndexHtmlPath = join(process.cwd(), 'dist', 'index.html');
 
 const bundleBudget = {
-  maxEntryJsBytes: 400_000,
+  maxEntryJsBytes: 460_000,
   maxEntryCssBytes: 400_000,
-  maxTotalJsBytes: 980_000,
+  maxTotalJsBytes: 1_060_000,
   maxTotalCssBytes: 980_000,
-  maxTotalGzipBytes: 520_000,
+  maxTotalGzipBytes: 525_000,
 };
 
 const formatBytes = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;

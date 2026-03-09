@@ -360,6 +360,8 @@ describe('backgroundUploadRuntime', () => {
 
     render(<BackgroundUploadManager />);
 
-    expect(setConnectivitySpy).toHaveBeenCalledWith('online');
+    await vi.waitFor(() => {
+      expect(setConnectivitySpy).toHaveBeenCalledWith('online');
+    });
   });
 });

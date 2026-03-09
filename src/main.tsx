@@ -6,13 +6,11 @@ import '@cloudscape-design/global-styles/index.css';
 import './global.css';
 import { ConnectivityProvider } from './ConnectivityContext';
 import { BackgroundUploadManager } from './BackgroundUploadManager';
-import { backgroundUploadRuntime } from './backgroundUploadRuntime';
 import { LocalizationProvider } from './LocalizationContext';
 import { TenantBootstrapProvider } from './TenantBootstrapContext';
 import { registerSW } from 'virtual:pwa-register';
 
 registerSW({ immediate: true });
-backgroundUploadRuntime.start();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
