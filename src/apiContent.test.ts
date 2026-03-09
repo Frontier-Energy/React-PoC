@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchFormSchema, fetchTranslations } from './apiContent';
-import { CONTENT_ARTIFACT_CACHE_STORAGE_KEY, getBundledFormSchema } from './contentGovernance';
+import { CONTENT_ARTIFACT_CACHE_STORAGE_KEY } from './contentGovernance';
 import { getFallbackLabels } from './resources/translations/fallback';
 import { FormType } from './types';
 
@@ -27,19 +27,23 @@ describe('apiContent', () => {
     });
   });
 
-  it('falls back to bundled form schema when the request fails', async () => {
+  it('fails when the request fails and no cached form schema exists', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 503 } as Response);
 
-    await expect(fetchFormSchema(FormType.HVAC)).resolves.toEqual(getBundledFormSchema(FormType.HVAC));
+    await expect(fetchFormSchema(FormType.HVAC)).rejects.toThrow(
+      'No valid form schema is available for "hvac" from the network or cache.'
+    );
   });
 
-  it('falls back to bundled form schema when the payload is invalid', async () => {
+  it('fails when the payload is invalid and no cached form schema exists', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({ formName: 'Broken schema' }),
     } as Response);
 
-    await expect(fetchFormSchema(FormType.HVAC)).resolves.toEqual(getBundledFormSchema(FormType.HVAC));
+    await expect(fetchFormSchema(FormType.HVAC)).rejects.toThrow(
+      'No valid form schema is available for "hvac" from the network or cache.'
+    );
   });
 
   it('loads a valid translations payload', async () => {

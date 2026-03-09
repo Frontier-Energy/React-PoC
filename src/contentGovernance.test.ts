@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearCachedContentArtifacts,
   CONTENT_ARTIFACT_CACHE_STORAGE_KEY,
-  getBundledFormSchema,
   getBundledTranslations,
   resolveGovernedFormSchema,
   resolveGovernedTranslations,
@@ -18,13 +17,18 @@ vi.mock('./config', async (importOriginal) => {
 });
 
 describe('contentGovernance', () => {
+  const schemaFixture = {
+    formName: 'Governed HVAC',
+    uploadStatus: UploadStatus.Local,
+    sections: [],
+  };
+
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
   });
 
   it('loads governed form schemas from the network and falls back to cached artifacts', async () => {
-    const schema = getBundledFormSchema(FormType.HVAC);
     const network = await resolveGovernedFormSchema(
       FormType.HVAC,
       async () => ({
@@ -34,13 +38,13 @@ describe('contentGovernance', () => {
           minRuntimeVersion: 1,
           maxRuntimeVersion: 1,
         },
-        schema: schema,
+        schema: schemaFixture,
       }),
       'tenant-a'
     );
 
     expect(network.source).toBe('network');
-    expect(network.payload.formName).toBe(schema.formName);
+    expect(network.payload.formName).toBe(schemaFixture.formName);
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const cached = await resolveGovernedFormSchema(
@@ -52,30 +56,30 @@ describe('contentGovernance', () => {
     );
 
     expect(cached.source).toBe('cache');
-    expect(cached.payload.formName).toBe(schema.formName);
+    expect(cached.payload.formName).toBe(schemaFixture.formName);
     expect(warnSpy).toHaveBeenCalled();
   });
 
-  it('falls back to bundled schemas when compatibility or cached data is invalid', async () => {
+  it('fails when compatibility is invalid and no cached schema exists', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const bundled = await resolveGovernedFormSchema(
-      FormType.Electrical,
-      async () => ({
-        compatibility: {
-          minRuntimeVersion: 2,
-        },
-        schema: {
-          formName: '',
-          sections: 'invalid',
-        },
-      }),
-      'tenant-b'
-    );
+    await expect(
+      resolveGovernedFormSchema(
+        FormType.Electrical,
+        async () => ({
+          compatibility: {
+            minRuntimeVersion: 2,
+          },
+          schema: {
+            formName: '',
+            sections: 'invalid',
+          },
+        }),
+        'tenant-b'
+      )
+    ).rejects.toThrow('No valid form schema is available for "electrical" from the network or cache.');
 
-    expect(bundled.source).toBe('bundled');
-    expect(bundled.payload.formName).toBe(getBundledFormSchema(FormType.Electrical).formName);
-    expect(warnSpy).toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 
   it('accepts rich governed schemas with choice, file, and visibility metadata', async () => {
@@ -129,91 +133,94 @@ describe('contentGovernance', () => {
     expect(richSchema.payload.sections[0]?.fields[2]?.visibleWhen?.[0]?.fieldId).toBe('choice');
   });
 
-  it('falls back when schema validation rejects unsupported field combinations', async () => {
+  it('fails when schema validation rejects unsupported field combinations and no cache exists', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const invalid = await resolveGovernedFormSchema(
-      FormType.HVAC,
-      async () => ({
-        schema: {
-          formName: 'Broken schema',
-          sections: [
-            {
-              title: 'Broken',
-              fields: [
-                {
-                  id: 'bad',
-                  label: 'Bad',
-                  type: 'text',
-                  required: false,
-                  options: [{ label: 'Nope', value: 'nope' }],
-                },
-              ],
-            },
-          ],
-        },
-      }),
-      'tenant-invalid'
-    );
+    await expect(
+      resolveGovernedFormSchema(
+        FormType.HVAC,
+        async () => ({
+          schema: {
+            formName: 'Broken schema',
+            sections: [
+              {
+                title: 'Broken',
+                fields: [
+                  {
+                    id: 'bad',
+                    label: 'Bad',
+                    type: 'text',
+                    required: false,
+                    options: [{ label: 'Nope', value: 'nope' }],
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+        'tenant-invalid'
+      )
+    ).rejects.toThrow('No valid form schema is available for "hvac" from the network or cache.');
 
-    expect(invalid.source).toBe('bundled');
-    expect(warnSpy).toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 
-  it('falls back when choice fields omit options or file-only settings are misused', async () => {
+  it('fails when choice fields omit options or file-only settings are misused without cache', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const missingOptions = await resolveGovernedFormSchema(
-      FormType.HVAC,
-      async () => ({
-        schema: {
-          formName: 'Broken choice',
-          sections: [
-            {
-              title: 'Broken',
-              fields: [
-                {
-                  id: 'choice',
-                  label: 'Choice',
-                  type: 'select',
-                  required: false,
-                },
-              ],
-            },
-          ],
-        },
-      }),
-      'tenant-invalid-choice'
-    );
+    await expect(
+      resolveGovernedFormSchema(
+        FormType.HVAC,
+        async () => ({
+          schema: {
+            formName: 'Broken choice',
+            sections: [
+              {
+                title: 'Broken',
+                fields: [
+                  {
+                    id: 'choice',
+                    label: 'Choice',
+                    type: 'select',
+                    required: false,
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+        'tenant-invalid-choice'
+      )
+    ).rejects.toThrow('No valid form schema is available for "hvac" from the network or cache.');
 
-    const invalidFileSettings = await resolveGovernedFormSchema(
-      FormType.HVAC,
-      async () => ({
-        schema: {
-          formName: 'Broken file settings',
-          sections: [
-            {
-              title: 'Broken',
-              fields: [
-                {
-                  id: 'text',
-                  label: 'Text',
-                  type: 'text',
-                  required: false,
-                  accept: 'image/*',
-                  multiple: true,
-                },
-              ],
-            },
-          ],
-        },
-      }),
-      'tenant-invalid-file'
-    );
+    await expect(
+      resolveGovernedFormSchema(
+        FormType.HVAC,
+        async () => ({
+          schema: {
+            formName: 'Broken file settings',
+            sections: [
+              {
+                title: 'Broken',
+                fields: [
+                  {
+                    id: 'text',
+                    label: 'Text',
+                    type: 'text',
+                    required: false,
+                    accept: 'image/*',
+                    multiple: true,
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+        'tenant-invalid-file'
+      )
+    ).rejects.toThrow('No valid form schema is available for "hvac" from the network or cache.');
 
-    expect(missingOptions.source).toBe('bundled');
-    expect(invalidFileSettings.source).toBe('bundled');
-    expect(warnSpy).toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 
   it('loads governed translations, validates overrides, and falls back through cache and bundled labels', async () => {
@@ -277,10 +284,8 @@ describe('contentGovernance', () => {
   });
 
   it('clears cached content for one tenant without deleting other tenant artifacts', async () => {
-    const schema = getBundledFormSchema(FormType.HVAC);
-
-    await resolveGovernedFormSchema(FormType.HVAC, async () => ({ schema }), 'tenant-one');
-    await resolveGovernedFormSchema(FormType.HVAC, async () => ({ schema }), 'tenant-two');
+    await resolveGovernedFormSchema(FormType.HVAC, async () => ({ schema: schemaFixture }), 'tenant-one');
+    await resolveGovernedFormSchema(FormType.HVAC, async () => ({ schema: schemaFixture }), 'tenant-two');
 
     clearCachedContentArtifacts('tenant-one');
 
@@ -309,32 +314,34 @@ describe('contentGovernance', () => {
     expect(warnSpy).toHaveBeenCalled();
   });
 
-  it('falls back when visibility rules or translation array shapes are invalid', async () => {
+  it('fails when visibility rules are invalid and still falls back for invalid translations', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const invalidVisibility = await resolveGovernedFormSchema(
-      FormType.HVAC,
-      async () => ({
-        schema: {
-          formName: 'Broken visibility',
-          sections: [
-            {
-              title: 'Broken',
-              fields: [
-                {
-                  id: 'field-a',
-                  label: 'Field A',
-                  type: 'text',
-                  required: false,
-                  visibleWhen: [{ fieldId: 'missing-field', value: ['x'], operator: 'contains' }],
-                },
-              ],
-            },
-          ],
-        },
-      }),
-      'tenant-invalid-visibility'
-    );
+    await expect(
+      resolveGovernedFormSchema(
+        FormType.HVAC,
+        async () => ({
+          schema: {
+            formName: 'Broken visibility',
+            sections: [
+              {
+                title: 'Broken',
+                fields: [
+                  {
+                    id: 'field-a',
+                    label: 'Field A',
+                    type: 'text',
+                    required: false,
+                    visibleWhen: [{ fieldId: 'missing-field', value: ['x'], operator: 'contains' }],
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+        'tenant-invalid-visibility'
+      )
+    ).rejects.toThrow('No valid form schema is available for "hvac" from the network or cache.');
 
     const invalidTranslations = await resolveGovernedTranslations(
       'en',
@@ -345,8 +352,6 @@ describe('contentGovernance', () => {
       }),
       'tenant-invalid-translations'
     );
-
-    expect(invalidVisibility.source).toBe('bundled');
     expect(invalidTranslations.source).toBe('bundled');
     expect(warnSpy).toHaveBeenCalled();
   });

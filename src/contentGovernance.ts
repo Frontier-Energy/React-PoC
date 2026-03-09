@@ -1,9 +1,5 @@
-import electricalSchemaAsset from '../.tmp-import-static/form-electrical.json';
-import electricalSfSchemaAsset from '../.tmp-import-static/form-electrical-sf.json';
-import hvacSchemaAsset from '../.tmp-import-static/form-hvac.json';
-import safetyChecklistSchemaAsset from '../.tmp-import-static/form-safety-checklist.json';
 import { type Labels, type LanguageCode } from './resources/translations';
-import { FormType, type FormSchema } from './types';
+import type { FormSchema } from './types';
 import {
   cacheArtifact,
   clearCachedContentArtifacts,
@@ -24,15 +20,6 @@ interface GovernedArtifactResult<T> {
   source: 'network' | 'cache' | 'bundled';
 }
 
-const bundledFormSchemas: Record<FormType, unknown> = {
-  [FormType.Electrical]: electricalSchemaAsset,
-  [FormType.ElectricalSF]: electricalSfSchemaAsset,
-  [FormType.HVAC]: hvacSchemaAsset,
-  [FormType.SafetyChecklist]: safetyChecklistSchemaAsset,
-};
-
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-
 export {
   clearCachedContentArtifacts,
   CONTENT_ARTIFACT_CACHE_STORAGE_KEY,
@@ -41,14 +28,13 @@ export {
   getBundledTranslations,
 };
 
-export const getBundledFormSchema = (formType: FormType): FormSchema =>
-  normalizeFormSchema(clone(bundledFormSchemas[formType]), `bundled-form-schema.${formType}`);
-
 export const resolveGovernedFormSchema = async (
-  formType: FormType,
+  formType: string,
   loader: () => Promise<unknown>,
   tenantId?: string
 ): Promise<GovernedArtifactResult<FormSchema>> => {
+  let loadError: unknown;
+
   try {
     const rawPayload = await loader();
     const envelope = unwrapContentEnvelope<FormSchema>(rawPayload, 'schema');
@@ -57,6 +43,7 @@ export const resolveGovernedFormSchema = async (
     cacheArtifact(tenantId, 'form-schema', formType, schema, envelope.schemaVersion, envelope.artifactVersion);
     return { payload: schema, source: 'network' };
   } catch (error) {
+    loadError = error;
     const cached = readCachedArtifact(tenantId, 'form-schema', formType, (payload) =>
       normalizeFormSchema(payload, `cached-form-schema.${formType}`)
     );
@@ -64,10 +51,13 @@ export const resolveGovernedFormSchema = async (
       console.warn(`Falling back to cached form schema for "${formType}".`, error);
       return { payload: cached, source: 'cache' };
     }
-
-    console.warn(`Falling back to bundled form schema for "${formType}".`, error);
-    return { payload: getBundledFormSchema(formType), source: 'bundled' };
   }
+
+  const unavailableSchemaError = new Error(
+    `No valid form schema is available for "${formType}" from the network or cache.`
+  ) as Error & { cause?: unknown };
+  unavailableSchemaError.cause = loadError;
+  throw unavailableSchemaError;
 };
 
 export const resolveGovernedTranslations = async (
