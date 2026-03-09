@@ -11,6 +11,7 @@ import { inspectionRepository } from '../repositories/inspectionRepository';
 import { syncMonitor, useSyncMonitor } from '../syncMonitor';
 import { useTenantBootstrap } from '../TenantBootstrapContext';
 import { clearCachedTenantBootstrapConfig } from '../tenantBootstrap';
+import { promoteTenantConfigArtifact, rollbackTenantConfigArtifact } from '../tenantConfigGovernance';
 import { type InspectionSession, UploadStatus } from '../types';
 import type { SyncQueueEntry } from '../domain/syncQueue';
 
@@ -138,6 +139,7 @@ export function SupportConsole() {
   }, [currentInspectionId, setSearchParams]);
 
   const queueEntries = syncSnapshot.queue.entries;
+  const governance = diagnostics.governance;
   const queueEntriesById = useMemo(
     () => new Map(queueEntries.map((entry) => [entry.inspectionId, entry])),
     [queueEntries]
@@ -203,6 +205,35 @@ export function SupportConsole() {
     try {
       await refreshConfig(config.tenantId);
       setSuccess(labels.support.alerts.tenantUpdated);
+    } catch (error) {
+      setFailure(error);
+    }
+  };
+
+  const handlePromoteConfig = async () => {
+    try {
+      promoteTenantConfigArtifact({
+        tenantId: config.tenantId,
+        environmentId: governance.environmentId,
+        actorId: getUserId() ?? 'anonymous-admin',
+        config,
+      });
+      await refreshConfig(config.tenantId);
+      setSuccess(labels.support.alerts.configPromoted);
+    } catch (error) {
+      setFailure(error);
+    }
+  };
+
+  const handleRollbackConfig = async () => {
+    try {
+      rollbackTenantConfigArtifact({
+        tenantId: config.tenantId,
+        environmentId: governance.environmentId,
+        actorId: getUserId() ?? 'anonymous-admin',
+      });
+      await refreshConfig(config.tenantId);
+      setSuccess(labels.support.alerts.configRolledBack);
     } catch (error) {
       setFailure(error);
     }
@@ -297,6 +328,13 @@ export function SupportConsole() {
               <Button onClick={() => void handleApplyTenant()}>{labels.support.tenantSection.applyTenant}</Button>
               <Button onClick={() => void handleRefreshConfig()}>{labels.support.tenantSection.refreshConfig}</Button>
               <Button onClick={() => void handleClearCache()}>{labels.support.tenantSection.clearCache}</Button>
+              <Button onClick={() => void handlePromoteConfig()}>{labels.support.tenantSection.promoteConfig}</Button>
+              <Button
+                disabled={governance.promotionHistory.length < 2}
+                onClick={() => void handleRollbackConfig()}
+              >
+                {labels.support.tenantSection.rollbackConfig}
+              </Button>
             </div>
           ) : null}
           <Header variant="h3">{labels.support.tenantSection.activeConfigHeader}</Header>
@@ -333,6 +371,63 @@ export function SupportConsole() {
               <strong>{labels.bootstrap.lastAttemptLabel}</strong>
               <Box>{formatTimestamp(diagnostics.lastAttemptAt)}</Box>
             </div>
+            <div style={cardStyle}>
+              <strong>{labels.support.tenantSection.schemaVersion}</strong>
+              <Box>{governance.schemaVersion}</Box>
+            </div>
+            <div style={cardStyle}>
+              <strong>{labels.support.tenantSection.artifactVersion}</strong>
+              <Box>{governance.promotedVersion}</Box>
+            </div>
+            <div style={cardStyle}>
+              <strong>{labels.support.tenantSection.environment}</strong>
+              <Box>{governance.environmentId}</Box>
+            </div>
+            <div style={cardStyle}>
+              <strong>{labels.support.tenantSection.reviewStatus}</strong>
+              <Box>{governance.promotedArtifact.reviewStatus}</Box>
+            </div>
+            <div style={cardStyle}>
+              <strong>{labels.support.tenantSection.reviewedBy}</strong>
+              <Box>{governance.promotedArtifact.reviewedBy}</Box>
+            </div>
+            <div style={cardStyle}>
+              <strong>{labels.support.tenantSection.reviewedAt}</strong>
+              <Box>{formatTimestamp(governance.promotedArtifact.reviewedAt)}</Box>
+            </div>
+          </div>
+          <Header variant="h3">{labels.support.tenantSection.auditHeader}</Header>
+          <div style={sectionGridStyle}>
+            {governance.auditEntries.length === 0 ? (
+              <Box color="text-body-secondary">{labels.support.tenantSection.noAuditEntries}</Box>
+            ) : (
+              governance.auditEntries.slice(0, 5).map((entry) => (
+                <div key={entry.auditId} style={cardStyle}>
+                  <SpaceBetween size="xs">
+                    <Box>
+                      <strong>{labels.support.tenantSection.auditAction}</strong> {entry.action}
+                    </Box>
+                    <Box>
+                      <strong>{labels.support.tenantSection.auditActor}</strong> {entry.actorId}
+                    </Box>
+                    <Box>
+                      <strong>{labels.support.tenantSection.auditEnvironment}</strong> {entry.environmentId}
+                    </Box>
+                    <Box>
+                      <strong>{labels.support.tenantSection.auditVersion}</strong> {entry.fromVersion ?? labels.common.notProvided}
+                      {' -> '}
+                      {entry.toVersion ?? labels.common.notProvided}
+                    </Box>
+                    <Box>
+                      <strong>{labels.support.tenantSection.auditOccurredAt}</strong> {formatTimestamp(entry.occurredAt)}
+                    </Box>
+                    <Box>
+                      <strong>{labels.support.tenantSection.auditNote}</strong> {entry.note}
+                    </Box>
+                  </SpaceBetween>
+                </div>
+              ))
+            )}
           </div>
         </SpaceBetween>
       </Container>

@@ -2,6 +2,7 @@ import { Box, Header, Link } from '@cloudscape-design/components';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { setLanguagePreference } from './appState';
 import { useLocalization } from './LocalizationContext';
+import { getTenantConfigGovernanceSnapshot, type TenantConfigGovernanceSnapshot } from './tenantConfigGovernance';
 import {
   readCachedTenantBootstrapConfig,
   fetchTenantBootstrapConfig,
@@ -21,6 +22,7 @@ export interface TenantBootstrapDiagnostics {
   lastAttemptAt?: string;
   lastSuccessAt?: string;
   errorMessage?: string;
+  governance: TenantConfigGovernanceSnapshot;
 }
 
 interface TenantBootstrapContextValue {
@@ -40,6 +42,7 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
     status: 'loading',
     source: 'defaults',
     activeTenantId: getDefaultTenantBootstrapConfig().tenantId,
+    governance: getTenantConfigGovernanceSnapshot(getDefaultTenantBootstrapConfig().tenantId),
   }));
   const requestIdRef = useRef(0);
 
@@ -50,6 +53,7 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
       const cachedConfig = readCachedTenantBootstrapConfig(tenantId);
       const fallbackSource = cachedConfig ? 'cache' : 'defaults';
       const immediateConfig = cachedConfig?.config ?? fallbackConfig;
+      const immediateGovernance = cachedConfig?.governance ?? getTenantConfigGovernanceSnapshot(immediateConfig.tenantId);
       const attemptAt = new Date().toISOString();
 
       setLoading(true);
@@ -66,12 +70,14 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
         lastAttemptAt: attemptAt,
         lastSuccessAt: current.lastSuccessAt ?? cachedConfig?.savedAt,
         errorMessage: undefined,
+        governance: immediateGovernance,
       }));
       try {
-        const resolvedConfig = await fetchTenantBootstrapConfig(tenantId);
+        const resolved = await fetchTenantBootstrapConfig(tenantId);
         if (requestId !== requestIdRef.current) {
           return;
         }
+        const resolvedConfig = resolved.config;
         setConfig(resolvedConfig);
         persistSelectedTenant(resolvedConfig.tenantId);
         const successAt = new Date().toISOString();
@@ -82,6 +88,7 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
           lastAttemptAt: successAt,
           lastSuccessAt: successAt,
           errorMessage: undefined,
+          governance: resolved.governance,
         });
         if (resolvedConfig.language) {
           setLanguagePreference(resolvedConfig.language);
@@ -100,6 +107,7 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
           lastAttemptAt: attemptAt,
           lastSuccessAt: cachedConfig?.savedAt ?? current.lastSuccessAt,
           errorMessage: error instanceof Error ? error.message : 'Bootstrap failed',
+          governance: cachedConfig?.governance ?? getTenantConfigGovernanceSnapshot(nextConfig.tenantId),
         }));
       } finally {
         if (requestId === requestIdRef.current) {

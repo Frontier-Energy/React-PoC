@@ -5,6 +5,7 @@ import { TenantBootstrapProvider, useTenantBootstrap } from './TenantBootstrapCo
 import * as appState from './appState';
 import { cacheTenantBootstrapConfig, getDefaultTenantBootstrapConfigForTenant } from './tenantBootstrap';
 import * as tenantBootstrap from './tenantBootstrap';
+import { getTenantConfigGovernanceSnapshot, type TenantConfigGovernanceSnapshot } from './tenantConfigGovernance';
 import { getFallbackLabels } from './resources/translations/fallback';
 import { TENANT_PREFERENCE_STORAGE_KEY } from './appPreferences';
 import { FormType } from './types';
@@ -46,6 +47,17 @@ const renderSubject = () =>
       </TenantBootstrapProvider>
     </LocalizationProvider>
   );
+
+const buildGovernanceSnapshot = (tenantId: string, environmentId?: string): TenantConfigGovernanceSnapshot =>
+  getTenantConfigGovernanceSnapshot(tenantId, environmentId);
+
+const buildFetchResult = (
+  config: tenantBootstrap.TenantBootstrapConfig,
+  environmentId?: string
+): Awaited<ReturnType<typeof tenantBootstrap.fetchTenantBootstrapConfig>> => ({
+  config,
+  governance: buildGovernanceSnapshot(config.tenantId, environmentId),
+});
 
 describe('TenantBootstrapProvider', () => {
   const buildTranslationResponse = (language: 'en' | 'es') =>
@@ -168,16 +180,19 @@ describe('TenantBootstrapProvider', () => {
     mockTranslationsOnly();
     const setLanguagePreferenceSpy = vi.spyOn(appState, 'setLanguagePreference').mockImplementation(() => {});
     vi.spyOn(tenantBootstrap, 'fetchTenantBootstrapConfig').mockResolvedValue({
-      tenantId: 'qhvac',
-      displayName: 'QHVAC',
-      theme: 'harbor',
-      font: 'Tahoma, "Trebuchet MS", Arial, sans-serif',
-      showLeftFlyout: true,
-      showRightFlyout: false,
-      showInspectionStatsButton: true,
-      enabledForms: [FormType.HVAC],
-      loginRequired: true,
-      language: 'es',
+      config: {
+        tenantId: 'qhvac',
+        displayName: 'QHVAC',
+        theme: 'harbor',
+        font: 'Tahoma, "Trebuchet MS", Arial, sans-serif',
+        showLeftFlyout: true,
+        showRightFlyout: false,
+        showInspectionStatsButton: true,
+        enabledForms: [FormType.HVAC],
+        loginRequired: true,
+        language: 'es',
+      },
+      governance: buildGovernanceSnapshot('qhvac'),
     });
 
     renderSubject();
@@ -194,9 +209,9 @@ describe('TenantBootstrapProvider', () => {
 
   it('ignores stale refresh responses when a newer refresh has already started', async () => {
     mockTranslationsOnly();
-    const initial = createDeferred<tenantBootstrap.TenantBootstrapConfig>();
-    const qhvac = createDeferred<tenantBootstrap.TenantBootstrapConfig>();
-    const lire = createDeferred<tenantBootstrap.TenantBootstrapConfig>();
+    const initial = createDeferred<Awaited<ReturnType<typeof tenantBootstrap.fetchTenantBootstrapConfig>>>();
+    const qhvac = createDeferred<Awaited<ReturnType<typeof tenantBootstrap.fetchTenantBootstrapConfig>>>();
+    const lire = createDeferred<Awaited<ReturnType<typeof tenantBootstrap.fetchTenantBootstrapConfig>>>();
     vi.spyOn(tenantBootstrap, 'fetchTenantBootstrapConfig').mockImplementation((tenantId?: string) => {
       if (!tenantId) {
         return initial.promise;
@@ -212,11 +227,11 @@ describe('TenantBootstrapProvider', () => {
 
     renderSubject();
 
-    initial.resolve({
+    initial.resolve(buildFetchResult({
       ...getDefaultTenantBootstrapConfigForTenant(),
       tenantId: 'frontierDemo',
       displayName: 'Frontier Demo',
-    });
+    }));
 
     await waitFor(() => {
       expect(screen.getByTestId('bootstrap-status')).toHaveTextContent('ready');
@@ -225,22 +240,22 @@ describe('TenantBootstrapProvider', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refresh QHVAC' }));
     fireEvent.click(screen.getByRole('button', { name: 'Refresh LIRE' }));
 
-    qhvac.resolve({
+    qhvac.resolve(buildFetchResult({
       ...getDefaultTenantBootstrapConfigForTenant('qhvac'),
       tenantId: 'qhvac',
       displayName: 'QHVAC',
-    });
+    }));
 
     await waitFor(() => {
       expect(screen.getByTestId('tenant-id')).toHaveTextContent('lire');
       expect(screen.getByTestId('bootstrap-status')).toHaveTextContent('loading');
     });
 
-    lire.resolve({
+    lire.resolve(buildFetchResult({
       ...getDefaultTenantBootstrapConfigForTenant('lire'),
       tenantId: 'lire',
       displayName: 'LIRE',
-    });
+    }));
 
     await waitFor(() => {
       expect(screen.getByTestId('tenant-id')).toHaveTextContent('lire');
@@ -263,18 +278,18 @@ describe('TenantBootstrapProvider', () => {
 
   it('cancels the pending bootstrap request on unmount', async () => {
     mockTranslationsOnly();
-    const pending = createDeferred<tenantBootstrap.TenantBootstrapConfig>();
+    const pending = createDeferred<Awaited<ReturnType<typeof tenantBootstrap.fetchTenantBootstrapConfig>>>();
     vi.spyOn(tenantBootstrap, 'fetchTenantBootstrapConfig').mockReturnValue(pending.promise);
 
     const { unmount } = renderSubject();
     expect(screen.getByTestId('bootstrap-loading')).toHaveTextContent('true');
 
     unmount();
-    pending.resolve({
+    pending.resolve(buildFetchResult({
       ...getDefaultTenantBootstrapConfigForTenant('qhvac'),
       tenantId: 'qhvac',
       displayName: 'QHVAC',
-    });
+    }));
 
     await waitFor(() => {
       expect(tenantBootstrap.fetchTenantBootstrapConfig).toHaveBeenCalled();

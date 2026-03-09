@@ -1,6 +1,12 @@
 import { setSelectedTenantId } from './appState';
 import { getActiveTenant, getTenantById, getTenantBootstrapUrl } from './config';
 import { isLanguageCode, type LanguageCode } from './resources/translations';
+import {
+  getGovernedTenantBootstrapConfig,
+  getTenantConfigGovernanceSnapshot,
+  TENANT_CONFIG_SCHEMA_VERSION,
+  type TenantConfigGovernanceSnapshot,
+} from './tenantConfigGovernance';
 import { FormType } from './types';
 
 export const TENANT_BOOTSTRAP_CACHE_STORAGE_KEY = 'tenantBootstrapCache';
@@ -22,6 +28,7 @@ export interface TenantBootstrapConfig {
 export interface CachedTenantBootstrapConfig {
   savedAt: string;
   config: TenantBootstrapConfig;
+  governance?: TenantConfigGovernanceSnapshot;
 }
 
 interface TenantBootstrapResponse {
@@ -50,15 +57,18 @@ interface TenantBootstrapResponse {
   requiresLogin?: boolean;
 }
 
+interface GovernedTenantBootstrapEnvelope {
+  schemaVersion?: string;
+  artifactVersion?: string;
+  environmentId?: string;
+  config?: TenantBootstrapResponse;
+}
+
 const DEFAULT_ENABLED_FORMS = Object.values(FormType);
 
 const isFormType = (value: string): value is FormType => DEFAULT_ENABLED_FORMS.includes(value as FormType);
 const resolveOptionalBoolean = (...values: Array<boolean | undefined>): boolean | undefined =>
   values.find((value) => typeof value === 'boolean');
-const resolveDefaultEnabledFormsForTenant = (tenantId: string): FormType[] =>
-  getTenantById(tenantId)?.bootstrapDefaults.enabledForms ?? DEFAULT_ENABLED_FORMS;
-const resolveDefaultLoginRequiredForTenant = (tenantId: string): boolean =>
-  getTenantById(tenantId)?.bootstrapDefaults.loginRequired ?? true;
 const isTenantBootstrapConfig = (value: unknown): value is TenantBootstrapConfig => {
   if (!value || typeof value !== 'object') {
     return false;
@@ -111,33 +121,13 @@ const writeTenantBootstrapCacheStore = (cache: Record<string, CachedTenantBootst
 
 export const getDefaultTenantBootstrapConfig = (): TenantBootstrapConfig => {
   const activeTenant = getActiveTenant();
-  return {
-    tenantId: activeTenant.tenantId,
-    displayName: activeTenant.displayName,
-    theme: activeTenant.uiDefaults.theme,
-    font: activeTenant.uiDefaults.font,
-    showLeftFlyout: activeTenant.uiDefaults.showLeftFlyout,
-    showRightFlyout: activeTenant.uiDefaults.showRightFlyout,
-    showInspectionStatsButton: activeTenant.uiDefaults.showInspectionStatsButton,
-    enabledForms: resolveDefaultEnabledFormsForTenant(activeTenant.tenantId),
-    loginRequired: resolveDefaultLoginRequiredForTenant(activeTenant.tenantId),
-  };
+  return getGovernedTenantBootstrapConfig(activeTenant.tenantId);
 };
 
 export const getDefaultTenantBootstrapConfigForTenant = (tenantId?: string): TenantBootstrapConfig => {
   const requestedTenant = tenantId ? getTenantById(tenantId) : undefined;
   const activeTenant = requestedTenant ?? getActiveTenant();
-  return {
-    tenantId: activeTenant.tenantId,
-    displayName: activeTenant.displayName,
-    theme: activeTenant.uiDefaults.theme,
-    font: activeTenant.uiDefaults.font,
-    showLeftFlyout: activeTenant.uiDefaults.showLeftFlyout,
-    showRightFlyout: activeTenant.uiDefaults.showRightFlyout,
-    showInspectionStatsButton: activeTenant.uiDefaults.showInspectionStatsButton,
-    enabledForms: resolveDefaultEnabledFormsForTenant(activeTenant.tenantId),
-    loginRequired: resolveDefaultLoginRequiredForTenant(activeTenant.tenantId),
-  };
+  return getGovernedTenantBootstrapConfig(activeTenant.tenantId);
 };
 
 export const mapTenantBootstrapResponse = (
@@ -200,11 +190,16 @@ export const readCachedTenantBootstrapConfig = (tenantId?: string): CachedTenant
   return cache[normalizeTenantBootstrapCacheKey(defaults.tenantId)] ?? null;
 };
 
-export const cacheTenantBootstrapConfig = (config: TenantBootstrapConfig, savedAt = new Date().toISOString()) => {
+export const cacheTenantBootstrapConfig = (
+  config: TenantBootstrapConfig,
+  savedAt = new Date().toISOString(),
+  governance?: TenantConfigGovernanceSnapshot
+) => {
   const cache = readTenantBootstrapCacheStore();
   cache[normalizeTenantBootstrapCacheKey(config.tenantId)] = {
     savedAt,
     config,
+    governance,
   };
   writeTenantBootstrapCacheStore(cache);
 };
@@ -219,7 +214,7 @@ export const clearCachedTenantBootstrapConfig = (tenantId?: string) => {
 export const fetchTenantBootstrapConfig = async (
   tenantId?: string,
   options?: { timeoutMs?: number }
-): Promise<TenantBootstrapConfig> => {
+): Promise<{ config: TenantBootstrapConfig; governance: TenantConfigGovernanceSnapshot }> => {
   const defaults = getDefaultTenantBootstrapConfigForTenant(tenantId);
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TENANT_BOOTSTRAP_TIMEOUT_MS;
   const controller = new AbortController();
@@ -232,10 +227,29 @@ export const fetchTenantBootstrapConfig = async (
     if (!response.ok) {
       throw new Error(`Tenant bootstrap request failed with status ${response.status}`);
     }
-    const payload = (await response.json()) as TenantBootstrapResponse;
-    const resolvedConfig = mapTenantBootstrapResponse(payload, defaults);
-    cacheTenantBootstrapConfig(resolvedConfig);
-    return resolvedConfig;
+    const payload = (await response.json()) as TenantBootstrapResponse | GovernedTenantBootstrapEnvelope;
+    const envelope = 'config' in payload && payload.config ? payload as GovernedTenantBootstrapEnvelope : null;
+    const resolvedConfig = mapTenantBootstrapResponse(envelope?.config ?? (payload as TenantBootstrapResponse), defaults);
+    const governance = getTenantConfigGovernanceSnapshot(resolvedConfig.tenantId, envelope?.environmentId);
+    const resolvedGovernance = {
+      ...governance,
+      schemaVersion: envelope?.schemaVersion?.trim() || governance.schemaVersion || TENANT_CONFIG_SCHEMA_VERSION,
+      promotedArtifact: {
+        ...governance.promotedArtifact,
+        version: envelope?.artifactVersion?.trim() || governance.promotedArtifact.version,
+        schemaVersion: envelope?.schemaVersion?.trim() || governance.promotedArtifact.schemaVersion,
+        config: {
+          ...resolvedConfig,
+          enabledForms: [...resolvedConfig.enabledForms],
+        },
+      },
+      promotedVersion: envelope?.artifactVersion?.trim() || governance.promotedVersion,
+    };
+    cacheTenantBootstrapConfig(resolvedConfig, new Date().toISOString(), resolvedGovernance);
+    return {
+      config: resolvedConfig,
+      governance: resolvedGovernance,
+    };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(`Tenant bootstrap request timed out after ${timeoutMs}ms`);

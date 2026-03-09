@@ -175,7 +175,7 @@ describe('tenantBootstrap', () => {
       }),
     } as Response);
 
-    const config = await fetchTenantBootstrapConfig();
+    const { config, governance } = await fetchTenantBootstrapConfig();
 
     expect(config.tenantId).toBe('opscentral');
     expect(config.enabledForms).toEqual([FormType.SafetyChecklist]);
@@ -183,6 +183,7 @@ describe('tenantBootstrap', () => {
     expect(config.showLeftFlyout).toBe(true);
     expect(config.showRightFlyout).toBe(true);
     expect(config.showInspectionStatsButton).toBe(false);
+    expect(governance.promotedVersion).toBeTruthy();
   });
 
   it('requests bootstrap for the explicitly selected tenant during tenant switching', async () => {
@@ -195,7 +196,7 @@ describe('tenantBootstrap', () => {
       }),
     } as Response);
 
-    const config = await fetchTenantBootstrapConfig('qhvac');
+    const { config } = await fetchTenantBootstrapConfig('qhvac');
 
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('tenantId=qhvac'),
@@ -223,7 +224,7 @@ describe('tenantBootstrap', () => {
       }),
     } as Response);
 
-    const config = await fetchTenantBootstrapConfig();
+    const { config } = await fetchTenantBootstrapConfig();
     const cached = readCachedTenantBootstrapConfig(config.tenantId);
 
     expect(cached?.config).toEqual(config);

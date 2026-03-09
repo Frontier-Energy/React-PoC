@@ -64,6 +64,48 @@ const {
       source: 'network' as const,
       activeTenantId: 'tenant-a',
       lastAttemptAt: '2026-03-07T10:00:00.000Z',
+      governance: {
+        tenantId: 'tenant-a',
+        environmentId: 'beta',
+        schemaVersion: '2026-03-01',
+        promotedVersion: '1.0.0',
+        availableVersions: ['1.0.0'],
+        promotionHistory: ['1.0.0'],
+        promotedArtifact: {
+          artifactId: 'tenant-a:1.0.0',
+          tenantId: 'tenant-a',
+          version: '1.0.0',
+          schemaVersion: '2026-03-01',
+          config: {
+            tenantId: 'tenant-a',
+            displayName: 'Tenant A',
+            theme: 'mist',
+            font: 'Source Sans Pro',
+            showLeftFlyout: true,
+            showRightFlyout: true,
+            showInspectionStatsButton: true,
+            enabledForms: ['hvac'] as const,
+            loginRequired: true,
+          },
+          reviewStatus: 'approved' as const,
+          reviewedBy: 'platform-seed',
+          reviewedAt: '2026-03-01T00:00:00.000Z',
+          createdBy: 'platform-seed',
+          createdAt: '2026-03-01T00:00:00.000Z',
+        },
+        auditEntries: [
+          {
+            auditId: 'tenant-a:seeded:1',
+            tenantId: 'tenant-a',
+            action: 'seeded' as const,
+            actorId: 'platform-seed',
+            occurredAt: '2026-03-01T00:00:00.000Z',
+            environmentId: 'beta',
+            toVersion: '1.0.0',
+            note: 'Seeded governed tenant config from platform defaults.',
+          },
+        ],
+      },
     },
   });
   const defaultAuthState = () => ({
@@ -209,6 +251,8 @@ const {
   activateInspectionSessionMock,
   refreshConfigMock,
   clearCachedTenantBootstrapConfigMock,
+  promoteTenantConfigArtifactMock,
+  rollbackTenantConfigArtifactMock,
   setSelectedTenantIdMock,
   clearThemePreferenceMock,
   clearFontPreferenceMock,
@@ -228,6 +272,8 @@ const {
   activateInspectionSessionMock: vi.fn(async () => undefined),
   refreshConfigMock: vi.fn(async () => undefined),
   clearCachedTenantBootstrapConfigMock: vi.fn(),
+  promoteTenantConfigArtifactMock: vi.fn(),
+  rollbackTenantConfigArtifactMock: vi.fn(),
   setSelectedTenantIdMock: vi.fn(),
   clearThemePreferenceMock: vi.fn(),
   clearFontPreferenceMock: vi.fn(),
@@ -303,6 +349,8 @@ const labels = {
       applyTenant: 'Apply tenant',
       refreshConfig: 'Refresh config',
       clearCache: 'Clear cached config',
+      promoteConfig: 'Promote config',
+      rollbackConfig: 'Rollback config',
       activeConfigHeader: 'Active bootstrap config',
       bootstrapStatus: 'Bootstrap status',
       bootstrapSource: 'Bootstrap source',
@@ -311,6 +359,20 @@ const labels = {
       leftFlyout: 'Left flyout',
       rightFlyout: 'Right flyout',
       statsButton: 'Stats drawer enabled',
+      schemaVersion: 'Schema version',
+      artifactVersion: 'Artifact version',
+      environment: 'Environment',
+      reviewStatus: 'Review status',
+      reviewedBy: 'Reviewed by',
+      reviewedAt: 'Reviewed at',
+      auditHeader: 'Audit history',
+      noAuditEntries: 'No audit entries are available for this tenant config.',
+      auditAction: 'Action:',
+      auditActor: 'Actor:',
+      auditEnvironment: 'Environment:',
+      auditVersion: 'Version change:',
+      auditOccurredAt: 'Occurred at:',
+      auditNote: 'Note:',
     },
     queueSection: {
       title: 'Queue operations',
@@ -348,6 +410,8 @@ const labels = {
     alerts: {
       tenantUpdated: 'Support scope updated to the selected tenant.',
       cacheCleared: 'Cached tenant bootstrap config cleared.',
+      configPromoted: 'Tenant config was promoted as a new governed artifact version.',
+      configRolledBack: 'Tenant config promotion was rolled back to the previous version.',
       queueRetried: 'Queue entry moved back to pending.',
       movedToDeadLetter: 'Queue entry moved to dead-letter.',
       uploadRecovered: 'Inspection upload was requeued for recovery.',
@@ -431,6 +495,11 @@ vi.mock('../tenantBootstrap', () => ({
   clearCachedTenantBootstrapConfig: (...args: unknown[]) => clearCachedTenantBootstrapConfigMock(...args),
 }));
 
+vi.mock('../tenantConfigGovernance', () => ({
+  promoteTenantConfigArtifact: (...args: unknown[]) => promoteTenantConfigArtifactMock(...args),
+  rollbackTenantConfigArtifact: (...args: unknown[]) => rollbackTenantConfigArtifactMock(...args),
+}));
+
 vi.mock('@cloudscape-design/components', async () => {
   const React = await vi.importActual<typeof import('react')>('react');
   return {
@@ -454,11 +523,13 @@ vi.mock('@cloudscape-design/components', async () => {
     Button: ({
       children,
       onClick,
+      disabled,
     }: {
       children: React.ReactNode;
       onClick?: () => void;
+      disabled?: boolean;
     }) => (
-      <button type="button" onClick={onClick}>
+      <button type="button" onClick={onClick} disabled={disabled}>
         {children}
       </button>
     ),
@@ -532,6 +603,8 @@ describe('SupportConsole', () => {
     activateInspectionSessionMock.mockClear();
     refreshConfigMock.mockClear();
     clearCachedTenantBootstrapConfigMock.mockClear();
+    promoteTenantConfigArtifactMock.mockClear();
+    rollbackTenantConfigArtifactMock.mockClear();
     setSelectedTenantIdMock.mockClear();
     clearThemePreferenceMock.mockClear();
     clearFontPreferenceMock.mockClear();
@@ -576,6 +649,43 @@ describe('SupportConsole', () => {
     });
 
     expect(await screen.findByText('Cached tenant bootstrap config cleared.')).toBeInTheDocument();
+  });
+
+  it('promotes and rolls back governed tenant config from the tenant section', async () => {
+    setBootstrapState({
+      diagnostics: {
+        governance: {
+          ...getBootstrapState().diagnostics.governance,
+          promotionHistory: ['1.0.0', '1.0.1'],
+          promotedVersion: '1.0.1',
+          availableVersions: ['1.0.0', '1.0.1'],
+        },
+      },
+    });
+
+    renderSubject();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Promote config' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rollback config' }));
+
+    await waitFor(() => {
+      expect(promoteTenantConfigArtifactMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: 'tenant-a',
+          environmentId: 'beta',
+          actorId: 'user-1',
+        })
+      );
+      expect(rollbackTenantConfigArtifactMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: 'tenant-a',
+          environmentId: 'beta',
+          actorId: 'user-1',
+        })
+      );
+    });
+
+    expect(await screen.findByText('Tenant config promotion was rolled back to the previous version.')).toBeInTheDocument();
   });
 
   it('retries queue entries, moves them to dead-letter, and supports dead-letter requeue', async () => {

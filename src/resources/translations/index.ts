@@ -329,6 +329,8 @@ export interface SupportLabels {
     applyTenant: string;
     refreshConfig: string;
     clearCache: string;
+    promoteConfig: string;
+    rollbackConfig: string;
     activeConfigHeader: string;
     bootstrapStatus: string;
     bootstrapSource: string;
@@ -337,6 +339,20 @@ export interface SupportLabels {
     leftFlyout: string;
     rightFlyout: string;
     statsButton: string;
+    schemaVersion: string;
+    artifactVersion: string;
+    environment: string;
+    reviewStatus: string;
+    reviewedBy: string;
+    reviewedAt: string;
+    auditHeader: string;
+    noAuditEntries: string;
+    auditAction: string;
+    auditActor: string;
+    auditEnvironment: string;
+    auditVersion: string;
+    auditOccurredAt: string;
+    auditNote: string;
   };
   queueSection: {
     title: string;
@@ -374,6 +390,8 @@ export interface SupportLabels {
   alerts: {
     tenantUpdated: string;
     cacheCleared: string;
+    configPromoted: string;
+    configRolledBack: string;
     queueRetried: string;
     movedToDeadLetter: string;
     uploadRecovered: string;
