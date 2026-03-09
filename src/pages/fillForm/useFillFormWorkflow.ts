@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { inspectionApplicationService } from '../../application/inspectionApplicationService';
 import { fetchFormSchema } from '../../apiContent';
 import { markInspectionEdited } from '../../domain/inspectionSync';
 import { useLocalization } from '../../LocalizationContext';
 import { inspectionRepository } from '../../repositories/inspectionRepository';
-import { syncQueue } from '../../syncQueue';
 import {
   type ConditionalVisibility,
   type FormData,
@@ -15,11 +15,9 @@ import {
   type FormType,
   type InspectionSession,
   type ValidationRule,
-  UploadStatus,
 } from '../../types';
 import { FormValidator, type ValidationError } from '../../utils/FormValidator';
-import { deleteFiles, saveFiles } from '../../utils/fileStorage';
-import { formatFileValue, getFileReferences, isFormDataValueEmpty } from '../../utils/formDataUtils';
+import { formatFileValue, isFormDataValueEmpty } from '../../utils/formDataUtils';
 
 interface FillFormWorkflowResult {
   loading: boolean;
@@ -89,6 +87,8 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const loadRequestIdRef = useRef(0);
+  const formDataRef = useRef<FormData>({});
+  const fileChangeChainRef = useRef<Promise<void>>(Promise.resolve());
 
   const getSectionIndexForField = useCallback((fieldId: string) => {
     if (!formSchema) {
@@ -116,6 +116,7 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
     Object.entries(storedData).forEach(([key, value]) => {
       nextFormData[externalIdMap[key] || key] = value;
     });
+    formDataRef.current = nextFormData;
     setFormData(nextFormData);
   }, []);
 
@@ -149,6 +150,7 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
       setLoading(true);
       setSession(null);
       setFormSchema(null);
+      formDataRef.current = {};
       setFormData({});
       setValidationErrors([]);
       setActiveStepIndex(0);
@@ -198,11 +200,12 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
       } else {
         nextFormData[fieldId] = value;
       }
+      formDataRef.current = nextFormData;
       return nextFormData;
     });
 
     if (sessionId && session) {
-      void inspectionRepository.updateFormDataEntry(sessionId, externalID || fieldId, value, session);
+      void inspectionApplicationService.saveDraftFieldValue(sessionId, session, fieldId, value, externalID);
     }
 
     setValidationErrors((currentErrors) => currentErrors.filter((error) => error.fieldId !== fieldId));
@@ -212,23 +215,35 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
     updateFieldValue(fieldId, value, externalID);
   }, [updateFieldValue]);
 
-  const handleFileChange = useCallback(async (fieldId: string, files: File[], externalID?: string) => {
-    const existingFiles = getFileReferences(formData[fieldId]);
-    if (existingFiles.length > 0) {
-      await deleteFiles(existingFiles.map((file) => file.id));
-    }
-
-    if (files.length === 0) {
-      updateFieldValue(fieldId, undefined, externalID);
-      return;
-    }
-
-    const savedFiles = await saveFiles(files, { sessionId, fieldId });
-    const field = formSchema?.sections
-      .flatMap((section) => section.fields)
-      .find((item) => item.id === fieldId);
-    updateFieldValue(fieldId, field?.multiple ? savedFiles : savedFiles[0], externalID);
-  }, [formData, formSchema, sessionId, updateFieldValue]);
+  const handleFileChange = useCallback((fieldId: string, files: File[], externalID?: string) => {
+    const nextOperation = fileChangeChainRef.current.catch(() => undefined).then(async () => {
+      const field = formSchema?.sections
+        .flatMap((section) => section.fields)
+        .find((item) => item.id === fieldId);
+      const nextValue = await inspectionApplicationService.replaceDraftFiles({
+        sessionId,
+        inspection: session,
+        fieldId,
+        currentValue: formDataRef.current[fieldId],
+        files,
+        multiple: field?.multiple,
+        externalId: externalID,
+      });
+      setFormData((currentFormData) => {
+        const nextFormData = { ...currentFormData };
+        if (nextValue === undefined) {
+          delete nextFormData[fieldId];
+        } else {
+          nextFormData[fieldId] = nextValue;
+        }
+        formDataRef.current = nextFormData;
+        return nextFormData;
+      });
+      setValidationErrors((currentErrors) => currentErrors.filter((error) => error.fieldId !== fieldId));
+    });
+    fileChangeChainRef.current = nextOperation;
+    return nextOperation;
+  }, [formSchema, session, sessionId]);
 
   const validateForm = useCallback(() => {
     if (!formSchema) {
@@ -272,13 +287,7 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
     }
 
     void (async () => {
-      const updatedSession: InspectionSession = {
-        ...session,
-        uploadStatus: UploadStatus.Local,
-      };
-      await inspectionRepository.saveAsCurrent(updatedSession);
-      await syncQueue.enqueue(updatedSession, formData);
-      window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedSession }));
+      await inspectionApplicationService.submitDraft(session, formData);
       navigate('/my-inspections', {
         state: {
           successMessage: labels.fillForm.successMessage,
@@ -297,21 +306,17 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
   ]);
 
   const handleReset = useCallback(async () => {
-    const fileIds = Object.values(formData)
-      .flatMap((value) => getFileReferences(value))
-      .map((file) => file.id);
-    if (fileIds.length > 0) {
-      await deleteFiles(fileIds);
-    }
-
+    await fileChangeChainRef.current.catch(() => undefined);
+    const previousFormData = formDataRef.current;
+    formDataRef.current = {};
     setFormData({});
     setValidationErrors([]);
     if (sessionId && session) {
-      await inspectionRepository.clearFormData(sessionId, session);
+      await inspectionApplicationService.resetDraft(sessionId, session, previousFormData);
     }
     setReviewConfirmed(false);
     setReviewError(null);
-  }, [formData, session, sessionId]);
+  }, [session, sessionId]);
 
   const handleErrorClick = useCallback((fieldId: string) => {
     setActiveStepIndex(fieldId === 'sessionName' ? 0 : getSectionIndexForField(fieldId));
@@ -333,7 +338,7 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
         name,
       });
       setSession(updatedSession);
-      void inspectionRepository.saveAsCurrent(updatedSession);
+      void inspectionApplicationService.renameDraftSession(session, name);
     }
 
     setValidationErrors((currentErrors) => currentErrors.filter((error) => error.fieldId !== 'sessionName'));

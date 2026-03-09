@@ -6,6 +6,7 @@ import { backgroundUploadRuntime } from './backgroundUploadRuntime';
 import { inspectionRepository } from './repositories/inspectionRepository';
 import { syncQueue } from './syncQueue';
 import { FormType, type InspectionSession, UploadStatus } from './types';
+import { appDataStore } from './utils/appDataStore';
 import { deleteFiles, getFile } from './utils/fileStorage';
 
 const { getConnectivityStatus, setConnectivityStatus } = vi.hoisted(() => {
@@ -74,6 +75,7 @@ describe('backgroundUploadRuntime', () => {
   beforeEach(async () => {
     setConnectivityStatus('online');
     await backgroundUploadRuntime.stop();
+    await appDataStore.clearAll();
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true } as Response);
@@ -84,7 +86,7 @@ describe('backgroundUploadRuntime', () => {
   });
 
   afterEach(() => {
-    return backgroundUploadRuntime.stop();
+    return Promise.all([backgroundUploadRuntime.stop(), appDataStore.clearAll()]);
   });
 
   it('uploads queued inspections with a durable idempotency key and transitions to uploaded', async () => {

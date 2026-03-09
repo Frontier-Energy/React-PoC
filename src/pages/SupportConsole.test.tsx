@@ -201,33 +201,36 @@ const {
   loadAllMock,
   loadCurrentMock,
   loadFormDataMock,
-  updateMock,
-  saveCurrentMock,
   subscribeMock,
+  getFormDataFieldCountMock,
+  retryQueueEntryMock,
+  moveQueueEntryToDeadLetterMock,
+  recoverUploadMock,
+  activateInspectionSessionMock,
   refreshConfigMock,
   clearCachedTenantBootstrapConfigMock,
   setSelectedTenantIdMock,
   clearThemePreferenceMock,
   clearFontPreferenceMock,
-  retryMock,
-  moveToDeadLetterMock,
-  enqueueMock,
   syncMonitorRefreshMock,
 } = vi.hoisted(() => ({
   loadAllMock: vi.fn(async () => getInspections()),
   loadCurrentMock: vi.fn(async () => getCurrentSession()),
   loadFormDataMock: vi.fn(async () => getFormData()),
-  updateMock: vi.fn(async () => undefined),
-  saveCurrentMock: vi.fn(async () => undefined),
   subscribeMock: vi.fn(() => () => undefined),
+  getFormDataFieldCountMock: vi.fn(async () => {
+    const data = getFormData();
+    return Object.keys(data ?? {}).length;
+  }),
+  retryQueueEntryMock: vi.fn(async () => undefined),
+  moveQueueEntryToDeadLetterMock: vi.fn(async () => undefined),
+  recoverUploadMock: vi.fn(async (inspection: InspectionSession) => inspection),
+  activateInspectionSessionMock: vi.fn(async () => undefined),
   refreshConfigMock: vi.fn(async () => undefined),
   clearCachedTenantBootstrapConfigMock: vi.fn(),
   setSelectedTenantIdMock: vi.fn(),
   clearThemePreferenceMock: vi.fn(),
   clearFontPreferenceMock: vi.fn(),
-  retryMock: vi.fn(async () => undefined),
-  moveToDeadLetterMock: vi.fn(async () => undefined),
-  enqueueMock: vi.fn(async () => undefined),
   syncMonitorRefreshMock: vi.fn(async () => undefined),
 }));
 
@@ -383,9 +386,6 @@ vi.mock('../repositories/inspectionRepository', () => ({
   inspectionRepository: {
     loadAll: (...args: unknown[]) => loadAllMock(...args),
     loadCurrent: (...args: unknown[]) => loadCurrentMock(...args),
-    loadFormData: (...args: unknown[]) => loadFormDataMock(...args),
-    update: (...args: unknown[]) => updateMock(...args),
-    saveCurrent: (...args: unknown[]) => saveCurrentMock(...args),
     subscribe: (...args: unknown[]) => subscribeMock(...args),
   },
 }));
@@ -397,11 +397,27 @@ vi.mock('../syncMonitor', () => ({
   },
 }));
 
-vi.mock('../syncQueue', () => ({
-  syncQueue: {
-    retry: (...args: unknown[]) => retryMock(...args),
-    moveToDeadLetter: (...args: unknown[]) => moveToDeadLetterMock(...args),
-    enqueue: (...args: unknown[]) => enqueueMock(...args),
+vi.mock('../application/inspectionApplicationService', () => ({
+  inspectionApplicationService: {
+    getRecoveryCandidates: (inspections: InspectionSession[], queueEntries: SyncQueueEntry[]) =>
+      inspections.filter((inspection) => {
+        const entry = queueEntries.find((candidate) => candidate.inspectionId === inspection.id);
+        const uploadStatus = inspection.uploadStatus ?? 'local';
+        return (
+          uploadStatus === 'failed' ||
+          uploadStatus === 'conflict' ||
+          uploadStatus === 'uploading' ||
+          entry?.status === 'failed' ||
+          entry?.status === 'conflict' ||
+          entry?.status === 'dead-letter' ||
+          entry?.status === 'syncing'
+        );
+      }),
+    getFormDataFieldCount: (...args: unknown[]) => getFormDataFieldCountMock(...args),
+    retryQueueEntry: (...args: unknown[]) => retryQueueEntryMock(...args),
+    moveQueueEntryToDeadLetter: (...args: unknown[]) => moveQueueEntryToDeadLetterMock(...args),
+    recoverUpload: (...args: unknown[]) => recoverUploadMock(...args),
+    activateInspectionSession: (...args: unknown[]) => activateInspectionSessionMock(...args),
   },
 }));
 
@@ -508,17 +524,17 @@ describe('SupportConsole', () => {
     loadAllMock.mockClear();
     loadCurrentMock.mockClear();
     loadFormDataMock.mockClear();
-    updateMock.mockClear();
-    saveCurrentMock.mockClear();
     subscribeMock.mockClear();
+    getFormDataFieldCountMock.mockClear();
+    retryQueueEntryMock.mockClear();
+    moveQueueEntryToDeadLetterMock.mockClear();
+    recoverUploadMock.mockClear();
+    activateInspectionSessionMock.mockClear();
     refreshConfigMock.mockClear();
     clearCachedTenantBootstrapConfigMock.mockClear();
     setSelectedTenantIdMock.mockClear();
     clearThemePreferenceMock.mockClear();
     clearFontPreferenceMock.mockClear();
-    retryMock.mockClear();
-    moveToDeadLetterMock.mockClear();
-    enqueueMock.mockClear();
     syncMonitorRefreshMock.mockClear();
   });
 
@@ -569,8 +585,8 @@ describe('SupportConsole', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send to dead-letter' }));
 
     await waitFor(() => {
-      expect(retryMock).toHaveBeenCalledWith(expect.objectContaining({ inspectionId: 'session-1' }));
-      expect(moveToDeadLetterMock).toHaveBeenCalledWith(
+      expect(retryQueueEntryMock).toHaveBeenCalledWith(expect.objectContaining({ inspectionId: 'session-1' }));
+      expect(moveQueueEntryToDeadLetterMock).toHaveBeenCalledWith(
         expect.objectContaining({ inspectionId: 'session-1' }),
         'Moved to dead-letter from support console'
       );
@@ -600,7 +616,7 @@ describe('SupportConsole', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Requeue dead-letter' }));
 
     await waitFor(() => {
-      expect(retryMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'dead-letter' }));
+      expect(retryQueueEntryMock).toHaveBeenCalledWith(expect.objectContaining({ status: 'dead-letter' }));
     });
   });
 
@@ -610,19 +626,12 @@ describe('SupportConsole', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Recover upload' }));
 
     await waitFor(() => {
-      expect(updateMock).toHaveBeenCalledWith(
+      expect(recoverUploadMock).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'session-1',
-          uploadStatus: 'local',
-        })
-      );
-      expect(retryMock).toHaveBeenCalledWith(expect.objectContaining({ inspectionId: 'session-1' }));
-      expect(enqueueMock).not.toHaveBeenCalled();
-      expect(saveCurrentMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'session-1',
-          uploadStatus: 'local',
-        })
+          uploadStatus: 'failed',
+        }),
+        expect.objectContaining({ inspectionId: 'session-1' })
       );
     });
   });
@@ -645,11 +654,10 @@ describe('SupportConsole', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Recover upload' }));
 
     await waitFor(() => {
-      expect(enqueueMock).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'session-1', uploadStatus: 'local' }),
-        { ext_note: 'value' }
+      expect(recoverUploadMock).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'session-1', uploadStatus: 'failed' }),
+        undefined
       );
-      expect(saveCurrentMock).not.toHaveBeenCalled();
     });
   });
 
@@ -672,7 +680,7 @@ describe('SupportConsole', () => {
         },
       });
       expect(navigateMock).toHaveBeenCalledWith('/fill-form/session-1');
-      expect(saveCurrentMock).toHaveBeenCalled();
+      expect(activateInspectionSessionMock).toHaveBeenCalled();
     });
   });
 
@@ -761,7 +769,7 @@ describe('SupportConsole', () => {
       },
     });
     refreshConfigMock.mockRejectedValueOnce(new Error('refresh failed'));
-    retryMock.mockRejectedValueOnce(new Error('retry failed'));
+    retryQueueEntryMock.mockRejectedValueOnce(new Error('retry failed'));
 
     renderSubject();
 

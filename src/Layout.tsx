@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { AppLayout, SideNavigation, BreadcrumbGroup, StatusIndicator, Box, Link } from '@cloudscape-design/components';
 import { Outlet, useNavigate } from 'react-router-dom';
+import { inspectionApplicationService } from './application/inspectionApplicationService';
+import { subscribeToInspectionStatusChanged } from './application/inspectionEvents';
 import { useConnectivity } from './ConnectivityContext';
 import {
   getAppPreferenceState,
@@ -113,22 +115,7 @@ export function Layout() {
     let cancelled = false;
 
     const loadStatusCounts = async () => {
-      const inspections = await inspectionRepository.loadAll();
-
-      const counts: Record<UploadStatus, number> = {
-        [UploadStatus.Local]: 0,
-        [UploadStatus.InProgress]: 0,
-        [UploadStatus.Uploading]: 0,
-        [UploadStatus.Uploaded]: 0,
-        [UploadStatus.Failed]: 0,
-        [UploadStatus.Conflict]: 0,
-      };
-
-      inspections.forEach((session) => {
-        const uploadStatus = session.uploadStatus || UploadStatus.Local;
-        counts[uploadStatus] += 1;
-      });
-
+      const counts = await inspectionApplicationService.getUploadStatusCounts();
       if (!cancelled) {
         setStatusCounts(counts);
       }
@@ -137,11 +124,11 @@ export function Layout() {
     const handleStatusChange = () => void loadStatusCounts();
 
     void loadStatusCounts();
-    window.addEventListener('inspection-status-changed', handleStatusChange as EventListener);
+    const unsubscribeStatusChanged = subscribeToInspectionStatusChanged(handleStatusChange);
     const unsubscribe = inspectionRepository.subscribe(handleStatusChange);
     return () => {
       cancelled = true;
-      window.removeEventListener('inspection-status-changed', handleStatusChange as EventListener);
+      unsubscribeStatusChanged();
       unsubscribe();
     };
   }, [inspectionScopeRefreshKey]);

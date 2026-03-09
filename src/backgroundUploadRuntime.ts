@@ -1,4 +1,5 @@
 import { getUserId } from './auth';
+import { publishInspectionStatusChanged, subscribeToInspectionStatusChanged } from './application/inspectionEvents';
 import { getUploadInspectionUrl } from './config';
 import { markInspectionConflicted, markInspectionSyncSucceeded } from './domain/inspectionSync';
 import { inspectionRepository } from './repositories/inspectionRepository';
@@ -11,10 +12,6 @@ import { deleteFiles, getFile } from './utils/fileStorage';
 export type BackgroundUploadConnectivityStatus = 'checking' | 'online' | 'offline';
 
 const SYNC_CHECK_INTERVAL_MS = 15_000;
-
-const emitInspectionStatusChanged = (inspection: InspectionSession) => {
-  window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: inspection }));
-};
 
 class InspectionConflictError extends Error {
   constructor(
@@ -36,7 +33,7 @@ const persistInspection = async (inspection: InspectionSession) => {
   if (currentSession?.id === inspection.id) {
     await inspectionRepository.saveCurrent(inspection);
   }
-  emitInspectionStatusChanged(inspection);
+  publishInspectionStatusChanged(inspection);
   return inspection;
 };
 
@@ -222,7 +219,8 @@ export const createBackgroundUploadRuntime = (): BackgroundUploadRuntime => {
   let started = false;
   const workerId = syncQueue.createWorkerId();
   let intervalId: number | null = null;
-  let unsubscribe: (() => void) | null = null;
+  let unsubscribeQueue: (() => void) | null = null;
+  let unsubscribeInspectionEvents: (() => void) | null = null;
   const activeCycles = new Set<Promise<void>>();
 
   const getConnectivityStatus = () => connectivityStatus;
@@ -291,8 +289,8 @@ export const createBackgroundUploadRuntime = (): BackgroundUploadRuntime => {
 
       started = true;
       intervalId = window.setInterval(() => scheduleSync('interval'), SYNC_CHECK_INTERVAL_MS);
-      unsubscribe = syncQueue.subscribe(() => scheduleSync('queue event'));
-      window.addEventListener('inspection-status-changed', handleInspectionStatusChanged as EventListener);
+      unsubscribeQueue = syncQueue.subscribe(() => scheduleSync('queue event'));
+      unsubscribeInspectionEvents = subscribeToInspectionStatusChanged(handleInspectionStatusChanged);
       scheduleSync('runtime start');
     },
     stop: async () => {
@@ -305,9 +303,10 @@ export const createBackgroundUploadRuntime = (): BackgroundUploadRuntime => {
         window.clearInterval(intervalId);
         intervalId = null;
       }
-      unsubscribe?.();
-      unsubscribe = null;
-      window.removeEventListener('inspection-status-changed', handleInspectionStatusChanged as EventListener);
+      unsubscribeQueue?.();
+      unsubscribeQueue = null;
+      unsubscribeInspectionEvents?.();
+      unsubscribeInspectionEvents = null;
       await Promise.allSettled(Array.from(activeCycles));
       await syncQueue.releaseWorkerLease(workerId);
     },

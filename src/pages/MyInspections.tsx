@@ -2,12 +2,13 @@ import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, SelectProps, Link, Alert, Modal } from '@cloudscape-design/components';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
+import { inspectionApplicationService } from '../application/inspectionApplicationService';
+import { subscribeToInspectionStatusChanged } from '../application/inspectionEvents';
 import { InspectionSession, UploadStatus, FormType } from '../types';
 import { TableProps } from '@cloudscape-design/components';
 import { useLocalization } from '../LocalizationContext';
 import { inspectionRepository } from '../repositories/inspectionRepository';
 import { formatPluralTemplate } from '../resources/translations';
-import { syncQueue } from '../syncQueue';
 import { useTenantBootstrap } from '../TenantBootstrapContext';
 import { getUserId, hasPermission, isLoggedInAdmin } from '../auth';
 
@@ -60,10 +61,10 @@ export function MyInspections() {
       loadInspections();
     };
 
-    window.addEventListener('inspection-status-changed', handleStatusChange as EventListener);
+    const unsubscribeStatusChanged = subscribeToInspectionStatusChanged(handleStatusChange);
     const unsubscribe = inspectionRepository.subscribe(handleStatusChange);
     return () => {
-      window.removeEventListener('inspection-status-changed', handleStatusChange as EventListener);
+      unsubscribeStatusChanged();
       unsubscribe();
     };
   }, [loadInspections]);
@@ -79,7 +80,7 @@ export function MyInspections() {
   }, [location]);
 
   const handleOpenInspection = (inspection: InspectionSession) => {
-    void inspectionRepository.saveCurrent(inspection).then(() => {
+    void inspectionApplicationService.activateInspectionSession(inspection).then(() => {
       navigate(`/fill-form/${inspection.id}`);
     });
   };
@@ -102,8 +103,7 @@ export function MyInspections() {
 
   const handleDeleteInspection = (inspection: InspectionSession) => {
     void (async () => {
-      await inspectionRepository.delete(inspection);
-      await syncQueue.delete(inspection.id, inspection);
+      await inspectionApplicationService.deleteInspection(inspection);
       loadInspections();
     })();
   };
@@ -126,18 +126,7 @@ export function MyInspections() {
 
   const handleRetryInspection = (inspection: InspectionSession) => {
     void (async () => {
-      const updatedInspection: InspectionSession = {
-        ...inspection,
-        uploadStatus: UploadStatus.Local,
-      };
-      await inspectionRepository.update(updatedInspection);
-      const formData = (await inspectionRepository.loadFormData(inspection.id, inspection)) ?? {};
-      await syncQueue.enqueue(updatedInspection, formData);
-      const currentSession = await inspectionRepository.loadCurrent();
-      if (currentSession?.id === inspection.id) {
-        await inspectionRepository.saveCurrent(updatedInspection);
-      }
-      window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: updatedInspection }));
+      await inspectionApplicationService.retryInspectionUpload(inspection);
       loadInspections();
     })();
   };

@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { Alert, Box, Button, Container, FormField, Header, Select, SpaceBetween } from '@cloudscape-design/components';
 import type { SelectProps } from '@cloudscape-design/components';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { inspectionApplicationService } from '../application/inspectionApplicationService';
 import { clearFontPreference, clearThemePreference, setSelectedTenantId } from '../appState';
 import { getUserId, hasPermission, isLoggedInAdmin } from '../auth';
 import { TENANTS } from '../config';
 import { useLocalization } from '../LocalizationContext';
 import { inspectionRepository } from '../repositories/inspectionRepository';
 import { syncMonitor, useSyncMonitor } from '../syncMonitor';
-import { syncQueue } from '../syncQueue';
 import { useTenantBootstrap } from '../TenantBootstrapContext';
 import { clearCachedTenantBootstrapConfig } from '../tenantBootstrap';
 import { type InspectionSession, UploadStatus } from '../types';
@@ -118,9 +118,8 @@ export function SupportConsole() {
         return;
       }
 
-      const formData = await inspectionRepository.loadFormData(inspection.id, inspection);
       if (!cancelled) {
-        setSelectedFormDataCount(Object.keys(formData ?? {}).length);
+        setSelectedFormDataCount(await inspectionApplicationService.getFormDataFieldCount(inspection.id, inspection));
       }
     })();
 
@@ -151,21 +150,8 @@ export function SupportConsole() {
   const selectedQueueEntry = selectedInspection ? queueEntriesById.get(selectedInspection.id) ?? null : null;
 
   const recoveryCandidates = useMemo(
-    () =>
-      inspections.filter((inspection) => {
-        const entry = queueEntriesById.get(inspection.id);
-        const uploadStatus = inspection.uploadStatus ?? UploadStatus.Local;
-        return (
-          uploadStatus === UploadStatus.Failed ||
-          uploadStatus === UploadStatus.Conflict ||
-          uploadStatus === UploadStatus.Uploading ||
-          entry?.status === 'failed' ||
-          entry?.status === 'conflict' ||
-          entry?.status === 'dead-letter' ||
-          entry?.status === 'syncing'
-        );
-      }),
-    [inspections, queueEntriesById]
+    () => inspectionApplicationService.getRecoveryCandidates(inspections, queueEntries),
+    [inspections, queueEntries]
   );
 
   const formatTimestamp = (value: number | string | null | undefined) => {
@@ -224,7 +210,7 @@ export function SupportConsole() {
 
   const handleRetryEntry = async (entry: SyncQueueEntry) => {
     try {
-      await syncQueue.retry(entry);
+      await inspectionApplicationService.retryQueueEntry(entry);
       await refreshSupportState();
       setSuccess(labels.support.alerts.queueRetried);
     } catch (error) {
@@ -234,7 +220,7 @@ export function SupportConsole() {
 
   const handleMoveToDeadLetter = async (entry: SyncQueueEntry) => {
     try {
-      await syncQueue.moveToDeadLetter(entry, 'Moved to dead-letter from support console');
+      await inspectionApplicationService.moveQueueEntryToDeadLetter(entry, 'Moved to dead-letter from support console');
       await refreshSupportState();
       setSuccess(labels.support.alerts.movedToDeadLetter);
     } catch (error) {
@@ -244,25 +230,8 @@ export function SupportConsole() {
 
   const handleRecoverUpload = async (inspection: InspectionSession) => {
     try {
-      const formData = (await inspectionRepository.loadFormData(inspection.id, inspection)) ?? {};
-      const recoveredInspection: InspectionSession = {
-        ...inspection,
-        uploadStatus: UploadStatus.Local,
-      };
-      await inspectionRepository.update(recoveredInspection);
       const entry = queueEntriesById.get(inspection.id);
-      if (entry) {
-        await syncQueue.retry(entry);
-      } else {
-        await syncQueue.enqueue(recoveredInspection, formData);
-      }
-
-      const currentSession = await inspectionRepository.loadCurrent(inspection);
-      if (currentSession?.id === inspection.id) {
-        await inspectionRepository.saveCurrent(recoveredInspection);
-      }
-
-      window.dispatchEvent(new CustomEvent('inspection-status-changed', { detail: recoveredInspection }));
+      await inspectionApplicationService.recoverUpload(inspection, entry);
       await refreshSupportState();
       setCurrentInspectionId(inspection.id);
       setSuccess(labels.support.alerts.uploadRecovered);
@@ -283,7 +252,7 @@ export function SupportConsole() {
   };
 
   const handleOpenForm = async (inspection: InspectionSession) => {
-    await inspectionRepository.saveCurrent(inspection);
+    await inspectionApplicationService.activateInspectionSession(inspection);
     navigate(`/fill-form/${inspection.id}`);
   };
 
@@ -378,8 +347,8 @@ export function SupportConsole() {
           </Header>
           <Box color="text-body-secondary">{labels.support.queueSection.description}</Box>
           <div style={statsGridStyle}>
-            {supportSummaryItems.map((item) => (
-              <div key={item.label} style={cardStyle}>
+            {supportSummaryItems.map((item, index) => (
+              <div key={`${item.label}-${index}`} style={cardStyle}>
                 <strong>{item.label}</strong>
                 <Box>{item.value}</Box>
               </div>
