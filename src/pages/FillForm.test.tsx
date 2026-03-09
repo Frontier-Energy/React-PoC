@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LocalizationProvider } from '../LocalizationContext';
 import { FillForm } from './FillForm';
 import { FormType, UploadStatus, type FileReference } from '../types';
@@ -622,9 +622,14 @@ describe('FillForm', () => {
     await waitFor(() => {
       expect(screen.getByText('Loading...')).toBeInTheDocument();
     });
+    await waitFor(() => {
+      expect(fetchFormSchemaMock).toHaveBeenCalledTimes(1);
+    });
     expect(screen.queryByText('Error loading form schema')).not.toBeInTheDocument();
 
-    resolveSchema?.(schemaFixture);
+    await act(async () => {
+      resolveSchema?.(schemaFixture);
+    });
 
     expect(await screen.findByText('Durability Test Form')).toBeInTheDocument();
     expect(await screen.findByDisplayValue('Durability Session')).toBeInTheDocument();
@@ -684,12 +689,14 @@ describe('FillForm', () => {
       tenantId: 'frontierDemo',
     });
     await inspectionRepository.saveFormData(sessionBRouteId, { fieldNoExternal: 'session-b value' });
-    setSessionId(sessionBRouteId);
-    view.rerender(
-      <LocalizationProvider>
-        <FillForm />
-      </LocalizationProvider>
-    );
+    await act(async () => {
+      setSessionId(sessionBRouteId);
+      view.rerender(
+        <LocalizationProvider>
+          <FillForm />
+        </LocalizationProvider>
+      );
+    });
 
     expect(await screen.findByText('Schema B')).toBeInTheDocument();
     await waitFor(() => {
@@ -697,7 +704,9 @@ describe('FillForm', () => {
       expect(screen.getByTestId('form-data-json')).toHaveTextContent('session-b value');
     });
 
-    resolveSchemaA?.(schemaA);
+    await act(async () => {
+      resolveSchemaA?.(schemaA);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Schema B')).toBeInTheDocument();

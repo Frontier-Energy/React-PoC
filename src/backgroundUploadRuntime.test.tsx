@@ -108,7 +108,9 @@ describe('backgroundUploadRuntime', () => {
     expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'local-1', uploadStatus: UploadStatus.Uploaded }));
     expect(saveCurrentSpy).toHaveBeenCalled();
     expect(await syncQueue.load(local.id)).toBeNull();
-    expect(syncMonitorMock.markInspectionSucceeded).toHaveBeenCalledWith('local-1');
+    await vi.waitFor(() => {
+      expect(syncMonitorMock.markInspectionSucceeded).toHaveBeenCalledWith('local-1');
+    });
 
     const [, request] = vi.mocked(global.fetch).mock.calls[0] as [
       string,
@@ -172,7 +174,9 @@ describe('backgroundUploadRuntime', () => {
     expect((await inspectionRepository.loadById(local.id))?.uploadStatus).toBe(UploadStatus.Failed);
     expect(deleteFiles).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();
-    expect(syncMonitorMock.markInspectionFailed).toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(syncMonitorMock.markInspectionFailed).toHaveBeenCalled();
+    });
   });
 
   it('coordinates across tabs through the shared worker lease', async () => {

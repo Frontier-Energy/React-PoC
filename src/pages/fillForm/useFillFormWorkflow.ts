@@ -100,22 +100,22 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
     return sectionIndex === -1 ? 0 : sectionIndex;
   }, [formSchema]);
 
-  const loadFormData = useCallback((
+  const loadFormData = useCallback(async (
     targetSessionId: string,
     externalIdMap: Record<string, string>,
-    inspection: Pick<InspectionSession, 'tenantId' | 'userId'>
+    inspection: Pick<InspectionSession, 'tenantId' | 'userId'>,
+    requestId: number
   ) => {
-    void inspectionRepository.loadFormData(targetSessionId, inspection).then((storedData) => {
-      if (!storedData) {
-        return;
-      }
+    const storedData = await inspectionRepository.loadFormData(targetSessionId, inspection);
+    if (!storedData || requestId !== loadRequestIdRef.current) {
+      return;
+    }
 
-      const nextFormData: FormData = {};
-      Object.entries(storedData).forEach(([key, value]) => {
-        nextFormData[externalIdMap[key] || key] = value;
-      });
-      setFormData(nextFormData);
+    const nextFormData: FormData = {};
+    Object.entries(storedData).forEach(([key, value]) => {
+      nextFormData[externalIdMap[key] || key] = value;
     });
+    setFormData(nextFormData);
   }, []);
 
   const loadSchemaForSession = useCallback(async (
@@ -131,7 +131,7 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
       }
 
       setFormSchema(schema);
-      loadFormData(targetSessionId, buildExternalIdMap(schema), inspection);
+      await loadFormData(targetSessionId, buildExternalIdMap(schema), inspection, requestId);
     } catch (error) {
       if (requestId !== loadRequestIdRef.current) {
         return;

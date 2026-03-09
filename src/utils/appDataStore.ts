@@ -2,7 +2,7 @@ import type { FormDataValue, InspectionSession } from '../types';
 import type { SyncQueueEntry } from '../domain/syncQueue';
 
 const DB_NAME = 'react-poc-app-data';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const META_STORE = 'meta';
 const INSPECTIONS_STORE = 'inspections';
@@ -12,6 +12,10 @@ const SYNC_QUEUE_STORE = 'syncQueue';
 const WORKER_LEASE_STORE = 'workerLeases';
 
 const MIGRATION_KEY = 'localStorageMigrationComplete';
+const SCHEMA_VERSION_KEY = 'schemaVersion';
+const SCHEMA_UPDATED_AT_KEY = 'schemaUpdatedAt';
+const LAST_RECOVERY_REASON_KEY = 'lastRecoveryReason';
+const LAST_RECOVERY_AT_KEY = 'lastRecoveryAt';
 const DATA_CHANGE_EVENT = 'app-data-changed';
 const DATA_CHANGE_CHANNEL = 'react-poc-app-data';
 
@@ -46,7 +50,7 @@ type WorkerLease = {
 
 type MetaRecord = {
   key: string;
-  value: boolean;
+  value: boolean | number | string;
 };
 
 type DataChangeDetail = {
@@ -57,45 +61,164 @@ type DataChangeDetail = {
 let dbPromise: Promise<IDBDatabase> | null = null;
 let migrationPromise: Promise<void> | null = null;
 let broadcastChannel: BroadcastChannel | null = null;
+let recoveryPromise: Promise<void> | null = null;
 
-const openDatabase = (): Promise<IDBDatabase> =>
+type SchemaMigration = {
+  version: number;
+  description: string;
+  up: (db: IDBDatabase) => void;
+};
+
+const createScopedStore = (db: IDBDatabase, storeName: string) => {
+  const store = db.createObjectStore(storeName, { keyPath: 'storageKey' });
+  store.createIndex('scopeKey', 'scopeKey', { unique: false });
+};
+
+const ensureStore = (db: IDBDatabase, storeName: string, create: () => void) => {
+  if (!db.objectStoreNames.contains(storeName)) {
+    create();
+  }
+};
+
+const schemaMigrations: SchemaMigration[] = [
+  {
+    version: 1,
+    description: 'Create initial scoped stores.',
+    up: (db) => {
+      ensureStore(db, META_STORE, () => {
+        db.createObjectStore(META_STORE, { keyPath: 'key' });
+      });
+      ensureStore(db, INSPECTIONS_STORE, () => {
+        createScopedStore(db, INSPECTIONS_STORE);
+      });
+      ensureStore(db, CURRENT_SESSIONS_STORE, () => {
+        db.createObjectStore(CURRENT_SESSIONS_STORE, { keyPath: 'scopeKey' });
+      });
+      ensureStore(db, FORM_DATA_STORE, () => {
+        createScopedStore(db, FORM_DATA_STORE);
+      });
+      ensureStore(db, SYNC_QUEUE_STORE, () => {
+        createScopedStore(db, SYNC_QUEUE_STORE);
+      });
+      ensureStore(db, WORKER_LEASE_STORE, () => {
+        db.createObjectStore(WORKER_LEASE_STORE, { keyPath: 'scopeKey' });
+      });
+    },
+  },
+  {
+    version: 2,
+    description: 'Adopt explicit schema versioning and recovery metadata.',
+    up: (db) => {
+      ensureStore(db, META_STORE, () => {
+        db.createObjectStore(META_STORE, { keyPath: 'key' });
+      });
+    },
+  },
+];
+
+const wrapStoreError = (error: unknown, operation: string): Error => {
+  if (
+    error instanceof Error &&
+    (error.name === 'QuotaExceededError' || /quota|disk full|storage/i.test(error.message))
+  ) {
+    return new Error(`IndexedDB quota was exceeded while ${operation}. Clear some offline data and retry.`);
+  }
+
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error(`IndexedDB failed while ${operation}.`);
+};
+
+const waitForTransaction = (transaction: IDBTransaction) =>
+  new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed.'));
+    transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction was aborted.'));
+  });
+
+const applySchemaMigrations = (db: IDBDatabase, oldVersion: number, newVersion: number) => {
+  schemaMigrations
+    .filter((migration) => migration.version > oldVersion && migration.version <= newVersion)
+    .forEach((migration) => {
+      migration.up(db);
+    });
+};
+
+const resetConnectionState = () => {
+  dbPromise = null;
+  migrationPromise = null;
+};
+
+const deleteDatabase = () =>
+  new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error('Failed to clear IndexedDB because the database is blocked.'));
+  });
+
+const canRecoverFromOpenError = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return ['AbortError', 'InvalidStateError', 'NotFoundError', 'UnknownError'].includes(error.name);
+};
+
+const recoverCorruptedDatabase = async (reason: Error) => {
+  if (!recoveryPromise) {
+    recoveryPromise = (async () => {
+      console.error('Recovering corrupted IndexedDB database.', reason);
+      resetConnectionState();
+      await deleteDatabase();
+    })().finally(() => {
+      recoveryPromise = null;
+    });
+  }
+
+  await recoveryPromise;
+};
+
+const openDatabaseOnce = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (event) => {
       const db = request.result;
-
-      if (!db.objectStoreNames.contains(META_STORE)) {
-        db.createObjectStore(META_STORE, { keyPath: 'key' });
-      }
-
-      if (!db.objectStoreNames.contains(INSPECTIONS_STORE)) {
-        const store = db.createObjectStore(INSPECTIONS_STORE, { keyPath: 'storageKey' });
-        store.createIndex('scopeKey', 'scopeKey', { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains(CURRENT_SESSIONS_STORE)) {
-        db.createObjectStore(CURRENT_SESSIONS_STORE, { keyPath: 'scopeKey' });
-      }
-
-      if (!db.objectStoreNames.contains(FORM_DATA_STORE)) {
-        const store = db.createObjectStore(FORM_DATA_STORE, { keyPath: 'storageKey' });
-        store.createIndex('scopeKey', 'scopeKey', { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains(SYNC_QUEUE_STORE)) {
-        const store = db.createObjectStore(SYNC_QUEUE_STORE, { keyPath: 'storageKey' });
-        store.createIndex('scopeKey', 'scopeKey', { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains(WORKER_LEASE_STORE)) {
-        db.createObjectStore(WORKER_LEASE_STORE, { keyPath: 'scopeKey' });
-      }
+      applySchemaMigrations(db, event.oldVersion ?? 0, event.newVersion ?? DB_VERSION);
     };
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error('Failed to open IndexedDB because the database upgrade is blocked.'));
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onversionchange = () => {
+        db.close();
+        resetConnectionState();
+      };
+      resolve(db);
+    };
+    request.onerror = () => reject(request.error ?? new Error('Failed to open IndexedDB.'));
   });
+
+const openDatabase = async (): Promise<IDBDatabase> => {
+  try {
+    return await openDatabaseOnce();
+  } catch (error) {
+    if (!canRecoverFromOpenError(error)) {
+      throw wrapStoreError(error, 'opening the app data database');
+    }
+
+    await recoverCorruptedDatabase(wrapStoreError(error, 'opening the app data database'));
+    const reopened = await openDatabaseOnce();
+    await putMetaEntriesToDb(reopened, [
+      { key: LAST_RECOVERY_REASON_KEY, value: `${(error as Error).name}: ${(error as Error).message}` },
+      { key: LAST_RECOVERY_AT_KEY, value: Date.now() },
+    ]);
+    return reopened;
+  }
+};
 
 const getDatabase = () => {
   if (!dbPromise) {
@@ -112,14 +235,46 @@ const runTransaction = async <T>(
 ): Promise<T> => {
   const db = await getDatabase();
   const transaction = db.transaction(storeNames, mode);
-  return Promise.resolve(callback(transaction));
+  try {
+    const result = await Promise.resolve(callback(transaction));
+    await waitForTransaction(transaction);
+    return result;
+  } catch (error) {
+    throw wrapStoreError(error, `${mode} transaction on ${storeNames.join(', ')}`);
+  }
 };
 
 const requestToPromise = <T>(request: IDBRequest<T>) =>
   new Promise<T>((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed.'));
   });
+
+const putMetaEntriesToDb = async (db: IDBDatabase, entries: MetaRecord[]) => {
+  const transaction = db.transaction([META_STORE], 'readwrite');
+  const store = transaction.objectStore(META_STORE);
+  entries.forEach((entry) => {
+    store.put(entry);
+  });
+  try {
+    await waitForTransaction(transaction);
+  } catch (error) {
+    throw wrapStoreError(error, 'updating IndexedDB schema metadata');
+  }
+};
+
+const getMetaValue = async <T extends MetaRecord['value']>(key: string): Promise<T | null> => {
+  const record = (await runTransaction([META_STORE], 'readonly', async (transaction) =>
+    requestToPromise<MetaRecord | undefined>(transaction.objectStore(META_STORE).get(key))
+  )) as MetaRecord | undefined;
+
+  return (record?.value as T | undefined) ?? null;
+};
+
+const putMetaEntries = async (entries: MetaRecord[]) => {
+  const db = await getDatabase();
+  await putMetaEntriesToDb(db, entries);
+};
 
 const parseJson = <T>(raw: string | null, errorMessage: string): T | null => {
   if (!raw) {
@@ -244,11 +399,13 @@ const ensureMigration = async () => {
   if (!migrationPromise) {
     migrationPromise = (async () => {
       const db = await getDatabase();
-      const migrationRecord = (await runTransaction([META_STORE], 'readonly', async (transaction) =>
-        requestToPromise<MetaRecord | undefined>(transaction.objectStore(META_STORE).get(MIGRATION_KEY))
-      )) as MetaRecord | undefined;
+      await putMetaEntries([
+        { key: SCHEMA_VERSION_KEY, value: DB_VERSION },
+        { key: SCHEMA_UPDATED_AT_KEY, value: Date.now() },
+      ]);
+      const migrationComplete = await getMetaValue<boolean>(MIGRATION_KEY);
 
-      if (migrationRecord?.value) {
+      if (migrationComplete) {
         return;
       }
 
@@ -451,14 +608,7 @@ export const appDataStore = {
   async clearAll() {
     const db = await getDatabase();
     db.close();
-    dbPromise = null;
-    migrationPromise = null;
-
-    await new Promise<void>((resolve, reject) => {
-      const request = indexedDB.deleteDatabase(DB_NAME);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-      request.onblocked = () => reject(new Error('Failed to clear IndexedDB because the database is blocked.'));
-    });
+    resetConnectionState();
+    await deleteDatabase();
   },
 };

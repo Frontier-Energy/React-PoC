@@ -67,6 +67,24 @@ const loadFreshAppDataStore = async () => {
   return import('./appDataStore');
 };
 
+const openDatabase = async (indexedDBFactory: IDBFactory, name: string, version: number, onUpgrade?: (db: IDBDatabase) => void) => {
+  const request = indexedDBFactory.open(name, version);
+
+  return new Promise<IDBDatabase>((resolve, reject) => {
+    request.onupgradeneeded = () => {
+      onUpgrade?.(request.result);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const requestToPromise = <T>(request: IDBRequest<T>) =>
+  new Promise<T>((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
 describe('appDataStore', () => {
   beforeEach(() => {
     vi.stubGlobal('BroadcastChannel', BroadcastChannelMock);
@@ -281,6 +299,40 @@ describe('appDataStore', () => {
     ]);
   });
 
+  it('upgrades a version 1 database to the current schema without losing records', async () => {
+    const legacyDbMock = createIndexedDbMock();
+    vi.stubGlobal('indexedDB', legacyDbMock.indexedDB);
+
+    const legacyDb = await openDatabase(indexedDB, 'react-poc-app-data', 1, (db) => {
+      db.createObjectStore('meta', { keyPath: 'key' });
+      const inspections = db.createObjectStore('inspections', { keyPath: 'storageKey' });
+      inspections.createIndex('scopeKey', 'scopeKey', { unique: false });
+      db.createObjectStore('currentSessions', { keyPath: 'scopeKey' });
+      const formData = db.createObjectStore('formData', { keyPath: 'storageKey' });
+      formData.createIndex('scopeKey', 'scopeKey', { unique: false });
+      const syncQueue = db.createObjectStore('syncQueue', { keyPath: 'storageKey' });
+      syncQueue.createIndex('scopeKey', 'scopeKey', { unique: false });
+      db.createObjectStore('workerLeases', { keyPath: 'scopeKey' });
+    });
+
+    const inspection = makeInspection('legacy-db');
+    await requestToPromise(
+      legacyDb
+        .transaction(['inspections'], 'readwrite')
+        .objectStore('inspections')
+        .put({
+          storageKey: `${scope.tenantId}:${scope.userId}:inspection_${inspection.id}`,
+          scopeKey: `${scope.tenantId}:${scope.userId}`,
+          value: inspection,
+        })
+    );
+    legacyDb.close();
+
+    const { appDataStore: freshStore } = await loadFreshAppDataStore();
+
+    expect(await freshStore.listInspections(scope)).toEqual([inspection]);
+  });
+
   it('notifies subscribers for matching BroadcastChannel messages only', async () => {
     const { appDataStore: freshStore } = await loadFreshAppDataStore();
     const listener = vi.fn();
@@ -310,9 +362,17 @@ describe('appDataStore', () => {
             contains: () => true,
           },
           createObjectStore: () => ({ createIndex: () => undefined }),
-          transaction: () =>
-            ({
+          transaction: () => {
+            const transaction = {
               objectStore: () => ({
+                put: () => {
+                  const request = {} as IDBRequest<unknown>;
+                  setTimeout(() => {
+                    (request as { result: string }).result = 'ok';
+                    request.onsuccess?.(new Event('success'));
+                  }, 0);
+                  return request;
+                },
                 get: () => {
                   const failingRequest = {} as IDBRequest<unknown>;
                   setTimeout(() => {
@@ -322,7 +382,14 @@ describe('appDataStore', () => {
                   return failingRequest;
                 },
               }),
-            }) as IDBTransaction,
+            } as IDBTransaction;
+
+            setTimeout(() => {
+              transaction.oncomplete?.(new Event('complete'));
+            }, 0);
+
+            return transaction;
+          },
           close: () => undefined,
         } as unknown as IDBDatabase;
 
@@ -340,6 +407,35 @@ describe('appDataStore', () => {
     vi.stubGlobal('indexedDB', requestErrorIndexedDb);
     const { appDataStore: requestFailingStore } = await loadFreshAppDataStore();
     await expect(requestFailingStore.listInspections(scope)).rejects.toThrow('request failed');
+  });
+
+  it('surfaces quota exceeded errors with a storage-specific message', async () => {
+    const quotaIndexedDb = createIndexedDbMock().failWrites('disk full').indexedDB;
+    vi.stubGlobal('indexedDB', quotaIndexedDb);
+
+    const { appDataStore: quotaStore } = await loadFreshAppDataStore();
+
+    await expect(
+      quotaStore.putInspection(
+        scope,
+        `${scope.tenantId}:${scope.userId}:inspection_quota`,
+        makeInspection('quota')
+      )
+    ).rejects.toThrow('IndexedDB quota was exceeded');
+  });
+
+  it('recovers from a corrupted database open failure by resetting the database once', async () => {
+    const recoveringIndexedDb = createIndexedDbMock().failNextOpen('corrupt database', 'InvalidStateError').indexedDB;
+    vi.stubGlobal('indexedDB', recoveringIndexedDb);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const { appDataStore: recoveringStore } = await loadFreshAppDataStore();
+
+    expect(await recoveringStore.listInspections(scope)).toEqual([]);
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Recovering corrupted IndexedDB database.',
+      expect.objectContaining({ message: 'corrupt database', name: 'InvalidStateError' })
+    );
   });
 
   it('rejects when deleting the database errors', async () => {
