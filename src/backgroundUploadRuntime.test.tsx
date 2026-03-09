@@ -180,9 +180,10 @@ describe('backgroundUploadRuntime', () => {
     backgroundUploadRuntime.setConnectivityStatus('online');
     backgroundUploadRuntime.start();
 
-    await vi.waitFor(() => {
+    await vi.waitFor(async () => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
-    });
+      expect(await syncQueue.load(local.id)).toBeNull();
+    }, { timeout: 5_000 });
 
     expect(await syncQueue.load(local.id)).toBeNull();
   });

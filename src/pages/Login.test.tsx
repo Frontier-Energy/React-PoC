@@ -3,9 +3,9 @@ import { LocalizationProvider } from '../LocalizationContext';
 import { Login } from './Login';
 import { getFallbackLabels } from '../resources/translations/fallback';
 
-const { navigateMock, setUserIdMock } = vi.hoisted(() => ({
+const { navigateMock, lookupLoginIdentityMock } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
-  setUserIdMock: vi.fn(),
+  lookupLoginIdentityMock: vi.fn(),
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -16,9 +16,10 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('../auth', () => ({
-  setUserId: setUserIdMock,
-  parseRolesFromAuthPayload: () => ['user'],
+vi.mock('../application/authApplicationService', () => ({
+  authApplicationService: {
+    lookupLoginIdentity: lookupLoginIdentityMock,
+  },
 }));
 
 vi.mock('@cloudscape-design/components', async () => {
@@ -87,12 +88,9 @@ describe('Login', () => {
       headers: { 'Content-Type': 'application/json' },
     });
 
-  const withLoginResponse = (response: Response | Promise<Response>) => {
+  const withTranslationResponses = () => {
     vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.includes('/auth/login')) {
-        return Promise.resolve(response);
-      }
       if (url.includes('/translations/es')) {
         return Promise.resolve(buildTranslationResponse('es'));
       }
@@ -106,8 +104,9 @@ describe('Login', () => {
 
   beforeEach(() => {
     navigateMock.mockReset();
-    setUserIdMock.mockReset();
+    lookupLoginIdentityMock.mockReset();
     vi.restoreAllMocks();
+    withTranslationResponses();
   });
 
   it('keeps login page visible when opened directly', async () => {
@@ -134,10 +133,10 @@ describe('Login', () => {
   });
 
   it('logs in and navigates when lookup returns a user id', async () => {
-    withLoginResponse({
-      ok: true,
-      json: async () => ({ userId: 'abc-123' }),
-    } as Response);
+    lookupLoginIdentityMock.mockResolvedValue({
+      userId: 'abc-123',
+      roles: ['user'],
+    });
 
     render(
       <LocalizationProvider>
@@ -151,16 +150,16 @@ describe('Login', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     await waitFor(() => {
-      expect(setUserIdMock).toHaveBeenCalledWith('abc-123', ['user']);
+      expect(lookupLoginIdentityMock).toHaveBeenCalledWith('me@example.com');
       expect(navigateMock).toHaveBeenCalledWith('/my-inspections', { replace: true });
     });
   });
 
-  it('assigns admin role for @frontierenergy.com emails during login', async () => {
-    withLoginResponse({
-      ok: true,
-      json: async () => ({ userId: 'abc-123' }),
-    } as Response);
+  it('trims whitespace before looking up the login identity', async () => {
+    lookupLoginIdentityMock.mockResolvedValue({
+      userId: 'abc-123',
+      roles: ['user'],
+    });
 
     render(
       <LocalizationProvider>
@@ -169,21 +168,21 @@ describe('Login', () => {
     );
 
     fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
-      target: { value: 'admin@frontierEnergy.com' },
+      target: { value: '  admin@frontierEnergy.com  ' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     await waitFor(() => {
-      expect(setUserIdMock).toHaveBeenCalledWith('abc-123', ['user', 'admin']);
+      expect(lookupLoginIdentityMock).toHaveBeenCalledWith('admin@frontierEnergy.com');
       expect(navigateMock).toHaveBeenCalledWith('/my-inspections', { replace: true });
     });
   });
 
   it('shows missing-user-id error when lookup response has no user id', async () => {
-    withLoginResponse({
-      ok: true,
-      json: async () => ({}),
-    } as Response);
+    lookupLoginIdentityMock.mockResolvedValue({
+      userId: '',
+      roles: ['user'],
+    });
 
     render(
       <LocalizationProvider>
@@ -197,26 +196,13 @@ describe('Login', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     expect(await screen.findByText('Login lookup did not return a user ID.')).toBeInTheDocument();
-    expect(setUserIdMock).toHaveBeenCalledWith('', ['user']);
+    expect(lookupLoginIdentityMock).toHaveBeenCalledWith('me@example.com');
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it('shows lookup error when fetch fails', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes('/auth/login')) {
-        return Promise.reject(new Error('network error'));
-      }
-      if (url.includes('/translations/es')) {
-        return Promise.resolve(buildTranslationResponse('es'));
-      }
-      if (url.includes('/translations/en')) {
-        return Promise.resolve(buildTranslationResponse('en'));
-      }
-
-      throw new Error(`Unexpected fetch call in Login test: ${url}`);
-    });
+    lookupLoginIdentityMock.mockRejectedValue(new Error('network error'));
 
     render(
       <LocalizationProvider>
@@ -229,17 +215,14 @@ describe('Login', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
-    expect(await screen.findByText('Login lookup did not return a user ID.')).toBeInTheDocument();
+    expect(await screen.findByText('Unable to look up that email address. Please try again.')).toBeInTheDocument();
     expect(errorSpy).toHaveBeenCalled();
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it('shows missing-user-id error when lookup returns non-ok response', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    withLoginResponse({
-      ok: false,
-      status: 401,
-    } as Response);
+    lookupLoginIdentityMock.mockRejectedValue(new Error('Login lookup failed with status 401'));
 
     render(
       <LocalizationProvider>
@@ -252,9 +235,40 @@ describe('Login', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
-    expect(await screen.findByText('Login lookup did not return a user ID.')).toBeInTheDocument();
+    expect(await screen.findByText('Unable to look up that email address. Please try again.')).toBeInTheDocument();
     expect(errorSpy).toHaveBeenCalled();
     expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('disables the login controls while lookup is in flight', async () => {
+    let resolveLookup: ((value: { userId: string; roles: string[] }) => void) | undefined;
+    lookupLoginIdentityMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveLookup = resolve;
+        })
+    );
+
+    render(
+      <LocalizationProvider>
+        <Login />
+      </LocalizationProvider>
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('you@example.com'), {
+      target: { value: 'me@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+
+    expect(screen.getByPlaceholderText('you@example.com')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Login' })).toBeDisabled();
+
+    resolveLookup?.({ userId: 'abc-123', roles: ['user'] });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Login' })).not.toBeDisabled();
+      expect(navigateMock).toHaveBeenCalledWith('/my-inspections', { replace: true });
+    });
   });
 
   it('navigates to register when create-account link is clicked', () => {

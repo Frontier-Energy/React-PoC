@@ -13,7 +13,7 @@ export function Login() {
   const { labels } = useLocalization();
   const tenant = getActiveTenant();
 
-  const handleEmailLookup = async () => {
+  const handleEmailLookup = async (): Promise<string | null | undefined> => {
     const trimmed = email.trim();
     if (!trimmed) {
       setLookupError(labels.login.emailRequired);
@@ -27,7 +27,7 @@ export function Login() {
     } catch (error) {
       setLookupError(labels.login.lookupError);
       console.error('Login lookup failed:', error);
-      return null;
+      return undefined;
     } finally {
       setIsLookupLoading(false);
     }
@@ -39,6 +39,9 @@ export function Login() {
       return;
     }
     const lookedUp = await handleEmailLookup();
+    if (lookedUp === undefined) {
+      return;
+    }
     const resolvedUserId = lookedUp?.trim() || '';
     if (!resolvedUserId) {
       setLookupError(labels.login.lookupNoUserId);

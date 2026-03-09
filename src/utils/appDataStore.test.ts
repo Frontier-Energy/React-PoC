@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OfflineObservabilitySnapshot } from '../domain/offlineObservability';
+import { subscribeToStoragePressure } from '../storagePressureSignals';
 import { FormType, UploadStatus, type InspectionSession } from '../types';
 import { createIndexedDbMock } from '../test/indexedDbMock';
 import { appDataStore, type StorageScope } from './appDataStore';
@@ -135,6 +136,85 @@ const requestToPromise = <T>(request: IDBRequest<T>) =>
     request.onerror = () => reject(request.error);
   });
 
+const flushAsyncWork = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+const createSelectiveWriteFailureIndexedDb = (storeNameToFail: string, errorMessage: string, errorName = 'QuotaExceededError') => {
+  const baseIndexedDb = createIndexedDbMock().indexedDB;
+  let shouldFailWrites = false;
+  const writeError = Object.assign(new Error(errorMessage), { name: errorName });
+
+  const wrapTransaction = (transaction: IDBTransaction, storeNames: string | string[], mode: IDBTransactionMode) => {
+    const names = Array.isArray(storeNames) ? storeNames : [storeNames];
+    if (!shouldFailWrites || mode !== 'readwrite' || !names.includes(storeNameToFail)) {
+      return transaction;
+    }
+
+    const originalObjectStore = transaction.objectStore.bind(transaction);
+    transaction.objectStore = ((storeName: string) => {
+      const store = originalObjectStore(storeName);
+      if (storeName !== storeNameToFail) {
+        return store;
+      }
+
+      return {
+        ...store,
+        put: () => {
+          const request = {} as IDBRequest<unknown>;
+          setTimeout(() => {
+            (request as { error: Error }).error = writeError;
+            request.onerror?.(new Event('error'));
+            (transaction as { error?: Error }).error = writeError;
+            transaction.onerror?.(new Event('error'));
+            transaction.onabort?.(new Event('abort'));
+          }, 0);
+          return request;
+        },
+      } as IDBObjectStore;
+    }) as typeof transaction.objectStore;
+
+    return transaction;
+  };
+
+  return {
+    indexedDB: {
+      open: (name: string, version?: number) => {
+        const innerRequest = baseIndexedDb.open(name, version);
+        const outerRequest = {} as IDBOpenDBRequest;
+
+        innerRequest.onupgradeneeded = (event) => {
+          (outerRequest as { result: IDBDatabase }).result = {
+            ...innerRequest.result,
+            transaction: (storeNames: string | string[], mode: IDBTransactionMode) =>
+              wrapTransaction(innerRequest.result.transaction(storeNames, mode), storeNames, mode),
+          } as IDBDatabase;
+          outerRequest.onupgradeneeded?.(event);
+        };
+        innerRequest.onsuccess = (event) => {
+          (outerRequest as { result: IDBDatabase }).result = {
+            ...innerRequest.result,
+            transaction: (storeNames: string | string[], mode: IDBTransactionMode) =>
+              wrapTransaction(innerRequest.result.transaction(storeNames, mode), storeNames, mode),
+          } as IDBDatabase;
+          outerRequest.onsuccess?.(event);
+        };
+        innerRequest.onerror = (event) => {
+          (outerRequest as { error: DOMException | null }).error = innerRequest.error;
+          outerRequest.onerror?.(event);
+        };
+        innerRequest.onblocked = (event) => {
+          outerRequest.onblocked?.(event);
+        };
+
+        return outerRequest;
+      },
+      deleteDatabase: baseIndexedDb.deleteDatabase.bind(baseIndexedDb),
+    } as IDBFactory,
+    enableWriteFailure() {
+      shouldFailWrites = true;
+    },
+  };
+};
+
 describe('appDataStore', () => {
   beforeEach(() => {
     vi.stubGlobal('BroadcastChannel', BroadcastChannelMock);
@@ -200,6 +280,25 @@ describe('appDataStore', () => {
     expect(localStorage.getItem(`${scope.tenantId}:${scope.userId}:inspection_broken`)).toBe('{');
     expect(localStorage.getItem('not-a-scoped-record')).toBe('ignored');
     expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('skips legacy entries that disappear before migration reads their localStorage value', async () => {
+    const disappearingKey = `${scope.tenantId}:${scope.userId}:inspection_disappearing`;
+    const originalGetItem = Storage.prototype.getItem;
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => {
+      if (key === disappearingKey) {
+        return null;
+      }
+
+      return Reflect.apply(originalGetItem, localStorage, [key]);
+    });
+
+    localStorage.setItem(disappearingKey, JSON.stringify(makeInspection('disappearing')));
+
+    expect(await appDataStore.listInspections(scope)).toEqual([]);
+    expect(localStorage.getItem(disappearingKey)).toBeNull();
+
+    getItemSpy.mockRestore();
   });
 
   it('supports CRUD operations across all scoped stores', async () => {
@@ -294,6 +393,19 @@ describe('appDataStore', () => {
 
     expect(scopedListener).not.toHaveBeenCalled();
     expect(otherListener).not.toHaveBeenCalled();
+  });
+
+  it('ignores subscribe events without matching detail payloads', () => {
+    const scopedListener = vi.fn();
+    const unsubscribeScoped = appDataStore.subscribe('tenant-a:user-1', scopedListener);
+    const channel = new BroadcastChannelMock('react-poc-app-data');
+
+    window.dispatchEvent(new CustomEvent('app-data-changed'));
+    channel.postMessage(undefined);
+
+    expect(scopedListener).not.toHaveBeenCalled();
+
+    unsubscribeScoped();
   });
 
   it('rejects when clearing the database is blocked', async () => {
@@ -407,6 +519,7 @@ describe('appDataStore', () => {
   });
 
   it('rejects when opening the database or a request fails', async () => {
+    const originalIndexedDb = indexedDB;
     const failingOpen = createIndexedDbMock().fail('open failed').indexedDB;
     vi.stubGlobal('indexedDB', failingOpen);
 
@@ -463,55 +576,231 @@ describe('appDataStore', () => {
       deleteDatabase: indexedDB.deleteDatabase.bind(indexedDB),
     } as IDBFactory;
 
-    vi.stubGlobal('indexedDB', requestErrorIndexedDb);
-    const { appDataStore: requestFailingStore } = await loadFreshAppDataStore();
-    await expect(requestFailingStore.listInspections(scope)).rejects.toThrow('request failed');
+    try {
+      vi.stubGlobal('indexedDB', requestErrorIndexedDb);
+      const { appDataStore: requestFailingStore } = await loadFreshAppDataStore();
+      await expect(requestFailingStore.listInspections(scope)).rejects.toThrow('request failed');
+    } finally {
+      vi.stubGlobal('indexedDB', originalIndexedDb);
+    }
+  });
+
+  it('wraps non-Error database open failures with a generic message', async () => {
+    const originalIndexedDb = indexedDB;
+    const opaqueFailureIndexedDb = {
+      open: () => {
+        const request = {} as IDBOpenDBRequest;
+        setTimeout(() => {
+          request.onerror?.(new Event('error'));
+        }, 0);
+        return request;
+      },
+      deleteDatabase: indexedDB.deleteDatabase.bind(indexedDB),
+    } as IDBFactory;
+
+    try {
+      vi.stubGlobal('indexedDB', opaqueFailureIndexedDb);
+
+      const { appDataStore: opaqueFailureStore } = await loadFreshAppDataStore();
+      await expect(opaqueFailureStore.listInspections(scope)).rejects.toThrow('Failed to open IndexedDB.');
+    } finally {
+      vi.stubGlobal('indexedDB', originalIndexedDb);
+    }
+  });
+
+  it('rejects when opening the database is blocked', async () => {
+    const originalIndexedDb = indexedDB;
+    const blockedIndexedDb = {
+      open: () => {
+        const request = {} as IDBOpenDBRequest;
+        setTimeout(() => {
+          request.onblocked?.(new Event('blocked'));
+        }, 0);
+        return request;
+      },
+      deleteDatabase: indexedDB.deleteDatabase.bind(indexedDB),
+    } as IDBFactory;
+
+    try {
+      vi.stubGlobal('indexedDB', blockedIndexedDb);
+
+      const { appDataStore: blockedStore } = await loadFreshAppDataStore();
+      await expect(blockedStore.listInspections(scope)).rejects.toThrow(
+        'Failed to open IndexedDB because the database upgrade is blocked.'
+      );
+    } finally {
+      vi.stubGlobal('indexedDB', originalIndexedDb);
+    }
   });
 
   it('surfaces quota exceeded errors with a storage-specific message', async () => {
-    const quotaIndexedDb = createIndexedDbMock().failWrites('disk full').indexedDB;
-    vi.stubGlobal('indexedDB', quotaIndexedDb);
+    const originalIndexedDb = indexedDB;
+    const selectiveIndexedDb = createSelectiveWriteFailureIndexedDb('inspections', 'disk full');
+    const listener = vi.fn();
+    const unsubscribe = subscribeToStoragePressure(listener);
+    try {
+      vi.stubGlobal('indexedDB', selectiveIndexedDb.indexedDB);
 
-    const { appDataStore: quotaStore } = await loadFreshAppDataStore();
+      const { appDataStore: quotaStore } = await loadFreshAppDataStore();
+      await quotaStore.listInspections(scope);
+      selectiveIndexedDb.enableWriteFailure();
 
-    await expect(
-      quotaStore.putInspection(
-        scope,
-        `${scope.tenantId}:${scope.userId}:inspection_quota`,
-        makeInspection('quota')
-      )
-    ).rejects.toThrow('IndexedDB quota was exceeded');
+      await expect(
+        quotaStore.putInspection(
+          scope,
+          `${scope.tenantId}:${scope.userId}:inspection_quota`,
+          makeInspection('quota')
+        )
+      ).rejects.toThrow('IndexedDB quota was exceeded');
+      await flushAsyncWork();
+
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: scope.tenantId,
+          userId: scope.userId,
+          scopeKey: 'tenant-a:user-1',
+          message: expect.stringContaining('IndexedDB quota was exceeded'),
+        })
+      );
+    } finally {
+      unsubscribe();
+      vi.stubGlobal('indexedDB', originalIndexedDb);
+    }
+  });
+
+  it('rethrows non-quota scoped write failures without emitting storage pressure', async () => {
+    const originalIndexedDb = indexedDB;
+    const selectiveIndexedDb = createSelectiveWriteFailureIndexedDb('inspections', 'write failed', 'InvalidStateError');
+    const listener = vi.fn();
+    const unsubscribe = subscribeToStoragePressure(listener);
+
+    try {
+      vi.stubGlobal('indexedDB', selectiveIndexedDb.indexedDB);
+
+      const { appDataStore: failingStore } = await loadFreshAppDataStore();
+      await failingStore.listInspections(scope);
+      selectiveIndexedDb.enableWriteFailure();
+
+      await expect(
+        failingStore.putInspection(
+          scope,
+          `${scope.tenantId}:${scope.userId}:inspection_nonquota`,
+          makeInspection('nonquota')
+        )
+      ).rejects.toThrow('write failed');
+      await flushAsyncWork();
+
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      unsubscribe();
+      vi.stubGlobal('indexedDB', originalIndexedDb);
+    }
+  });
+
+  it('emits storage pressure events when current session writes exceed quota', async () => {
+    const originalIndexedDb = indexedDB;
+    const selectiveIndexedDb = createSelectiveWriteFailureIndexedDb('currentSessions', 'disk full');
+    const listener = vi.fn();
+    const unsubscribe = subscribeToStoragePressure(listener);
+
+    try {
+      vi.stubGlobal('indexedDB', selectiveIndexedDb.indexedDB);
+
+      const { appDataStore: quotaStore } = await loadFreshAppDataStore();
+      await quotaStore.listInspections(scope);
+      selectiveIndexedDb.enableWriteFailure();
+
+      await expect(quotaStore.putCurrentSession(scope, makeInspection('quota-current'))).rejects.toThrow(
+        'IndexedDB quota was exceeded'
+      );
+      await flushAsyncWork();
+
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: scope.tenantId,
+          userId: scope.userId,
+          scopeKey: 'tenant-a:user-1',
+          message: expect.stringContaining('IndexedDB quota was exceeded'),
+        })
+      );
+    } finally {
+      unsubscribe();
+      vi.stubGlobal('indexedDB', originalIndexedDb);
+    }
+  });
+
+  it('emits storage pressure events when worker lease writes exceed quota', async () => {
+    const originalIndexedDb = indexedDB;
+    const selectiveIndexedDb = createSelectiveWriteFailureIndexedDb('workerLeases', 'disk full');
+    const listener = vi.fn();
+    const unsubscribe = subscribeToStoragePressure(listener);
+
+    try {
+      vi.stubGlobal('indexedDB', selectiveIndexedDb.indexedDB);
+
+      const { appDataStore: quotaStore } = await loadFreshAppDataStore();
+      await quotaStore.listInspections(scope);
+      selectiveIndexedDb.enableWriteFailure();
+
+      await expect(
+        quotaStore.putWorkerLease(scope, {
+          ownerId: 'lease-owner',
+          expiresAt: 5000,
+        })
+      ).rejects.toThrow('IndexedDB quota was exceeded');
+      await flushAsyncWork();
+
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId: scope.tenantId,
+          userId: scope.userId,
+          scopeKey: 'tenant-a:user-1',
+          message: expect.stringContaining('IndexedDB quota was exceeded'),
+        })
+      );
+    } finally {
+      unsubscribe();
+      vi.stubGlobal('indexedDB', originalIndexedDb);
+    }
   });
 
   it('recovers from a corrupted database open failure by resetting the database once', async () => {
+    const originalIndexedDb = indexedDB;
     const recoveringIndexedDb = createIndexedDbMock().failNextOpen('corrupt database', 'InvalidStateError').indexedDB;
-    vi.stubGlobal('indexedDB', recoveringIndexedDb);
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const { appDataStore: recoveringStore } = await loadFreshAppDataStore();
+    try {
+      vi.stubGlobal('indexedDB', recoveringIndexedDb);
 
-    expect(await recoveringStore.listInspections(scope)).toEqual([]);
-    expect(errorSpy).toHaveBeenCalledWith(
-      'Recovering corrupted IndexedDB database.',
-      expect.objectContaining({ message: 'corrupt database', name: 'InvalidStateError' })
-    );
+      const { appDataStore: recoveringStore } = await loadFreshAppDataStore();
+
+      expect(await recoveringStore.listInspections(scope)).toEqual([]);
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Recovering corrupted IndexedDB database.',
+        expect.objectContaining({ message: 'corrupt database', name: 'InvalidStateError' })
+      );
+    } finally {
+      vi.stubGlobal('indexedDB', originalIndexedDb);
+    }
   });
 
   it('rejects when deleting the database errors', async () => {
     await appDataStore.listInspections(scope);
 
     const originalDeleteDatabase = indexedDB.deleteDatabase.bind(indexedDB);
-    indexedDB.deleteDatabase = (() => {
-      const request = {} as IDBOpenDBRequest;
-      setTimeout(() => {
-        (request as { error: Error }).error = new Error('delete failed');
-        request.onerror?.(new Event('error'));
-      }, 0);
-      return request;
-    }) as typeof indexedDB.deleteDatabase;
+    try {
+      indexedDB.deleteDatabase = (() => {
+        const request = {} as IDBOpenDBRequest;
+        setTimeout(() => {
+          (request as { error: Error }).error = new Error('delete failed');
+          request.onerror?.(new Event('error'));
+        }, 0);
+        return request;
+      }) as typeof indexedDB.deleteDatabase;
 
-    await expect(appDataStore.clearAll()).rejects.toThrow('delete failed');
-
-    indexedDB.deleteDatabase = originalDeleteDatabase;
+      await expect(appDataStore.clearAll()).rejects.toThrow('delete failed');
+    } finally {
+      indexedDB.deleteDatabase = originalDeleteDatabase;
+    }
   });
 });
