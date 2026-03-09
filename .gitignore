@@ -4,3 +4,4 @@
 /.tmp-import-static
 /.tmp-tenant-import
 /.tmp-translation-build
+/artifacts

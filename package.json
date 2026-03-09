@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "audit:deps": "npm audit --audit-level=high",
+    "deps:review": "node ./scripts/review-dependencies.mjs",
     "bundle:check": "node ./scripts/check-bundle-size.mjs",
     "ci:verify": "eslint . && tsc -p tsconfig.app.json --noEmit && vitest run --coverage && npm audit --audit-level=high && tsc -p tsconfig.app.json && vite build && node ./scripts/check-bundle-size.mjs"
   },

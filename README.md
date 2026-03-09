@@ -93,6 +93,8 @@ The dev server runs at `http://localhost:5173`.
 ### Environment
 
 The app uses `VITE_API_BASE_URL` when provided. If it is unset, the code falls back to the default API base URL defined in `src/config.ts`.
+Set `VITE_PERFORMANCE_TELEMETRY_URL` to a collector endpoint to enable real-user performance telemetry.
+Set `VITE_PERFORMANCE_TELEMETRY_SAMPLE_RATE` to a value between `0` and `1` to control sampling density.
 
 ### Build
 
@@ -121,6 +123,9 @@ npm run audit:deps
 npm run build
 npm run bundle:check
 ```
+
+`npm run bundle:check` now enforces both whole-app bundle budgets and route-level budgets for the lazy-loaded shell, support, form, and auth surfaces.
+`npm run deps:review` produces an installability review from `npm outdated` and `npm audit`.
 
 ## Offline Behavior
 
@@ -285,6 +290,7 @@ npm run lint
 npm test
 npm run test:coverage
 npm run audit:deps
+npm run deps:review
 npm run bundle:check
 npm run ci:verify
 ```

@@ -8,9 +8,11 @@ import { ConnectivityProvider } from './ConnectivityContext';
 import { BackgroundUploadManager } from './BackgroundUploadManager';
 import { LocalizationProvider } from './LocalizationContext';
 import { TenantBootstrapProvider } from './TenantBootstrapContext';
+import { startPerformanceTelemetry } from './performanceTelemetry';
 import { registerSW } from 'virtual:pwa-register';
 
 registerSW({ immediate: true });
+startPerformanceTelemetry(router);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -5,6 +5,7 @@ import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   build: {
+    manifest: true,
     minify: 'terser',
     terserOptions: {
       compress: {
