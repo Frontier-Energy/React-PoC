@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, FormField, Input, Button, Box, Link } from '@cloudscape-design/components';
-import { parseRolesFromAuthPayload, setUserId } from '../auth';
-import { getActiveTenant, getLoginUrl } from '../config';
+import { authApplicationService } from '../application/authApplicationService';
+import { getActiveTenant } from '../config';
 import { useLocalization } from '../LocalizationContext';
 
 export function Login() {
@@ -22,32 +22,8 @@ export function Login() {
     setIsLookupLoading(true);
     setLookupError(null);
     try {
-      const response = await fetch(getLoginUrl(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: trimmed }),
-      });
-      if (!response.ok) {
-        throw new Error(`Login lookup failed with status ${response.status}`);
-      }
-      const payload = (await response.json()) as {
-        userID?: string;
-        userId?: string;
-        userid?: string;
-        role?: string;
-        roles?: string[];
-      };
-      const resolvedUserId = payload.userID || payload.userId || payload.userid || '';
-      const resolvedRoles = parseRolesFromAuthPayload(payload);
-      // TODO: Remove email-domain based admin assignment and rely on backend-provided role claims.
-      const shouldAssignTempAdmin = trimmed.toLowerCase().endsWith('@frontierenergy.com');
-      const nextRoles = shouldAssignTempAdmin
-        ? Array.from(new Set([...resolvedRoles, 'admin']))
-        : resolvedRoles;
-      setUserId(resolvedUserId, nextRoles);
-      return resolvedUserId;
+      const result = await authApplicationService.lookupLoginIdentity(trimmed);
+      return result.userId;
     } catch (error) {
       setLookupError(labels.login.lookupError);
       console.error('Login lookup failed:', error);

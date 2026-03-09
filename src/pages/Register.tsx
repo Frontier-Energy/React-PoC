@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header, Container, SpaceBetween, FormField, Input, Button, Box } from '@cloudscape-design/components';
-import { getActiveTenant, getRegisterUrl } from '../config';
-import { parseRolesFromAuthPayload, setUserId } from '../auth';
+import { authApplicationService } from '../application/authApplicationService';
+import { getActiveTenant } from '../config';
 import { useLocalization } from '../LocalizationContext';
 
 export function Register() {
@@ -23,41 +23,15 @@ export function Register() {
     setIsSubmitting(true);
     setErrorMessage(null);
     try {
-      const response = await fetch(getRegisterUrl(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-        }),
+      const result = await authApplicationService.registerIdentity({
+        email: email.trim(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        invalidInputMessage: labels.register.errors.invalidInput,
+        serverErrorMessage: labels.register.errors.serverError,
       });
-      if (!response.ok) {
-        const isClientError = response.status === 400 || response.status === 422;
-        const message = isClientError
-          ? labels.register.errors.invalidInput
-          : labels.register.errors.serverError;
-        throw new Error(message);
-      }
-      let resolvedUserId = '';
-      let resolvedRoles: string[] = [];
-      try {
-        const payload = (await response.json()) as {
-          userID?: string;
-          userId?: string;
-          userid?: string;
-          role?: string;
-          roles?: string[];
-        };
-        resolvedUserId = payload.userID || payload.userId || payload.userid || '';
-        resolvedRoles = parseRolesFromAuthPayload(payload);
-      } catch (parseError) {
-        console.warn('Registration response did not include JSON payload:', parseError);
-      }
+      const resolvedUserId = result.userId;
       if (resolvedUserId) {
-        setUserId(resolvedUserId, resolvedRoles);
         navigate('/my-inspections', { replace: true });
       } else {
         navigate('/login', { replace: true });

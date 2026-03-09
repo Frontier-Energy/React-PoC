@@ -1,135 +1,38 @@
-import { useNavigate } from 'react-router-dom';
-import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, SelectProps, Link, Alert, Modal } from '@cloudscape-design/components';
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
-import { inspectionApplicationService } from '../application/inspectionApplicationService';
-import { subscribeToInspectionStatusChanged } from '../application/inspectionEvents';
-import { InspectionSession, UploadStatus, FormType } from '../types';
+import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, Link, Alert, Modal } from '@cloudscape-design/components';
+import { InspectionSession, UploadStatus } from '../types';
 import { TableProps } from '@cloudscape-design/components';
-import { useLocalization } from '../LocalizationContext';
-import { inspectionRepository } from '../repositories/inspectionRepository';
+import { useMyInspectionsController } from '../application/useMyInspectionsController';
 import { formatPluralTemplate } from '../resources/translations';
-import { useTenantBootstrap } from '../TenantBootstrapContext';
-import { getUserId, hasPermission, isLoggedInAdmin } from '../auth';
 
 export function MyInspections() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { labels } = useLocalization();
-  const { config } = useTenantBootstrap();
-  const inspectionScopeRefreshKey = `${config.tenantId}:${getUserId() ?? 'anonymous'}`;
-  const [inspections, setInspections] = useState<InspectionSession[]>([]);
-  const [formTypeFilter, setFormTypeFilter] = useState<SelectProps.Option | null>(null);
-  const [statusFilter, setStatusFilter] = useState<SelectProps.Option | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [sortingColumn, setSortingColumn] = useState<TableProps.SortingColumn<InspectionSession>>({
-    sortingField: 'name',
-  });
-  const [sortingDescending, setSortingDescending] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<InspectionSession | null>(null);
-  const failedInspections = inspections.filter(
-    (inspection) => (inspection.uploadStatus || UploadStatus.Local) === UploadStatus.Failed
-  );
-  const conflictedInspections = inspections.filter(
-    (inspection) => (inspection.uploadStatus || UploadStatus.Local) === UploadStatus.Conflict
-  );
-
-  const loadInspections = useCallback(() => {
-    void inspectionRepository.loadAll().then(setInspections);
-  }, []);
-
-  const filteredInspections = useMemo(() => {
-    let filtered = inspections;
-
-    if (formTypeFilter?.value) {
-      filtered = filtered.filter((inspection) => inspection.formType === formTypeFilter.value);
-    }
-
-    if (statusFilter?.value) {
-      filtered = filtered.filter((inspection) => (inspection.uploadStatus || UploadStatus.Local) === statusFilter.value);
-    }
-
-    return filtered;
-  }, [inspections, formTypeFilter, statusFilter]);
-
-  useEffect(() => {
-    loadInspections();
-  }, [inspectionScopeRefreshKey, loadInspections]);
-
-  useEffect(() => {
-    const handleStatusChange = () => {
-      loadInspections();
-    };
-
-    const unsubscribeStatusChanged = subscribeToInspectionStatusChanged(handleStatusChange);
-    const unsubscribe = inspectionRepository.subscribe(handleStatusChange);
-    return () => {
-      unsubscribeStatusChanged();
-      unsubscribe();
-    };
-  }, [loadInspections]);
-
-  useEffect(() => {
-    // Check if there's a success message from navigation state
-    if (location.state?.successMessage) {
-      setSuccessMessage(location.state.successMessage);
-      // Clear the message after 5 seconds
-      const timer = setTimeout(() => setSuccessMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [location]);
-
-  const handleOpenInspection = (inspection: InspectionSession) => {
-    void inspectionApplicationService.activateInspectionSession(inspection).then(() => {
-      navigate(`/fill-form/${inspection.id}`);
-    });
-  };
-
-  const handleViewInspection = (inspection: InspectionSession) => {
-    if (isLoggedInAdmin() && hasPermission('customization.admin')) {
-      navigate(`/support?inspectionId=${encodeURIComponent(inspection.id)}`);
-      return;
-    }
-
-    navigate(`/debug-inspection/${inspection.id}`, {
-      state: {
-        inspectionScope: {
-          tenantId: inspection.tenantId,
-          userId: inspection.userId,
-        },
-      },
-    });
-  };
-
-  const handleDeleteInspection = (inspection: InspectionSession) => {
-    void (async () => {
-      await inspectionApplicationService.deleteInspection(inspection);
-      loadInspections();
-    })();
-  };
-
-  const handleRequestDeleteInspection = (inspection: InspectionSession) => {
-    setDeleteTarget(inspection);
-  };
-
-  const handleConfirmDeleteInspection = () => {
-    if (!deleteTarget) {
-      return;
-    }
-    handleDeleteInspection(deleteTarget);
-    setDeleteTarget(null);
-  };
-
-  const handleCancelDeleteInspection = () => {
-    setDeleteTarget(null);
-  };
-
-  const handleRetryInspection = (inspection: InspectionSession) => {
-    void (async () => {
-      await inspectionApplicationService.retryInspectionUpload(inspection);
-      loadInspections();
-    })();
-  };
+  const {
+    labels,
+    inspections,
+    filteredInspections,
+    failedInspections,
+    conflictedInspections,
+    formTypeFilter,
+    statusFilter,
+    successMessage,
+    sortingColumn,
+    sortingDescending,
+    deleteTarget,
+    formTypeOptions,
+    statusOptions,
+    setFormTypeFilter,
+    setStatusFilter,
+    setSuccessMessage,
+    setDeleteTarget,
+    setSortingColumn,
+    setSortingDescending,
+    handleOpenInspection,
+    handleViewInspection,
+    handleConfirmDeleteInspection,
+    handleCancelDeleteInspection,
+    handleRetryInspection,
+    handleOpenNewInspection,
+    clearFilters,
+  } = useMyInspectionsController();
 
   const getUploadStatusBadge = (status: UploadStatus | undefined) => {
       const badgeConfig: Record<UploadStatus, { color: 'blue' | 'green' | 'red' | 'grey'; label: string }> = {
@@ -149,24 +52,6 @@ export function MyInspections() {
     setSortingColumn(detail.sortingColumn);
     setSortingDescending(detail.isDescending || false);
   };
-
-  const formTypeOptions: SelectProps.Option[] = [
-    { label: labels.myInspections.filters.allFormTypes, value: '' },
-    ...Object.values(FormType).map((type) => ({
-      label: labels.formTypes[type],
-      value: type,
-    })),
-  ];
-
-  const statusOptions: SelectProps.Option[] = [
-    { label: labels.myInspections.filters.allStatuses, value: '' },
-    { label: labels.uploadStatus[UploadStatus.Local], value: UploadStatus.Local },
-    { label: labels.uploadStatus[UploadStatus.InProgress], value: UploadStatus.InProgress },
-    { label: labels.uploadStatus[UploadStatus.Uploading], value: UploadStatus.Uploading },
-    { label: labels.uploadStatus[UploadStatus.Uploaded], value: UploadStatus.Uploaded },
-    { label: labels.uploadStatus[UploadStatus.Failed], value: UploadStatus.Failed },
-    { label: labels.uploadStatus[UploadStatus.Conflict], value: UploadStatus.Conflict },
-  ];
 
   return (
     <SpaceBetween size="l">
@@ -234,7 +119,7 @@ export function MyInspections() {
             options={statusOptions}
             placeholder={labels.myInspections.filters.filterByStatus}
           />
-          <Button onClick={() => { setFormTypeFilter(null); setStatusFilter(null); }}>
+          <Button onClick={clearFilters}>
             {labels.myInspections.filters.clearFilters}
           </Button>
         </SpaceBetween>
@@ -246,7 +131,7 @@ export function MyInspections() {
             {inspections.length === 0 ? (
               <>
                 {labels.myInspections.emptyState.noInspections}{' '}
-                <Link onFollow={() => navigate('/new-inspection')}>
+                <Link onFollow={handleOpenNewInspection}>
                   {labels.myInspections.emptyState.createNewInspectionLink}
                 </Link>{' '}
                 {labels.myInspections.emptyState.createNewInspectionSuffix}
@@ -293,7 +178,7 @@ export function MyInspections() {
                     {(item.uploadStatus || UploadStatus.Local) === UploadStatus.Conflict && (
                       <Button onClick={() => handleOpenInspection(item)}>{labels.myInspections.table.buttons.open}</Button>
                     )}
-                    <Button onClick={() => handleRequestDeleteInspection(item)}>{labels.myInspections.table.buttons.delete}</Button>
+                    <Button onClick={() => setDeleteTarget(item)}>{labels.myInspections.table.buttons.delete}</Button>
                   </SpaceBetween>
                 ),
               },
@@ -312,7 +197,7 @@ export function MyInspections() {
       )}
 
       <Container>
-        <Button onClick={() => navigate('/new-inspection')}>{labels.myInspections.createNewInspection}</Button>
+        <Button onClick={handleOpenNewInspection}>{labels.myInspections.createNewInspection}</Button>
       </Container>
     </SpaceBetween>
   );

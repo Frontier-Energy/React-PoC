@@ -1,251 +1,29 @@
-import { useCallback, useMemo, useEffect, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, Container, Header, Modal, SpaceBetween } from '@cloudscape-design/components';
-import { fetchFormSchema } from '../apiContent';
-import type { SyncQueueEntry } from '../domain/syncQueue';
-import type { FileReference, FormSchema } from '../types';
-import { syncMonitor, useSyncMonitor } from '../syncMonitor';
-import { syncQueue } from '../syncQueue';
-import { getFile } from '../utils/fileStorage';
-import { getFileReferences } from '../utils/formDataUtils';
-import { useLocalization } from '../LocalizationContext';
-import { inspectionRepository } from '../repositories/inspectionRepository';
+import { useDebugInspectionController } from '../application/useDebugInspectionController';
 
 export function DebugInspection() {
-  const { sessionId } = useParams();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { labels } = useLocalization();
-  const syncSnapshot = useSyncMonitor();
-  const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
-  const [schemaError, setSchemaError] = useState<string | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewName, setPreviewName] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [queueEntry, setQueueEntry] = useState<SyncQueueEntry | null>(null);
-  const inspectionScopeState = useMemo(() => (
-    location.state &&
-    typeof location.state === 'object' &&
-    'inspectionScope' in location.state &&
-    location.state.inspectionScope &&
-    typeof location.state.inspectionScope === 'object'
-      ? (location.state.inspectionScope as { tenantId: string; userId?: string })
-      : undefined
-  ), [location.state]);
-  const inspectionScopeTenantId = inspectionScopeState?.tenantId;
-  const inspectionScopeUserId = inspectionScopeState?.userId;
-
-  const [inspectionData, setInspectionData] = useState<{
-    error?: string;
-    inspection?: Awaited<ReturnType<typeof inspectionRepository.loadById>> | null;
-    formData?: Awaited<ReturnType<typeof inspectionRepository.loadFormData>> | null;
-  }>({});
-
-  const loadQueueEntry = useCallback(async () => {
-    if (!sessionId) {
-      setQueueEntry(null);
-      return;
-    }
-
-    const scope = inspectionScopeTenantId
-      ? { tenantId: inspectionScopeTenantId, userId: inspectionScopeUserId }
-      : inspectionData.inspection
-        ? { tenantId: inspectionData.inspection.tenantId, userId: inspectionData.inspection.userId }
-        : undefined;
-
-    setQueueEntry(await syncQueue.load(sessionId, scope));
-  }, [inspectionData.inspection, inspectionScopeTenantId, inspectionScopeUserId, sessionId]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadInspectionData = async () => {
-      const inspectionScope = inspectionScopeTenantId
-        ? { tenantId: inspectionScopeTenantId, userId: inspectionScopeUserId }
-        : undefined;
-
-      if (!sessionId) {
-        if (!cancelled) {
-          setInspectionData({ error: labels.debugInspection.errors.missingInspectionId });
-        }
-        return;
-      }
-
-      const inspection = await inspectionRepository.loadById(sessionId, inspectionScope);
-      if (!inspection) {
-        if (!cancelled) {
-          setInspectionData({ inspection: null, formData: null });
-        }
-        return;
-      }
-
-      const formData = await inspectionRepository.loadFormData(sessionId, inspection);
-      if (!cancelled) {
-        setInspectionData({ inspection, formData });
-      }
-    };
-
-    void loadInspectionData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [inspectionScopeTenantId, inspectionScopeUserId, labels.debugInspection.errors.missingInspectionId, sessionId]);
-
-  useEffect(() => {
-    void loadQueueEntry();
-    const unsubscribe = syncQueue.subscribe(() => {
-      void loadQueueEntry();
-    });
-
-    return unsubscribe;
-  }, [loadQueueEntry]);
-
-  useEffect(() => {
-    const loadSchema = async () => {
-      if (!inspectionData.inspection) {
-        return;
-      }
-      try {
-        const schema = await fetchFormSchema(inspectionData.inspection.formType);
-        setFormSchema(schema as FormSchema);
-        setSchemaError(null);
-      } catch (error) {
-        setSchemaError(labels.debugInspection.schemaLoadError);
-      }
-    };
-    loadSchema();
-  }, [inspectionData.inspection, labels]);
-
-  const fileItems = useMemo(() => {
-    if (!formSchema || !inspectionData.formData) {
-      return [];
-    }
-    const data = inspectionData.formData;
-    const fileFields = formSchema.sections
-      .flatMap((section) => section.fields)
-      .filter((field) => field.type === 'file' || field.type === 'signature');
-
-    return fileFields
-      .map((field) => {
-        const key = field.externalID || field.id;
-        const files = getFileReferences(data[key]);
-        return {
-          fieldId: field.id,
-          label: field.label,
-          type: field.type,
-          files,
-        };
-      })
-      .filter((item) => item.files.length > 0);
-  }, [formSchema, inspectionData.formData]);
-
-  const formatFileSize = (size: number) => {
-    if (size < 1024) {
-      return `${size} B`;
-    }
-    if (size < 1024 * 1024) {
-      return `${(size / 1024).toFixed(1)} KB`;
-    }
-    if (size < 1024 * 1024 * 1024) {
-      return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-    }
-    return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  };
-
-  const isPreviewableImage = (file: FileReference) => file.type.startsWith('image/');
-
-  const handleDownload = async (file: FileReference) => {
-    const storedFile = await getFile(file.id);
-    if (!storedFile) {
-      return;
-    }
-    const url = URL.createObjectURL(storedFile.blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = file.name;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handlePreview = async (file: FileReference) => {
-    if (!isPreviewableImage(file)) {
-      return;
-    }
-    const storedFile = await getFile(file.id);
-    if (!storedFile) {
-      return;
-    }
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    const url = URL.createObjectURL(storedFile.blob);
-    setPreviewUrl(url);
-    setPreviewName(file.name);
-    setPreviewOpen(true);
-  };
-
-  const closePreview = () => {
-    setPreviewOpen(false);
-    setPreviewName(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-  };
-
-  const formatTimestamp = (value: number | null | undefined) => {
-    if (!value) {
-      return labels.common.notProvided;
-    }
-
-    return new Date(value).toLocaleString();
-  };
-
-  const formatDuration = (value: number | null | undefined) => {
-    if (value == null) {
-      return labels.common.notProvided;
-    }
-
-    if (value < 1000) {
-      return `${value} ms`;
-    }
-
-    if (value < 60_000) {
-      return `${(value / 1000).toFixed(1)} s`;
-    }
-
-    return `${(value / 60_000).toFixed(1)} min`;
-  };
-
-  const handleRefreshSyncDiagnostics = () => {
-    void syncMonitor.refresh();
-    void loadQueueEntry();
-  };
-
-  const handleRetryQueueEntry = () => {
-    if (!queueEntry) {
-      return;
-    }
-
-    void (async () => {
-      await syncQueue.retry(queueEntry);
-      await syncMonitor.refresh();
-      await loadQueueEntry();
-    })();
-  };
-
-  const handleMoveToDeadLetter = () => {
-    if (!queueEntry) {
-      return;
-    }
-
-    void (async () => {
-      await syncQueue.moveToDeadLetter(queueEntry, 'Moved to dead-letter by operator');
-      await syncMonitor.refresh();
-      await loadQueueEntry();
-    })();
-  };
+  const {
+    labels,
+    navigate,
+    syncSnapshot,
+    schemaError,
+    previewOpen,
+    previewName,
+    previewUrl,
+    queueEntry,
+    inspectionData,
+    fileItems,
+    formatFileSize,
+    formatDuration,
+    formatTimestamp,
+    isPreviewableImage,
+    closePreview,
+    handleDownload,
+    handlePreview,
+    handleRefreshSyncDiagnostics,
+    handleRetryQueueEntry,
+    handleMoveToDeadLetter,
+  } = useDebugInspectionController();
 
   return (
     <SpaceBetween size="l">
