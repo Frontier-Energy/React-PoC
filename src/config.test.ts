@@ -75,7 +75,7 @@ describe('config', () => {
   it('builds bootstrap and content urls for an explicitly requested tenant', () => {
     localStorage.setItem(TENANT_PREFERENCE_STORAGE_KEY, 'opscentral');
 
-    expect(getTenantBootstrapUrl('qhvac')).toContain('tenantId=qhvac');
+    expect(getTenantBootstrapUrl('qhvac')).toContain('/tenant-config?tenantId=qhvac');
     expect(getFormSchemaUrl('hvac', 'qhvac')).toContain('/form-schemas/hvac');
     expect(getTranslationsUrl('en', 'qhvac')).toContain('/translations/en');
   });

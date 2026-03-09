@@ -1,5 +1,9 @@
 import { setSelectedTenantId } from './appState';
 import { getActiveTenant, getTenantById, getTenantBootstrapUrl } from './config';
+import type {
+  GovernedTenantBootstrapEnvelopeDto,
+  TenantBootstrapPayloadDto,
+} from './contracts/backend';
 import { isLanguageCode, type LanguageCode } from './resources/translations';
 import {
   getGovernedTenantBootstrapConfig,
@@ -57,10 +61,7 @@ interface TenantBootstrapResponse {
   requiresLogin?: boolean;
 }
 
-interface GovernedTenantBootstrapEnvelope {
-  schemaVersion?: string;
-  artifactVersion?: string;
-  environmentId?: string;
+interface GovernedTenantBootstrapEnvelope extends Omit<GovernedTenantBootstrapEnvelopeDto, 'config'> {
   config?: TenantBootstrapResponse;
 }
 
@@ -227,7 +228,7 @@ export const fetchTenantBootstrapConfig = async (
     if (!response.ok) {
       throw new Error(`Tenant bootstrap request failed with status ${response.status}`);
     }
-    const payload = (await response.json()) as TenantBootstrapResponse | GovernedTenantBootstrapEnvelope;
+    const payload = (await response.json()) as TenantBootstrapPayloadDto | GovernedTenantBootstrapEnvelope;
     const envelope = 'config' in payload && payload.config ? payload as GovernedTenantBootstrapEnvelope : null;
     const resolvedConfig = mapTenantBootstrapResponse(envelope?.config ?? (payload as TenantBootstrapResponse), defaults);
     const governance = getTenantConfigGovernanceSnapshot(resolvedConfig.tenantId, envelope?.environmentId);

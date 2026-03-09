@@ -126,7 +126,7 @@ describe('backgroundUploadRuntime', () => {
 
     expect(request.method).toBe('POST');
     expect(request.headers['Idempotency-Key']).toBe(queueEntry.idempotencyKey);
-    expect(JSON.parse(String(request.body.get('payload')))).toEqual(
+    expect(JSON.parse(String(request.body.get('Payload')))).toEqual(
       expect.objectContaining({
         sessionId: 'local-1',
         idempotencyKey: queueEntry.idempotencyKey,
@@ -310,7 +310,7 @@ describe('backgroundUploadRuntime', () => {
       { method: string; headers: Record<string, string>; body: FormData },
     ];
 
-    expect(JSON.parse(String(request.body.get('payload')))).toEqual(
+    expect(JSON.parse(String(request.body.get('Payload')))).toEqual(
       expect.objectContaining({
         userId: 'resolved-user',
       })

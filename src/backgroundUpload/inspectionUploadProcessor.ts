@@ -1,6 +1,11 @@
 import { getUserId } from '../auth';
 import { publishInspectionStatusChanged } from '../application/inspectionEvents';
 import { getUploadInspectionUrl } from '../config';
+import type {
+  InspectionUploadConflictDto,
+  InspectionUploadPayloadDto,
+  InspectionUploadSuccessDto,
+} from '../contracts/backend';
 import { markInspectionConflicted, markInspectionSyncSucceeded } from '../domain/inspectionSync';
 import { inspectionRepository } from '../repositories/inspectionRepository';
 import { syncMonitor } from '../syncMonitor';
@@ -42,7 +47,7 @@ const createUploadRequest = async (
   queueEntry: SyncQueueEntry
 ) => {
   const uploadForm = new FormData();
-  const queryParams: Record<string, string> = {};
+  const queryParams: InspectionUploadPayloadDto['queryParams'] = {};
 
   for (const [key, value] of Object.entries(formData)) {
     queryParams[key] = serializeFormValue(value);
@@ -57,37 +62,36 @@ const createUploadRequest = async (
         console.warn(`Missing stored file for ${fileRef.id}`);
         continue;
       }
-      uploadForm.append('files', storedFile.blob, storedFile.name);
+      uploadForm.append('Files', storedFile.blob, storedFile.name);
     }
   }
 
-  uploadForm.append(
-    'payload',
-    JSON.stringify({
-      sessionId: inspection.id,
-      idempotencyKey: queueEntry.idempotencyKey,
-      name: inspection.name,
-      userId: inspection.userId ?? getUserId() ?? '',
-      version: {
-        clientRevision: queueEntry.clientRevision,
-        baseServerRevision: queueEntry.baseServerRevision,
-        mergePolicy: queueEntry.mergePolicy,
-      },
-      queryParams,
-    })
-  );
+  const payload: InspectionUploadPayloadDto = {
+    sessionId: inspection.id,
+    idempotencyKey: queueEntry.idempotencyKey,
+    name: inspection.name,
+    userId: inspection.userId ?? getUserId() ?? '',
+    version: {
+      clientRevision: queueEntry.clientRevision,
+      baseServerRevision: queueEntry.baseServerRevision,
+      mergePolicy: queueEntry.mergePolicy,
+    },
+    queryParams,
+  };
+
+  uploadForm.append('Payload', JSON.stringify(payload));
 
   return uploadForm;
 };
 
-const readResponseJson = async (response: Response): Promise<Record<string, unknown> | null> => {
+const readResponseJson = async <T extends object>(response: Response): Promise<T | null> => {
   if (typeof response.json !== 'function') {
     return null;
   }
 
   try {
     const body = await response.json();
-    return body && typeof body === 'object' ? (body as Record<string, unknown>) : null;
+    return body && typeof body === 'object' ? (body as T) : null;
   } catch {
     return null;
   }
@@ -106,7 +110,7 @@ const uploadInspection = async (inspection: InspectionSession, queueEntry: SyncQ
   });
 
   if (response.status === 409) {
-    const payload = await readResponseJson(response);
+    const payload = await readResponseJson<InspectionUploadConflictDto>(response);
     throw new InspectionConflictError({
       reason:
         typeof payload?.message === 'string'
@@ -132,7 +136,7 @@ const uploadInspection = async (inspection: InspectionSession, queueEntry: SyncQ
     await deleteFiles(uploadedFileIds);
   }
 
-  const payload = await readResponseJson(response);
+  const payload = await readResponseJson<InspectionUploadSuccessDto>(response);
   return {
     serverRevision:
       typeof payload?.serverRevision === 'string'

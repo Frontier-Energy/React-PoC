@@ -1,4 +1,5 @@
 import { getFormSchemaUrl, getTranslationsUrl } from './config';
+import type { FormSchemaPayloadDto, TranslationsPayloadDto } from './contracts/backend';
 import { type Labels, type LanguageCode } from './resources/translations';
 import { resolveGovernedFormSchema, resolveGovernedTranslations } from './contentGovernance';
 import type { FormSchema, FormType } from './types';
@@ -10,7 +11,7 @@ export const fetchFormSchema = async (formType: FormType): Promise<FormSchema> =
       throw new Error(`Form schema request failed with status ${response.status}`);
     }
 
-    return response.json();
+    return (await response.json()) as FormSchemaPayloadDto;
   });
 
   return result.payload;
@@ -23,7 +24,7 @@ export const fetchTranslations = async (language: LanguageCode): Promise<Labels>
       throw new Error(`Translations request failed with status ${response.status}`);
     }
 
-    return response.json();
+    return (await response.json()) as TranslationsPayloadDto;
   });
 
   return result.payload;

@@ -96,6 +96,16 @@ The app uses `VITE_API_BASE_URL` when provided. If it is unset, the code falls b
 Set `VITE_PERFORMANCE_TELEMETRY_URL` to a collector endpoint to enable real-user performance telemetry.
 Set `VITE_PERFORMANCE_TELEMETRY_SAMPLE_RATE` to a value between `0` and `1` to control sampling density.
 
+### Backend Contracts
+
+The frontend now carries an explicit backend contract snapshot at `contracts/backend.openapi.json` and generated DTOs at `src/contracts/backend.generated.ts`.
+
+- Refresh the snapshot and regenerate types from your local Swagger host with `npm run contracts:refresh`
+- Regenerate types from the checked-in snapshot only with `npm run contracts:generate`
+- The default Swagger source is `http://localhost:5108/swagger/v1/swagger.json`
+
+Client adapters in `src/contracts/backend.ts` are the boundary between generated transport shapes and the app's domain/runtime models. That layer is where documented Swagger contracts and temporary compatibility shims meet, including the current undocumented upload `409 Conflict` body.
+
 ### Build
 
 ```bash
@@ -146,7 +156,7 @@ npm run preview
 
 This is a platform shell for tenant-specific workflow applications, not a simple single-tenant form demo.
 
-- **Tenant bootstrap**: the app requests `/tenant-config` and merges the response with local tenant defaults.
+- **Tenant bootstrap**: the app requests `/tenant-config?tenantId=:tenantId` and merges the response with local tenant defaults.
 - **Tenant selection**: the active tenant comes from stored preference first, then hostname fallback.
 - **Login gating**: routes are protected when the tenant bootstrap marks login as required.
 - **Localization**: the app starts with bundled fallback labels, then fetches translations for the selected language.

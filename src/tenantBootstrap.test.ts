@@ -199,7 +199,7 @@ describe('tenantBootstrap', () => {
     const { config } = await fetchTenantBootstrapConfig('qhvac');
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      expect.stringContaining('tenantId=qhvac'),
+      expect.stringContaining('/tenant-config?tenantId=qhvac'),
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(config.tenantId).toBe('qhvac');
