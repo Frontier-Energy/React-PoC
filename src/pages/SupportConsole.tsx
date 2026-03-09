@@ -7,6 +7,7 @@ import { clearFontPreference, clearThemePreference, setSelectedTenantId } from '
 import { getUserId, hasPermission, isLoggedInAdmin } from '../auth';
 import { TENANTS } from '../config';
 import { useLocalization } from '../LocalizationContext';
+import { useOfflineObservability } from '../offlineObservability';
 import { inspectionRepository } from '../repositories/inspectionRepository';
 import { syncMonitor, useSyncMonitor } from '../syncMonitor';
 import { useTenantBootstrap } from '../TenantBootstrapContext';
@@ -44,6 +45,7 @@ export function SupportConsole() {
   const { labels } = useLocalization();
   const { config, diagnostics, refreshConfig } = useTenantBootstrap();
   const syncSnapshot = useSyncMonitor();
+  const observability = useOfflineObservability(config.tenantId);
   const [tenantSelection, setTenantSelection] = useState<SelectProps.Option | null>(null);
   const [inspections, setInspections] = useState<InspectionSession[]>([]);
   const [currentInspectionId, setCurrentInspectionId] = useState<string | null>(searchParams.get('inspectionId'));
@@ -162,6 +164,36 @@ export function SupportConsole() {
     }
 
     return new Date(value).toLocaleString();
+  };
+
+  const formatDuration = (value: number | null | undefined) => {
+    if (value === null || value === undefined) {
+      return labels.common.notProvided;
+    }
+
+    const minutes = Math.floor(value / 60_000);
+    const seconds = Math.floor((value % 60_000) / 1000);
+    return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+  };
+
+  const formatPercent = (value: number | null | undefined) => {
+    if (value === null || value === undefined) {
+      return labels.common.notProvided;
+    }
+
+    return `${Math.round(value * 100)}%`;
+  };
+
+  const formatBytes = (value: number | null | undefined) => {
+    if (value === null || value === undefined) {
+      return labels.common.notProvided;
+    }
+
+    if (value < 1024 * 1024) {
+      return `${Math.round(value / 1024)} KB`;
+    }
+
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   const setSuccess = (message: string) => setFlashMessage({ type: 'success', message });
@@ -297,6 +329,31 @@ export function SupportConsole() {
     { label: labels.debugInspection.syncLastErrorLabel, value: syncSnapshot.lastError ?? labels.common.notProvided },
   ];
 
+  const observabilitySummaryItems = [
+    { label: labels.support.observabilitySection.queueAge, value: formatDuration(observability.queue.current.oldestEntryAgeMs) },
+    { label: labels.support.observabilitySection.retryRate, value: formatPercent(observability.queue.retryRate) },
+    { label: labels.support.observabilitySection.retryScheduled, value: String(observability.queue.retryScheduledCount) },
+    { label: labels.support.observabilitySection.processedAttempts, value: String(observability.queue.processedAttemptCount) },
+    { label: labels.support.observabilitySection.deadLetterCurrent, value: String(observability.queue.current.deadLetterCount) },
+    { label: labels.support.observabilitySection.deadLetterTotal, value: String(observability.queue.deadLetteredTotal) },
+    { label: labels.support.observabilitySection.bootstrapFailures, value: String(observability.bootstrap.failureCount) },
+    {
+      label: labels.support.observabilitySection.bootstrapConsecutiveFailures,
+      value: String(observability.bootstrap.consecutiveFailureCount),
+    },
+    { label: labels.support.observabilitySection.bootstrapLastError, value: observability.bootstrap.lastError ?? labels.common.notProvided },
+    { label: labels.support.observabilitySection.storagePressure, value: observability.storage.pressure },
+    {
+      label: labels.support.observabilitySection.storageUsage,
+      value:
+        observability.storage.usageBytes !== null && observability.storage.quotaBytes !== null
+          ? `${formatBytes(observability.storage.usageBytes)} / ${formatBytes(observability.storage.quotaBytes)}`
+          : labels.common.notProvided,
+    },
+    { label: labels.support.observabilitySection.storageQuotaFailures, value: String(observability.storage.quotaFailureCount) },
+    { label: labels.support.observabilitySection.lastMeasured, value: formatTimestamp(observability.storage.lastMeasuredAt) },
+  ];
+
   return (
     <SpaceBetween size="l">
       <Header variant="h1">{labels.support.title}</Header>
@@ -311,6 +368,21 @@ export function SupportConsole() {
           {flashMessage.message}
         </Alert>
       ) : null}
+
+      <Container>
+        <SpaceBetween size="m">
+          <Header variant="h2">{labels.support.observabilitySection.title}</Header>
+          <Box color="text-body-secondary">{labels.support.observabilitySection.description}</Box>
+          <div style={statsGridStyle}>
+            {observabilitySummaryItems.map((item, index) => (
+              <div key={`${item.label}-${index}`} style={cardStyle}>
+                <strong>{item.label}</strong>
+                <Box>{item.value}</Box>
+              </div>
+            ))}
+          </div>
+        </SpaceBetween>
+      </Container>
 
       <Container>
         <SpaceBetween size="m">

@@ -2,6 +2,7 @@ import { Box, Header, Link } from '@cloudscape-design/components';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { setLanguagePreference } from './appState';
 import { useLocalization } from './LocalizationContext';
+import { offlineObservability } from './offlineObservability';
 import { getTenantConfigGovernanceSnapshot, type TenantConfigGovernanceSnapshot } from './tenantConfigGovernance';
 import {
   readCachedTenantBootstrapConfig,
@@ -12,8 +13,8 @@ import {
   type TenantBootstrapConfig,
 } from './tenantBootstrap';
 
-type BootstrapSource = 'network' | 'cache' | 'defaults';
-type BootstrapStatus = 'loading' | 'ready' | 'degraded';
+export type BootstrapSource = 'network' | 'cache' | 'defaults';
+export type BootstrapStatus = 'loading' | 'ready' | 'degraded';
 
 export interface TenantBootstrapDiagnostics {
   status: BootstrapStatus;
@@ -72,6 +73,10 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
         errorMessage: undefined,
         governance: immediateGovernance,
       }));
+      void offlineObservability.recordBootstrapState(immediateConfig.tenantId, 'loading', fallbackSource, {
+        at: Date.parse(attemptAt),
+      });
+      void offlineObservability.refreshStoragePressure(immediateConfig.tenantId);
       try {
         const resolved = await fetchTenantBootstrapConfig(tenantId);
         if (requestId !== requestIdRef.current) {
@@ -90,6 +95,10 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
           errorMessage: undefined,
           governance: resolved.governance,
         });
+        void offlineObservability.recordBootstrapState(resolvedConfig.tenantId, 'ready', 'network', {
+          at: Date.parse(successAt),
+        });
+        void offlineObservability.refreshStoragePressure(resolvedConfig.tenantId, Date.parse(successAt));
         if (resolvedConfig.language) {
           setLanguagePreference(resolvedConfig.language);
         }
@@ -109,6 +118,11 @@ export function TenantBootstrapProvider({ children }: { children: ReactNode }) {
           errorMessage: error instanceof Error ? error.message : 'Bootstrap failed',
           governance: cachedConfig?.governance ?? getTenantConfigGovernanceSnapshot(nextConfig.tenantId),
         }));
+        void offlineObservability.recordBootstrapState(nextConfig.tenantId, 'degraded', fallbackSource, {
+          at: Date.parse(attemptAt),
+          errorMessage: error instanceof Error ? error.message : 'Bootstrap failed',
+        });
+        void offlineObservability.refreshStoragePressure(nextConfig.tenantId, Date.parse(attemptAt));
       } finally {
         if (requestId === requestIdRef.current) {
           setLoading(false);

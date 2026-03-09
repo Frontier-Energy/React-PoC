@@ -1,5 +1,7 @@
-import type { FormDataValue, InspectionSession } from '../types';
+import type { OfflineObservabilitySnapshot } from '../domain/offlineObservability';
 import type { SyncQueueEntry } from '../domain/syncQueue';
+import { emitStoragePressureEvent } from '../storagePressureSignals';
+import type { FormDataValue, InspectionSession } from '../types';
 
 const DB_NAME = 'react-poc-app-data';
 const DB_VERSION = 2;
@@ -18,6 +20,7 @@ const LAST_RECOVERY_REASON_KEY = 'lastRecoveryReason';
 const LAST_RECOVERY_AT_KEY = 'lastRecoveryAt';
 const DATA_CHANGE_EVENT = 'app-data-changed';
 const DATA_CHANGE_CHANNEL = 'react-poc-app-data';
+const TENANT_OBSERVABILITY_PREFIX = 'tenantObservability:';
 
 const INSPECTION_PREFIX = 'inspection_';
 const CURRENT_SESSION_KEY = 'currentSession';
@@ -50,12 +53,12 @@ type WorkerLease = {
 
 type MetaRecord = {
   key: string;
-  value: boolean | number | string;
+  value: unknown;
 };
 
 type DataChangeDetail = {
   scopeKey: string;
-  entity: 'inspections' | 'currentSession' | 'formData' | 'syncQueue' | 'workerLease';
+  entity: 'inspections' | 'currentSession' | 'formData' | 'syncQueue' | 'workerLease' | 'tenantObservability';
 };
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -290,6 +293,7 @@ const parseJson = <T>(raw: string | null, errorMessage: string): T | null => {
 };
 
 const getScopeKey = (scope: StorageScope) => `${scope.tenantId}:${scope.userId}`;
+const getTenantObservabilityKey = (tenantId: string) => `${TENANT_OBSERVABILITY_PREFIX}${tenantId}`;
 
 const getBroadcastChannel = () => {
   if (typeof BroadcastChannel === 'undefined') {
@@ -306,6 +310,16 @@ const getBroadcastChannel = () => {
 const emitDataChange = (detail: DataChangeDetail) => {
   window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT, { detail }));
   getBroadcastChannel()?.postMessage(detail);
+};
+
+const emitQuotaPressure = (scope: StorageScope, message: string) => {
+  emitStoragePressureEvent({
+    tenantId: scope.tenantId,
+    userId: scope.userId,
+    scopeKey: getScopeKey(scope),
+    message,
+    at: Date.now(),
+  });
 };
 
 const migrateLocalStorageData = async () => {
@@ -441,13 +455,20 @@ const getByStorageKey = async <T>(storeName: string, storageKey: string): Promis
 const putScopedValue = async <T>(storeName: string, scope: StorageScope, storageKey: string, value: T) => {
   await ensureMigration();
 
-  await runTransaction([storeName], 'readwrite', async (transaction) => {
-    transaction.objectStore(storeName).put({
-      storageKey,
-      scopeKey: getScopeKey(scope),
-      value,
-    } satisfies KeyedRecord<T>);
-  });
+  try {
+    await runTransaction([storeName], 'readwrite', async (transaction) => {
+      transaction.objectStore(storeName).put({
+        storageKey,
+        scopeKey: getScopeKey(scope),
+        value,
+      } satisfies KeyedRecord<T>);
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('IndexedDB quota was exceeded')) {
+      emitQuotaPressure(scope, error.message);
+    }
+    throw error;
+  }
 };
 
 const deleteScopedValue = async (storeName: string, storageKey: string) => {
@@ -493,12 +514,19 @@ export const appDataStore = {
   async putCurrentSession(scope: StorageScope, value: InspectionSession) {
     await ensureMigration();
 
-    await runTransaction([CURRENT_SESSIONS_STORE], 'readwrite', async (transaction) => {
-      transaction.objectStore(CURRENT_SESSIONS_STORE).put({
-        scopeKey: getScopeKey(scope),
-        value,
-      } satisfies CurrentSessionRecord);
-    });
+    try {
+      await runTransaction([CURRENT_SESSIONS_STORE], 'readwrite', async (transaction) => {
+        transaction.objectStore(CURRENT_SESSIONS_STORE).put({
+          scopeKey: getScopeKey(scope),
+          value,
+        } satisfies CurrentSessionRecord);
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('IndexedDB quota was exceeded')) {
+        emitQuotaPressure(scope, error.message);
+      }
+      throw error;
+    }
 
     emitDataChange({ scopeKey: getScopeKey(scope), entity: 'currentSession' });
   },
@@ -559,12 +587,19 @@ export const appDataStore = {
   async putWorkerLease(scope: StorageScope, value: WorkerLease) {
     await ensureMigration();
 
-    await runTransaction([WORKER_LEASE_STORE], 'readwrite', async (transaction) => {
-      transaction.objectStore(WORKER_LEASE_STORE).put({
-        scopeKey: getScopeKey(scope),
-        ...value,
-      } satisfies ScopeRecord & WorkerLease);
-    });
+    try {
+      await runTransaction([WORKER_LEASE_STORE], 'readwrite', async (transaction) => {
+        transaction.objectStore(WORKER_LEASE_STORE).put({
+          scopeKey: getScopeKey(scope),
+          ...value,
+        } satisfies ScopeRecord & WorkerLease);
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('IndexedDB quota was exceeded')) {
+        emitQuotaPressure(scope, error.message);
+      }
+      throw error;
+    }
 
     emitDataChange({ scopeKey: getScopeKey(scope), entity: 'workerLease' });
   },
@@ -577,6 +612,30 @@ export const appDataStore = {
     });
 
     emitDataChange({ scopeKey: getScopeKey(scope), entity: 'workerLease' });
+  },
+
+  async getTenantObservability(tenantId: string) {
+    await ensureMigration();
+
+    return runTransaction([META_STORE], 'readonly', async (transaction) => {
+      const record = await requestToPromise<MetaRecord | undefined>(
+        transaction.objectStore(META_STORE).get(getTenantObservabilityKey(tenantId))
+      );
+      return (record?.value as OfflineObservabilitySnapshot | undefined) ?? null;
+    });
+  },
+
+  async putTenantObservability(tenantId: string, value: OfflineObservabilitySnapshot) {
+    await ensureMigration();
+
+    await runTransaction([META_STORE], 'readwrite', async (transaction) => {
+      transaction.objectStore(META_STORE).put({
+        key: getTenantObservabilityKey(tenantId),
+        value,
+      } satisfies MetaRecord);
+    });
+
+    emitDataChange({ scopeKey: getTenantObservabilityKey(tenantId), entity: 'tenantObservability' });
   },
 
   subscribe(scopeKey: string, listener: () => void) {

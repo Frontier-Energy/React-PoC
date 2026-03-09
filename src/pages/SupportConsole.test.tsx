@@ -26,6 +26,9 @@ const {
   getSyncSnapshot,
   setSyncSnapshot,
   resetSyncSnapshot,
+  getObservabilitySnapshot,
+  setObservabilitySnapshot,
+  resetObservabilitySnapshot,
 } = vi.hoisted(() => {
   let currentSearch = 'inspectionId=session-1';
   const defaultInspections = (): InspectionSession[] => [
@@ -154,6 +157,51 @@ const {
     },
     recentEvents: [],
   });
+  const defaultObservabilitySnapshot = () => ({
+    tenantId: 'tenant-a',
+    updatedAt: 100,
+    queue: {
+      current: {
+        totalCount: 1,
+        readyCount: 0,
+        pendingCount: 0,
+        syncingCount: 0,
+        failedCount: 1,
+        deadLetterCount: 0,
+        conflictCount: 0,
+        oldestEntryAgeMs: 1000,
+        nextAttemptAt: 120,
+      },
+      lastUpdatedAt: 100,
+      lastSuccessAt: 95,
+      lastFailureAt: 96,
+      lastDeadLetterAt: null,
+      processedAttemptCount: 4,
+      retryScheduledCount: 2,
+      deadLetteredTotal: 1,
+      retryRate: 0.5,
+    },
+    bootstrap: {
+      status: 'ready' as const,
+      source: 'network' as const,
+      lastAttemptAt: 100,
+      lastSuccessAt: 100,
+      lastFailureAt: 50,
+      failureCount: 1,
+      consecutiveFailureCount: 0,
+      lastError: null,
+    },
+    storage: {
+      lastMeasuredAt: 100,
+      usageBytes: 1024 * 1024,
+      quotaBytes: 5 * 1024 * 1024,
+      usageRatio: 0.2,
+      pressure: 'normal' as const,
+      quotaFailureCount: 0,
+      lastQuotaFailureAt: null,
+      lastError: null,
+    },
+  });
 
   let bootstrapState = defaultBootstrapState();
   let authState = defaultAuthState();
@@ -161,6 +209,7 @@ const {
   let currentSession: InspectionSession | null = defaultCurrentSession();
   let formData: Record<string, unknown> | null = { ext_note: 'value', ext_photo: 'ref' };
   let syncSnapshot = defaultSyncSnapshot();
+  let observabilitySnapshot = defaultObservabilitySnapshot();
 
   return {
     navigateMock: vi.fn(),
@@ -235,6 +284,32 @@ const {
     },
     resetSyncSnapshot: () => {
       syncSnapshot = defaultSyncSnapshot();
+    },
+    getObservabilitySnapshot: () => observabilitySnapshot,
+    setObservabilitySnapshot: (next: Partial<typeof observabilitySnapshot>) => {
+      observabilitySnapshot = {
+        ...observabilitySnapshot,
+        ...next,
+        queue: {
+          ...observabilitySnapshot.queue,
+          ...(next.queue ?? {}),
+          current: {
+            ...observabilitySnapshot.queue.current,
+            ...(next.queue?.current ?? {}),
+          },
+        },
+        bootstrap: {
+          ...observabilitySnapshot.bootstrap,
+          ...(next.bootstrap ?? {}),
+        },
+        storage: {
+          ...observabilitySnapshot.storage,
+          ...(next.storage ?? {}),
+        },
+      };
+    },
+    resetObservabilitySnapshot: () => {
+      observabilitySnapshot = defaultObservabilitySnapshot();
     },
   };
 });
@@ -342,6 +417,23 @@ const labels = {
   support: {
     title: 'Support Console',
     intro: 'Operator workflow',
+    observabilitySection: {
+      title: 'Observability',
+      description: 'Observability workflow',
+      queueAge: 'Oldest queue age',
+      retryRate: 'Retry rate',
+      retryScheduled: 'Retries scheduled',
+      processedAttempts: 'Processed attempts',
+      deadLetterCurrent: 'Current dead-letter volume',
+      deadLetterTotal: 'Total dead-lettered',
+      bootstrapFailures: 'Bootstrap failures',
+      bootstrapConsecutiveFailures: 'Consecutive bootstrap failures',
+      bootstrapLastError: 'Last bootstrap error',
+      storagePressure: 'Storage pressure',
+      storageUsage: 'Storage usage',
+      storageQuotaFailures: 'Quota failures',
+      lastMeasured: 'Last measured',
+    },
     tenantSection: {
       title: 'Tenant configuration',
       description: 'Switch tenant',
@@ -431,6 +523,10 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../LocalizationContext', () => ({
   useLocalization: () => ({ labels }),
+}));
+
+vi.mock('../offlineObservability', () => ({
+  useOfflineObservability: () => getObservabilitySnapshot(),
 }));
 
 vi.mock('../TenantBootstrapContext', () => ({
@@ -592,6 +688,7 @@ describe('SupportConsole', () => {
     resetCurrentSession();
     resetFormData();
     resetSyncSnapshot();
+    resetObservabilitySnapshot();
     loadAllMock.mockClear();
     loadCurrentMock.mockClear();
     loadFormDataMock.mockClear();
@@ -615,6 +712,7 @@ describe('SupportConsole', () => {
     renderSubject();
 
     expect(await screen.findByText('Support Console')).toBeInTheDocument();
+    expect(screen.getByText('Observability')).toBeInTheDocument();
     expect(screen.getByText('Queue operations')).toBeInTheDocument();
     expect(screen.getByText('Stuck upload recovery')).toBeInTheDocument();
     expect(screen.getByText('Session troubleshooting')).toBeInTheDocument();
@@ -818,6 +916,30 @@ describe('SupportConsole', () => {
           nextAttemptAt: null,
         },
         entries: [],
+      },
+    });
+    setObservabilitySnapshot({
+      queue: {
+        current: {
+          totalCount: 0,
+          readyCount: 0,
+          pendingCount: 0,
+          syncingCount: 0,
+          failedCount: 0,
+          deadLetterCount: 0,
+          conflictCount: 0,
+          oldestEntryAgeMs: null,
+          nextAttemptAt: null,
+        },
+      },
+      bootstrap: {
+        lastError: 'bootstrap failed',
+      },
+      storage: {
+        usageBytes: null,
+        quotaBytes: null,
+        lastMeasuredAt: null,
+        pressure: 'unknown',
       },
     });
 

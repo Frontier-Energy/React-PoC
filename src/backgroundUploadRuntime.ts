@@ -177,7 +177,7 @@ const processNextQueuedInspection = async (workerId: string) => {
       ...markInspectionSyncSucceeded(inspection, { serverRevision: uploadResult.serverRevision }),
       uploadStatus: UploadStatus.Uploaded,
     });
-    syncMonitor.markInspectionSucceeded(inspection.id);
+    syncMonitor.markInspectionSucceeded(effectiveQueueEntry);
   } catch (error) {
     if (error instanceof InspectionConflictError) {
       const conflictedEntry = await syncQueue.markConflict(effectiveQueueEntry, error.conflict);

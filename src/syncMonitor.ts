@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { SyncQueueDiagnostics, SyncQueueEntry } from './domain/syncQueue';
+import { offlineObservability } from './offlineObservability';
 import { inspectionRepository } from './repositories/inspectionRepository';
 import { syncQueue } from './syncQueue';
 
@@ -141,6 +142,8 @@ export const syncMonitor = {
     ensureScopeSubscription();
     const nextScopeKey = inspectionRepository.getStorageScopeKey();
     const queue = await syncQueue.getDiagnostics();
+    const tenantId = nextScopeKey.split(':', 1)[0] ?? snapshot.scopeKey.split(':', 1)[0];
+    await offlineObservability.refreshQueue(tenantId, queue);
     updateSnapshot((current) => ({
       ...current,
       scopeKey: nextScopeKey,
@@ -243,8 +246,9 @@ export const syncMonitor = {
     });
   },
 
-  markInspectionSucceeded(inspectionId: string) {
+  markInspectionSucceeded(entry: Pick<SyncQueueEntry, 'inspectionId' | 'tenantId'>) {
     const at = Date.now();
+    void offlineObservability.recordQueueAttemptResult(entry.tenantId, 'success', at);
     updateSnapshot((current) => ({
       ...current,
       lastSuccessfulSyncAt: at,
@@ -254,13 +258,14 @@ export const syncMonitor = {
     pushEvent({
       level: 'info',
       type: 'inspection-succeeded',
-      message: `Inspection ${inspectionId} uploaded successfully.`,
-      inspectionId,
+      message: `Inspection ${entry.inspectionId} uploaded successfully.`,
+      inspectionId: entry.inspectionId,
     }, at);
   },
 
   markInspectionFailed(entry: SyncQueueEntry, errorMessage: string) {
     const at = Date.now();
+    void offlineObservability.recordQueueAttemptResult(entry.tenantId, entry.status === 'dead-letter' ? 'dead-letter' : 'retry', at);
     updateSnapshot((current) => ({
       ...current,
       lastFailedSyncAt: at,
@@ -280,6 +285,7 @@ export const syncMonitor = {
 
   markInspectionConflicted(entry: SyncQueueEntry, errorMessage: string) {
     const at = Date.now();
+    void offlineObservability.recordQueueAttemptResult(entry.tenantId, 'conflict', at);
     updateSnapshot((current) => ({
       ...current,
       lastFailedSyncAt: at,

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { OfflineObservabilitySnapshot } from '../domain/offlineObservability';
 import { FormType, UploadStatus, type InspectionSession } from '../types';
 import { createIndexedDbMock } from '../test/indexedDbMock';
 import { appDataStore, type StorageScope } from './appDataStore';
@@ -30,6 +31,52 @@ const makeQueueEntry = (inspectionId: string) => ({
   nextAttemptAt: 1,
   createdAt: 1,
   updatedAt: 1,
+});
+
+const makeObservabilitySnapshot = (tenantId = scope.tenantId): OfflineObservabilitySnapshot => ({
+  tenantId,
+  updatedAt: 100,
+  queue: {
+    current: {
+      totalCount: 1,
+      readyCount: 0,
+      pendingCount: 0,
+      syncingCount: 0,
+      failedCount: 1,
+      deadLetterCount: 0,
+      conflictCount: 0,
+      oldestEntryAgeMs: 1000,
+      nextAttemptAt: 120,
+    },
+    lastUpdatedAt: 100,
+    lastSuccessAt: 90,
+    lastFailureAt: 95,
+    lastDeadLetterAt: null,
+    processedAttemptCount: 3,
+    retryScheduledCount: 1,
+    deadLetteredTotal: 0,
+    retryRate: 1 / 3,
+  },
+  bootstrap: {
+    status: 'ready',
+    source: 'network',
+    lastAttemptAt: 100,
+    lastSuccessAt: 100,
+    lastFailureAt: null,
+    failureCount: 0,
+    consecutiveFailureCount: 0,
+    lastError: null,
+  },
+  storage: {
+    lastMeasuredAt: 100,
+    usageBytes: 1024,
+    quotaBytes: 4096,
+    usageRatio: 0.25,
+    pressure: 'normal',
+    quotaFailureCount: 0,
+    lastQuotaFailureAt: null,
+    lastError: null,
+  },
 });
 
 class BroadcastChannelMock {
@@ -201,6 +248,15 @@ describe('appDataStore', () => {
     expect(await appDataStore.getFormData(formStorageKey)).toBeNull();
     expect(await appDataStore.getQueueEntry(queueStorageKey)).toBeNull();
     expect(await appDataStore.getWorkerLease(scope)).toBeNull();
+  });
+
+  it('stores tenant observability snapshots in the shared metadata store', async () => {
+    const snapshot = makeObservabilitySnapshot();
+
+    await appDataStore.putTenantObservability(scope.tenantId, snapshot);
+
+    expect(await appDataStore.getTenantObservability(scope.tenantId)).toEqual(snapshot);
+    expect(await appDataStore.getTenantObservability(otherScope.tenantId)).toBeNull();
   });
 
   it('notifies subscribers for matching window events and unsubscribes cleanly', async () => {

@@ -322,6 +322,23 @@ export interface DebugInspectionLabels {
 export interface SupportLabels {
   title: string;
   intro: string;
+  observabilitySection: {
+    title: string;
+    description: string;
+    queueAge: string;
+    retryRate: string;
+    retryScheduled: string;
+    processedAttempts: string;
+    deadLetterCurrent: string;
+    deadLetterTotal: string;
+    bootstrapFailures: string;
+    bootstrapConsecutiveFailures: string;
+    bootstrapLastError: string;
+    storagePressure: string;
+    storageUsage: string;
+    storageQuotaFailures: string;
+    lastMeasured: string;
+  };
   tenantSection: {
     title: string;
     description: string;

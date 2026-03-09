@@ -114,7 +114,9 @@ describe('backgroundUploadRuntime', () => {
     expect(saveCurrentSpy).toHaveBeenCalled();
     expect(await syncQueue.load(local.id)).toBeNull();
     await vi.waitFor(() => {
-      expect(syncMonitorMock.markInspectionSucceeded).toHaveBeenCalledWith('local-1');
+      expect(syncMonitorMock.markInspectionSucceeded).toHaveBeenCalledWith(
+        expect.objectContaining({ inspectionId: 'local-1', tenantId: 'tenant-a' })
+      );
     });
 
     const [, request] = vi.mocked(global.fetch).mock.calls[0] as [
