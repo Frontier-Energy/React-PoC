@@ -54,6 +54,7 @@ export interface BootstrapLabels {
 export interface NavLabels {
   newInspection: string;
   myInspections: string;
+  support: string;
   logout: string;
 }
 
@@ -103,6 +104,7 @@ export interface CustomizationLabels {
   fontLabel: string;
   languageLabel: string;
   adminTenantAccessNotice: string;
+  openSupportConsole: string;
   registerLink: string;
   loginLink: string;
   preferencesSaved: string;
@@ -304,6 +306,68 @@ export interface DebugInspectionLabels {
   };
 }
 
+export interface SupportLabels {
+  title: string;
+  intro: string;
+  tenantSection: {
+    title: string;
+    description: string;
+    tenantLabel: string;
+    applyTenant: string;
+    refreshConfig: string;
+    clearCache: string;
+    activeConfigHeader: string;
+    bootstrapStatus: string;
+    bootstrapSource: string;
+    enabledForms: string;
+    loginRequired: string;
+    leftFlyout: string;
+    rightFlyout: string;
+    statsButton: string;
+  };
+  queueSection: {
+    title: string;
+    description: string;
+    refresh: string;
+    empty: string;
+    status: string;
+    attempts: string;
+    nextAttempt: string;
+    lastError: string;
+    actions: string;
+    inspect: string;
+  };
+  recoverySection: {
+    title: string;
+    description: string;
+    empty: string;
+    issue: string;
+    recover: string;
+    resume: string;
+    investigate: string;
+  };
+  sessionSection: {
+    title: string;
+    description: string;
+    currentSession: string;
+    queueStatus: string;
+    formDataFields: string;
+    tenant: string;
+    user: string;
+    openDebug: string;
+    openForm: string;
+    noSelection: string;
+  };
+  alerts: {
+    tenantUpdated: string;
+    cacheCleared: string;
+    queueRetried: string;
+    movedToDeadLetter: string;
+    uploadRecovered: string;
+    actionFailed: string;
+  };
+}
+
 export interface FormRendererLabels {
   signature: {
     saving: string;
@@ -343,6 +407,7 @@ export interface Labels {
   myInspections: MyInspectionsLabels;
   fillForm: FillFormLabels;
   debugInspection: DebugInspectionLabels;
+  support: SupportLabels;
   formRenderer: FormRendererLabels;
 }
 

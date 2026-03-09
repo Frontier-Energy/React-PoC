@@ -26,6 +26,8 @@ interface CustomizationDrawerProps {
   languageOptions: SelectProps.Option[];
   tenantOptions: SelectProps.Option[];
   refreshConfig: (tenantId?: string) => Promise<void>;
+  showSupportConsoleLink: boolean;
+  onOpenSupportConsole: () => void;
   diagnostics: {
     status: string;
     source: string;
@@ -51,6 +53,8 @@ export function CustomizationDrawer({
   languageOptions,
   tenantOptions,
   refreshConfig,
+  showSupportConsoleLink,
+  onOpenSupportConsole,
   diagnostics,
   bootstrapStatusLabel,
   bootstrapSourceLabel,
@@ -155,6 +159,17 @@ export function CustomizationDrawer({
       <Box fontSize="body-s" color="text-body-secondary">
         {labels.customization.preferencesSaved}
       </Box>
+      {showSupportConsoleLink ? (
+        <Link
+          href="/support"
+          onFollow={(event) => {
+            event.preventDefault();
+            onOpenSupportConsole();
+          }}
+        >
+          {labels.customization.openSupportConsole}
+        </Link>
+      ) : null}
       {canSelectTenant ? (
         <SpaceBetween size="xs">
           <Header variant="h3">{labels.bootstrap.diagnosticsHeader}</Header>

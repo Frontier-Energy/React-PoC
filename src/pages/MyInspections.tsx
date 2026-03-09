@@ -9,7 +9,7 @@ import { inspectionRepository } from '../repositories/inspectionRepository';
 import { formatPluralTemplate } from '../resources/translations';
 import { syncQueue } from '../syncQueue';
 import { useTenantBootstrap } from '../TenantBootstrapContext';
-import { getUserId } from '../auth';
+import { getUserId, hasPermission, isLoggedInAdmin } from '../auth';
 
 export function MyInspections() {
   const navigate = useNavigate();
@@ -82,6 +82,11 @@ export function MyInspections() {
   };
 
   const handleViewInspection = (inspection: InspectionSession) => {
+    if (isLoggedInAdmin() && hasPermission('customization.admin')) {
+      navigate(`/support?inspectionId=${encodeURIComponent(inspection.id)}`);
+      return;
+    }
+
     navigate(`/debug-inspection/${inspection.id}`, {
       state: {
         inspectionScope: {

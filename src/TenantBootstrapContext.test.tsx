@@ -1,10 +1,13 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { LocalizationProvider } from './LocalizationContext';
 import { TenantBootstrapProvider, useTenantBootstrap } from './TenantBootstrapContext';
+import * as appState from './appState';
 import { cacheTenantBootstrapConfig, getDefaultTenantBootstrapConfigForTenant } from './tenantBootstrap';
+import * as tenantBootstrap from './tenantBootstrap';
 import { getFallbackLabels } from './resources/translations/fallback';
 import { TENANT_PREFERENCE_STORAGE_KEY } from './appPreferences';
+import { FormType } from './types';
 
 vi.mock('@cloudscape-design/components', async () => {
   const React = await vi.importActual<typeof import('react')>('react');
@@ -16,13 +19,20 @@ vi.mock('@cloudscape-design/components', async () => {
 });
 
 function DiagnosticsProbe() {
-  const { config, diagnostics } = useTenantBootstrap();
+  const { config, diagnostics, loading, refreshConfig } = useTenantBootstrap();
   return (
     <div>
       <div data-testid="tenant-id">{config.tenantId}</div>
       <div data-testid="bootstrap-status">{diagnostics.status}</div>
       <div data-testid="bootstrap-source">{diagnostics.source}</div>
       <div data-testid="bootstrap-error">{diagnostics.errorMessage ?? ''}</div>
+      <div data-testid="bootstrap-loading">{String(loading)}</div>
+      <button type="button" onClick={() => void refreshConfig('qhvac')}>
+        Refresh QHVAC
+      </button>
+      <button type="button" onClick={() => void refreshConfig('lire')}>
+        Refresh LIRE
+      </button>
     </div>
   );
 }
@@ -43,6 +53,29 @@ describe('TenantBootstrapProvider', () => {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
+
+  const mockTranslationsOnly = () => {
+    vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/translations/es')) {
+        return Promise.resolve(buildTranslationResponse('es'));
+      }
+      if (url.includes('/translations/en')) {
+        return Promise.resolve(buildTranslationResponse('en'));
+      }
+      throw new Error(`Unexpected fetch call in TenantBootstrapProvider test: ${url}`);
+    });
+  };
+
+  const createDeferred = <T,>() => {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
 
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -129,5 +162,136 @@ describe('TenantBootstrapProvider', () => {
 
     expect(screen.queryByRole('link', { name: 'QControl filure, please contact support' })).not.toBeInTheDocument();
     expect(screen.getByText('Using cached tenant configuration')).toBeInTheDocument();
+  });
+
+  it('applies successful network bootstrap results and updates language preference', async () => {
+    mockTranslationsOnly();
+    const setLanguagePreferenceSpy = vi.spyOn(appState, 'setLanguagePreference').mockImplementation(() => {});
+    vi.spyOn(tenantBootstrap, 'fetchTenantBootstrapConfig').mockResolvedValue({
+      tenantId: 'qhvac',
+      displayName: 'QHVAC',
+      theme: 'harbor',
+      font: 'Tahoma, "Trebuchet MS", Arial, sans-serif',
+      showLeftFlyout: true,
+      showRightFlyout: false,
+      showInspectionStatsButton: true,
+      enabledForms: [FormType.HVAC],
+      loginRequired: true,
+      language: 'es',
+    });
+
+    renderSubject();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tenant-id')).toHaveTextContent('qhvac');
+      expect(screen.getByTestId('bootstrap-status')).toHaveTextContent('ready');
+      expect(screen.getByTestId('bootstrap-source')).toHaveTextContent('network');
+      expect(screen.getByTestId('bootstrap-loading')).toHaveTextContent('false');
+    });
+
+    expect(setLanguagePreferenceSpy).toHaveBeenCalledWith('es');
+  });
+
+  it('ignores stale refresh responses when a newer refresh has already started', async () => {
+    mockTranslationsOnly();
+    const initial = createDeferred<tenantBootstrap.TenantBootstrapConfig>();
+    const qhvac = createDeferred<tenantBootstrap.TenantBootstrapConfig>();
+    const lire = createDeferred<tenantBootstrap.TenantBootstrapConfig>();
+    vi.spyOn(tenantBootstrap, 'fetchTenantBootstrapConfig').mockImplementation((tenantId?: string) => {
+      if (!tenantId) {
+        return initial.promise;
+      }
+      if (tenantId === 'qhvac') {
+        return qhvac.promise;
+      }
+      if (tenantId === 'lire') {
+        return lire.promise;
+      }
+      throw new Error(`Unexpected tenant id: ${tenantId}`);
+    });
+
+    renderSubject();
+
+    initial.resolve({
+      ...getDefaultTenantBootstrapConfigForTenant(),
+      tenantId: 'frontierDemo',
+      displayName: 'Frontier Demo',
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('bootstrap-status')).toHaveTextContent('ready');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh QHVAC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh LIRE' }));
+
+    qhvac.resolve({
+      ...getDefaultTenantBootstrapConfigForTenant('qhvac'),
+      tenantId: 'qhvac',
+      displayName: 'QHVAC',
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tenant-id')).toHaveTextContent('lire');
+      expect(screen.getByTestId('bootstrap-status')).toHaveTextContent('loading');
+    });
+
+    lire.resolve({
+      ...getDefaultTenantBootstrapConfigForTenant('lire'),
+      tenantId: 'lire',
+      displayName: 'LIRE',
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tenant-id')).toHaveTextContent('lire');
+      expect(screen.getByTestId('bootstrap-status')).toHaveTextContent('ready');
+      expect(screen.getByTestId('bootstrap-source')).toHaveTextContent('network');
+    });
+  });
+
+  it('falls back to a generic bootstrap error for non-Error rejections', async () => {
+    mockTranslationsOnly();
+    vi.spyOn(tenantBootstrap, 'fetchTenantBootstrapConfig').mockRejectedValue('bad payload');
+
+    renderSubject();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('bootstrap-status')).toHaveTextContent('degraded');
+      expect(screen.getByTestId('bootstrap-error')).toHaveTextContent('Bootstrap failed');
+    });
+  });
+
+  it('cancels the pending bootstrap request on unmount', async () => {
+    mockTranslationsOnly();
+    const pending = createDeferred<tenantBootstrap.TenantBootstrapConfig>();
+    vi.spyOn(tenantBootstrap, 'fetchTenantBootstrapConfig').mockReturnValue(pending.promise);
+
+    const { unmount } = renderSubject();
+    expect(screen.getByTestId('bootstrap-loading')).toHaveTextContent('true');
+
+    unmount();
+    pending.resolve({
+      ...getDefaultTenantBootstrapConfigForTenant('qhvac'),
+      tenantId: 'qhvac',
+      displayName: 'QHVAC',
+    });
+
+    await waitFor(() => {
+      expect(tenantBootstrap.fetchTenantBootstrapConfig).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('useTenantBootstrap', () => {
+  it('throws when used outside the provider', () => {
+    const ConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const InvalidConsumer = () => {
+      useTenantBootstrap();
+      return null;
+    };
+
+    expect(() => render(<InvalidConsumer />)).toThrow('useTenantBootstrap must be used within a TenantBootstrapProvider');
+    ConsoleError.mockRestore();
   });
 });

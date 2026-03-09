@@ -196,6 +196,7 @@ export function Layout() {
     value: tenant.tenantId,
   }));
   const canSelectTenant = isLoggedInAdmin() && hasPermission('tenant.select');
+  const canAccessSupport = isLoggedInAdmin() && hasPermission('customization.admin');
   const isLoggedIn = Boolean(getUserId());
   const bootstrapStatusLabel = labels.bootstrap.status[diagnostics.status];
   const bootstrapSourceLabel = labels.bootstrap.source[diagnostics.source];
@@ -250,6 +251,9 @@ export function Layout() {
     { type: 'link', text: labels.nav.newInspection, href: '#/new-inspection' },
     { type: 'link', text: labels.nav.myInspections, href: '#/my-inspections' },
   ];
+  if (isLoggedInAdmin() && hasPermission('customization.admin')) {
+    navigationItems.push({ type: 'link', text: labels.nav.support, href: '#/support' });
+  }
   if (config.loginRequired) {
     navigationItems.push({ type: 'link', text: labels.nav.logout, href: '#/logout' });
   }
@@ -345,6 +349,8 @@ export function Layout() {
               languageOptions={languageOptions}
               tenantOptions={tenantOptions}
               refreshConfig={refreshConfig}
+              showSupportConsoleLink={canAccessSupport}
+              onOpenSupportConsole={() => navigate('/support')}
               diagnostics={diagnostics}
               bootstrapStatusLabel={bootstrapStatusLabel}
               bootstrapSourceLabel={bootstrapSourceLabel}

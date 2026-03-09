@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
-import { getUserId } from './auth';
+import { getUserId, hasPermission, isLoggedInAdmin } from './auth';
 import { RouteFallback } from './components/RouteFallback';
 import { useTenantBootstrap } from './TenantBootstrapContext';
 
@@ -27,6 +27,10 @@ const MyInspections = lazy(async () => {
 const DebugInspection = lazy(async () => {
   const module = await import('./pages/DebugInspection');
   return { default: module.DebugInspection };
+});
+const SupportConsole = lazy(async () => {
+  const module = await import('./pages/SupportConsole');
+  return { default: module.SupportConsole };
 });
 const Login = lazy(async () => {
   const module = await import('./pages/Login');
@@ -63,6 +67,14 @@ function RequireUser({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+function RequireSupportAdmin({ children }: { children: ReactNode }) {
+  if (!isLoggedInAdmin() || !hasPermission('customization.admin')) {
+    return <Navigate to="/home" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 export const router = createBrowserRouter([
   { path: '/', element: <DefaultRouteRedirect /> },
   { path: '/login', element: withSuspense(<Login />) },
@@ -78,6 +90,14 @@ export const router = createBrowserRouter([
       { path: '/new-inspection', element: withSuspense(<NewInspection />) },
       { path: '/fill-form/:sessionId', element: withSuspense(<FillForm />) },
       { path: '/debug-inspection/:sessionId', element: withSuspense(<DebugInspection />) },
+      {
+        path: '/support',
+        element: (
+          <RequireSupportAdmin>
+            {withSuspense(<SupportConsole />)}
+          </RequireSupportAdmin>
+        ),
+      },
       { path: '/my-inspections', element: withSuspense(<MyInspections />) },
     ],
   },
