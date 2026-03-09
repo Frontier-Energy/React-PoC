@@ -242,14 +242,16 @@ src/
 
 ## Forms and Content
 
-Form schemas are loaded from the API at `/form-schemas/:formType`. The repository still includes local schema assets under `src/resources/` for supported form types:
+Form schemas are loaded from the API at `/form-schemas/:formType`, but the client now treats tenant-delivered schemas as governed artifacts:
 
-- `electrical`
-- `electrical-sf`
-- `hvac`
-- `safety-checklist`
+- remote schemas must satisfy the runtime schema contract before they are rendered
+- optional compatibility metadata can block artifacts that target a different runtime version
+- the app caches the last known good schema per tenant and form type and falls back to that or the bundled baseline when a rollout is bad
 
-Translations are fetched from `/translations/:language` with bundled fallback labels used when the request fails.
+Translations are fetched from `/translations/:language` with the same protections:
+
+- translation payloads may only override known keys with compatible value types
+- invalid or incompatible rollouts fall back to the last known good artifact, then to bundled labels
 
 ## Routes
 

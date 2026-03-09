@@ -1,8 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchFormSchema, fetchTranslations } from './apiContent';
+import { CONTENT_ARTIFACT_CACHE_STORAGE_KEY, getBundledFormSchema } from './contentGovernance';
 import { getFallbackLabels } from './resources/translations/fallback';
+import { FormType } from './types';
 
 describe('apiContent', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    localStorage.removeItem(CONTENT_ARTIFACT_CACHE_STORAGE_KEY);
+  });
+
   it('loads a valid form schema payload', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
@@ -13,26 +20,26 @@ describe('apiContent', () => {
       }),
     } as Response);
 
-    await expect(fetchFormSchema('hvac')).resolves.toEqual({
+    await expect(fetchFormSchema(FormType.HVAC)).resolves.toEqual({
       formName: 'HVAC',
       sections: [],
       uploadStatus: 'local',
     });
   });
 
-  it('rejects when the form schema response is not ok', async () => {
+  it('falls back to bundled form schema when the request fails', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 503 } as Response);
 
-    await expect(fetchFormSchema('hvac')).rejects.toThrow('Form schema request failed with status 503');
+    await expect(fetchFormSchema(FormType.HVAC)).resolves.toEqual(getBundledFormSchema(FormType.HVAC));
   });
 
-  it('rejects when the form schema payload is missing required fields', async () => {
+  it('falls back to bundled form schema when the payload is invalid', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({ formName: 'Broken schema' }),
     } as Response);
 
-    await expect(fetchFormSchema('hvac')).rejects.toThrow('Form schema response is missing required fields');
+    await expect(fetchFormSchema(FormType.HVAC)).resolves.toEqual(getBundledFormSchema(FormType.HVAC));
   });
 
   it('loads a valid translations payload', async () => {
@@ -70,18 +77,45 @@ describe('apiContent', () => {
     });
   });
 
-  it('rejects when the translations response is not ok', async () => {
+  it('falls back to bundled translations when the response is not ok', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 401 } as Response);
 
-    await expect(fetchTranslations('en')).rejects.toThrow('Translations request failed with status 401');
+    await expect(fetchTranslations('en')).resolves.toEqual(getFallbackLabels('en'));
   });
 
-  it('rejects when the translations payload is invalid', async () => {
+  it('falls back to bundled translations when the payload is invalid', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({ languageName: 'English' }),
     } as Response);
 
-    await expect(fetchTranslations('en')).rejects.toThrow('Translations response is missing required fields');
+    await expect(fetchTranslations('en')).resolves.toEqual(getFallbackLabels('en'));
+  });
+
+  it('reuses the last known good translations when a later rollout is invalid', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch');
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      app: {
+        title: 'Approved Title',
+      },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      app: {
+        unsupportedKey: 'bad rollout',
+      },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    await expect(fetchTranslations('en')).resolves.toMatchObject({
+      app: { title: 'Approved Title' },
+    });
+    await expect(fetchTranslations('en')).resolves.toMatchObject({
+      app: { title: 'Approved Title' },
+    });
   });
 });
