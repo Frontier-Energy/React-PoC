@@ -25,7 +25,12 @@ const ensureSnapshot = async (tenantId: string) => {
     return cached;
   }
 
-  const stored = (await appDataStore.getTenantObservability(tenantId)) ?? createEmptyOfflineObservabilitySnapshot(tenantId);
+  let stored = createEmptyOfflineObservabilitySnapshot(tenantId);
+  try {
+    stored = (await appDataStore.getTenantObservability(tenantId)) ?? stored;
+  } catch {
+    stored = createEmptyOfflineObservabilitySnapshot(tenantId);
+  }
   snapshotCache.set(tenantId, stored);
   return stored;
 };
@@ -37,7 +42,11 @@ const persistSnapshot = async (
   const current = await ensureSnapshot(tenantId);
   const updated = updater(current);
   snapshotCache.set(tenantId, updated);
-  await appDataStore.putTenantObservability(tenantId, updated);
+  try {
+    await appDataStore.putTenantObservability(tenantId, updated);
+  } catch {
+    return updated;
+  }
   emit(tenantId);
   return updated;
 };
@@ -93,10 +102,14 @@ export const offlineObservability = {
       unsubscribeByTenant.set(
         tenantId,
         appDataStore.subscribe(`tenantObservability:${tenantId}`, async () => {
-          snapshotCache.set(
-            tenantId,
-            (await appDataStore.getTenantObservability(tenantId)) ?? createEmptyOfflineObservabilitySnapshot(tenantId)
-          );
+          try {
+            snapshotCache.set(
+              tenantId,
+              (await appDataStore.getTenantObservability(tenantId)) ?? createEmptyOfflineObservabilitySnapshot(tenantId)
+            );
+          } catch {
+            snapshotCache.set(tenantId, createEmptyOfflineObservabilitySnapshot(tenantId));
+          }
           emit(tenantId);
         })
       );

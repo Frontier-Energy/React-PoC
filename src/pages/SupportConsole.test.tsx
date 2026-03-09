@@ -716,7 +716,7 @@ describe('SupportConsole', () => {
     expect(screen.getByText('Queue operations')).toBeInTheDocument();
     expect(screen.getByText('Stuck upload recovery')).toBeInTheDocument();
     expect(screen.getByText('Session troubleshooting')).toBeInTheDocument();
-    expect(screen.getAllByText('Failed upload').length).toBeGreaterThan(0);
+    expect(await screen.findAllByText('Failed upload')).not.toHaveLength(0);
     expect(screen.getByText('Current session')).toBeInTheDocument();
     expect(screen.getByText('Form data fields')).toBeInTheDocument();
   });

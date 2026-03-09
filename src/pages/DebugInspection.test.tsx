@@ -143,6 +143,7 @@ const { debugLabels } = vi.hoisted(() => ({
         pending: 'Pending',
         syncing: 'Syncing',
         failed: 'Retry pending',
+        conflict: 'Conflicts',
         deadLetter: 'Dead-letter',
         oldestAge: 'Oldest age',
         nextAttempt: 'Next attempt',
@@ -160,6 +161,18 @@ const { debugLabels } = vi.hoisted(() => ({
         requeueDeadLetter: 'Requeue dead-letter',
       },
       schemaLoadError: 'Failed to load form schema.',
+      versionHeader: 'Version Stamp',
+      versionClientRevision: 'Client revision',
+      versionBaseServerRevision: 'Base server revision',
+      versionServerRevision: 'Last known server revision',
+      versionUpdatedAt: 'Version updated at',
+      versionMergePolicy: 'Merge policy',
+      conflictHeader: 'Conflict Details',
+      conflictDetectedAt: 'Conflict detected at',
+      conflictReason: 'Conflict reason',
+      conflictServerRevision: 'Server revision',
+      conflictServerUpdatedAt: 'Server updated at',
+      conflictFields: 'Conflicting fields',
       noFilesFound: 'No files or signatures found.',
       table: {
         fileName: 'File Name',
@@ -533,6 +546,9 @@ describe('DebugInspection', () => {
     syncQueueRetryMock.mockResolvedValue(undefined);
     syncQueueDeadLetterMock.mockReset();
     syncQueueDeadLetterMock.mockResolvedValue(undefined);
+    syncMonitorSnapshot.queue.metrics.oldestEntryAgeMs = 500;
+    syncMonitorSnapshot.queue.workerLease = null;
+    syncMonitorSnapshot.recentEvents = [];
     vi.stubGlobal(
       'URL',
       Object.assign(globalThis.URL, {
@@ -755,5 +771,123 @@ describe('DebugInspection', () => {
     await waitFor(() => {
       expect(syncMonitorRefreshMock).toHaveBeenCalled();
     });
+  });
+
+  it('renders the queue entry details and supports retry and dead-letter actions', async () => {
+    syncQueueLoadMock.mockResolvedValue({
+      inspectionId: 'scoped-session',
+      tenantId: 'tenant-a',
+      userId: 'impersonated-user',
+      status: 'failed',
+      fingerprint: 'fingerprint-1',
+      idempotencyKey: 'idempotency-1',
+      clientRevision: 3,
+      baseServerRevision: 'srv-2',
+      mergePolicy: 'manual-on-version-mismatch',
+      attemptCount: 2,
+      nextAttemptAt: 200,
+      createdAt: 100,
+      updatedAt: 150,
+      lastAttemptAt: 180,
+      lastError: 'upload failed',
+    });
+
+    renderPage();
+
+    expect(await screen.findByText(/Queue status: failed/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry now' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send to dead-letter' }));
+
+    await waitFor(() => {
+      expect(syncQueueRetryMock).toHaveBeenCalled();
+      expect(syncQueueDeadLetterMock).toHaveBeenCalledWith(
+        expect.objectContaining({ inspectionId: 'scoped-session' }),
+        'Moved to dead-letter by operator'
+      );
+    });
+  });
+
+  it('renders conflict details and suppresses the dead-letter button for conflict entries', async () => {
+    loadByIdMock.mockResolvedValueOnce({
+      ...scopedInspection,
+      conflict: {
+        detectedAt: 200,
+        reason: 'Revision mismatch',
+        serverRevision: 'srv-9',
+        serverUpdatedAt: 220,
+        conflictingFields: ['temperature'],
+      },
+      version: {
+        clientRevision: 4,
+        baseServerRevision: 'srv-8',
+        serverRevision: 'srv-9',
+        updatedAt: 210,
+        mergePolicy: 'manual-on-version-mismatch',
+      },
+    });
+    syncQueueLoadMock.mockResolvedValue({
+      inspectionId: 'scoped-session',
+      tenantId: 'tenant-a',
+      userId: 'impersonated-user',
+      status: 'conflict',
+      fingerprint: 'fingerprint-1',
+      idempotencyKey: 'idempotency-1',
+      clientRevision: 4,
+      baseServerRevision: 'srv-8',
+      mergePolicy: 'manual-on-version-mismatch',
+      attemptCount: 1,
+      nextAttemptAt: Number.MAX_SAFE_INTEGER,
+      createdAt: 100,
+      updatedAt: 220,
+      lastError: 'Revision mismatch',
+      conflictDetectedAt: 200,
+      conflictServerRevision: 'srv-9',
+      conflictServerUpdatedAt: 220,
+      conflictingFields: ['temperature'],
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Conflict Details')).toBeInTheDocument();
+    expect(screen.getByText(/Conflict reason: Revision mismatch/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry now' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send to dead-letter' })).not.toBeInTheDocument();
+  });
+
+  it('renders recent sync events, minute-scale durations, and dead-letter requeue actions', async () => {
+    syncMonitorSnapshot.queue.metrics.oldestEntryAgeMs = 61_000;
+    syncMonitorSnapshot.queue.workerLease = { ownerId: 'worker-1', expiresAt: 400 };
+    syncMonitorSnapshot.recentEvents = [
+      {
+        id: 'event-1',
+        at: 300,
+        level: 'error',
+        type: 'inspection-dead-lettered',
+        message: 'Moved to dead-letter.',
+      },
+    ];
+    syncQueueLoadMock.mockResolvedValue({
+      inspectionId: 'scoped-session',
+      tenantId: 'tenant-a',
+      userId: 'impersonated-user',
+      status: 'dead-letter',
+      fingerprint: 'fingerprint-1',
+      idempotencyKey: 'idempotency-1',
+      clientRevision: 3,
+      baseServerRevision: null,
+      mergePolicy: 'manual-on-version-mismatch',
+      attemptCount: 3,
+      nextAttemptAt: 200,
+      createdAt: 100,
+      updatedAt: 150,
+      deadLetterReason: 'operator moved',
+    });
+
+    renderPage();
+
+    expect(await screen.findByText(/Oldest age: 1.0 min/)).toBeInTheDocument();
+    expect(screen.getByText(/\[error\] Moved to dead-letter\./)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Requeue dead-letter' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send to dead-letter' })).not.toBeInTheDocument();
   });
 });
