@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { getUserId, hasPermission, isLoggedInAdmin } from '../auth';
 import { filterInspections, getInspectionsByUploadStatus } from '../domain/inspectionList';
 import { useLocalization } from '../LocalizationContext';
+import { platform } from '../platform';
 import { inspectionRepository } from '../repositories/inspectionRepository';
 import { useTenantBootstrap } from '../TenantBootstrapContext';
 import { FormType, type InspectionSession, UploadStatus } from '../types';
@@ -53,8 +54,8 @@ export const useMyInspectionsController = () => {
     }
 
     setSuccessMessage(location.state.successMessage);
-    const timer = window.setTimeout(() => setSuccessMessage(null), 5000);
-    return () => window.clearTimeout(timer);
+    const timer = platform.runtime.setTimeout(() => setSuccessMessage(null), 5000);
+    return () => platform.runtime.clearTimeout(timer);
   }, [location.state]);
 
   const filteredInspections = useMemo(

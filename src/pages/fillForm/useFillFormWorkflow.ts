@@ -4,6 +4,7 @@ import { inspectionApplicationService } from '../../application/inspectionApplic
 import { fetchFormSchema } from '../../apiContent';
 import { markInspectionEdited } from '../../domain/inspectionSync';
 import { useLocalization } from '../../LocalizationContext';
+import { platform } from '../../platform';
 import { inspectionRepository } from '../../repositories/inspectionRepository';
 import {
   type ConditionalVisibility,
@@ -273,7 +274,7 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
     const errors = validateForm();
     if (errors.length > 0) {
       setActiveStepIndex(getSectionIndexForField(errors[0].fieldId));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      platform.runtime.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -320,8 +321,8 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
 
   const handleErrorClick = useCallback((fieldId: string) => {
     setActiveStepIndex(fieldId === 'sessionName' ? 0 : getSectionIndexForField(fieldId));
-    window.setTimeout(() => {
-      const fieldElement = document.getElementById(`field-${fieldId}`);
+    platform.runtime.setTimeout(() => {
+      const fieldElement = platform.runtime.getElementById(`field-${fieldId}`);
       if (!fieldElement) {
         return;
       }

@@ -33,7 +33,6 @@ interface AppPreferencesChangedDetail {
   state: AppPreferenceState;
 }
 
-const canUseWindow = () => typeof window !== 'undefined';
 const normalizeStoredString = (value: string | null | undefined) => {
   const normalized = value?.trim();
   return normalized ? normalized : null;
@@ -62,10 +61,6 @@ const storageKeyToPreferenceKey = (storageKey: string | null): AppPreferenceKey 
 };
 
 const emitChange = (changedKeys: AppPreferenceKey[]) => {
-  if (!canUseWindow()) {
-    return;
-  }
-
   platform.runtime.dispatchWindowEvent(
     new CustomEvent<AppPreferencesChangedDetail>(APP_PREFERENCES_CHANGED_EVENT, {
       detail: {
@@ -81,10 +76,6 @@ export const getAppPreferenceState = (): AppPreferenceState => readState();
 export const subscribeToAppPreferenceState = (
   listener: (state: AppPreferenceState, changedKeys: AppPreferenceKey[]) => void
 ) => {
-  if (!canUseWindow()) {
-    return () => {};
-  }
-
   const handleCustomChange = (event: Event) => {
     const customEvent = event as CustomEvent<AppPreferencesChangedDetail>;
     listener(customEvent.detail.state, customEvent.detail.changedKeys);

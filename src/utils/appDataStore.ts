@@ -1,6 +1,7 @@
 import type { OfflineObservabilitySnapshot } from '../domain/offlineObservability';
 import type { SyncQueueEntry } from '../domain/syncQueue';
 import { platform } from '../platform';
+import type { PlatformBroadcastChannel, PlatformKeyValueStorage } from '../platform';
 import { emitStoragePressureEvent } from '../storagePressureSignals';
 import type { FormDataValue, InspectionSession } from '../types';
 
@@ -64,7 +65,7 @@ type DataChangeDetail = {
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 let migrationPromise: Promise<void> | null = null;
-let broadcastChannel: BroadcastChannel | null = null;
+let broadcastChannel: PlatformBroadcastChannel | null = null;
 let recoveryPromise: Promise<void> | null = null;
 
 const getLocalStorage = () => platform.storage.getLocalStorage();
@@ -309,10 +310,19 @@ const parseJson = <T>(raw: string | null, errorMessage: string): T | null => {
 
 const getScopeKey = (scope: StorageScope) => `${scope.tenantId}:${scope.userId}`;
 const getTenantObservabilityKey = (tenantId: string) => `${TENANT_OBSERVABILITY_PREFIX}${tenantId}`;
+const listStorageKeys = (storage: PlatformKeyValueStorage): string[] => {
+  if (typeof storage.length === 'number' && typeof storage.key === 'function') {
+    return Array.from({ length: storage.length }, (_, index) => storage.key?.(index)).filter(
+      (key): key is string => Boolean(key)
+    );
+  }
+
+  return Object.keys(storage);
+};
 
 const getBroadcastChannel = () => {
   if (!broadcastChannel) {
-    broadcastChannel = platform.storage.createBroadcastChannel(DATA_CHANGE_CHANNEL) as BroadcastChannel | null;
+    broadcastChannel = platform.storage.createBroadcastChannel(DATA_CHANGE_CHANNEL);
   }
 
   return broadcastChannel;
@@ -346,7 +356,7 @@ const migrateLocalStorageData = async () => {
     return;
   }
 
-  Object.keys(localStorage).forEach((key) => {
+  listStorageKeys(localStorage).forEach((key) => {
     const [tenantId, userId, suffix] = key.split(':', 3);
     if (!tenantId || !userId || !suffix) {
       return;

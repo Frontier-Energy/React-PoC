@@ -1,14 +1,15 @@
 import type { InspectionSession } from '../types';
+import { platform } from '../platform';
 
 export const INSPECTION_STATUS_CHANGED_EVENT = 'inspection-status-changed';
 
 export const publishInspectionStatusChanged = (inspection: InspectionSession) => {
-  window.dispatchEvent(new CustomEvent(INSPECTION_STATUS_CHANGED_EVENT, { detail: inspection }));
+  platform.runtime.dispatchWindowEvent(new CustomEvent(INSPECTION_STATUS_CHANGED_EVENT, { detail: inspection }));
 };
 
 export const subscribeToInspectionStatusChanged = (listener: () => void) => {
-  window.addEventListener(INSPECTION_STATUS_CHANGED_EVENT, listener as EventListener);
+  platform.runtime.addWindowEventListener(INSPECTION_STATUS_CHANGED_EVENT, listener as EventListener);
   return () => {
-    window.removeEventListener(INSPECTION_STATUS_CHANGED_EVENT, listener as EventListener);
+    platform.runtime.removeWindowEventListener(INSPECTION_STATUS_CHANGED_EVENT, listener as EventListener);
   };
 };

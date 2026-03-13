@@ -40,6 +40,8 @@ export interface PlatformAuthSessionPersistence {
 export interface PlatformConnectivity {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
   getOnlineStatus(): boolean | null;
+  sendBeacon(url: string, data?: BodyInit | null): boolean;
+  estimateStorage(): Promise<StorageEstimate | null>;
 }
 
 export interface PlatformTelemetry {
@@ -52,12 +54,18 @@ export interface PlatformUpdates {
 
 export interface PlatformRuntime {
   dispatchWindowEvent(event: Event): void;
-  addWindowEventListener(type: string, listener: EventListenerOrEventListenerObject): void;
+  addWindowEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean): void;
   removeWindowEventListener(type: string, listener: EventListenerOrEventListenerObject): void;
-  addDocumentEventListener(type: string, listener: EventListenerOrEventListenerObject): void;
+  addDocumentEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: AddEventListenerOptions | boolean): void;
   removeDocumentEventListener(type: string, listener: EventListenerOrEventListenerObject): void;
+  getLocation(): Location | null;
+  getDocumentVisibilityState(): DocumentVisibilityState | null;
+  getElementById(id: string): HTMLElement | null;
+  scrollTo(options: ScrollToOptions): void;
   setTimeout(handler: TimerHandler, timeout?: number): number;
   clearTimeout(handle: number): void;
+  setInterval(handler: TimerHandler, timeout?: number): number;
+  clearInterval(handle: number): void;
 }
 
 export interface Platform {

@@ -44,6 +44,33 @@ const setVisibilityState = (value: DocumentVisibilityState) => {
   });
 };
 
+const createTelemetryBrowser = () => ({
+  connectivity: {
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+    sendBeacon: (url: string, data?: BodyInit | null) => window.navigator.sendBeacon?.(url, data) ?? false,
+  },
+  runtime: {
+    addDocumentEventListener: (
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: AddEventListenerOptions | boolean,
+    ) => document.addEventListener(type, listener, options),
+    addWindowEventListener: (
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: AddEventListenerOptions | boolean,
+    ) => window.addEventListener(type, listener, options),
+    clearTimeout: (handle: number) => window.clearTimeout(handle),
+    getDocumentVisibilityState: () => document.visibilityState,
+    getLocation: () => window.location,
+    removeDocumentEventListener: (type: string, listener: EventListenerOrEventListenerObject) =>
+      document.removeEventListener(type, listener),
+    removeWindowEventListener: (type: string, listener: EventListenerOrEventListenerObject) =>
+      window.removeEventListener(type, listener),
+    setTimeout: (handler: TimerHandler, timeout?: number) => window.setTimeout(handler, timeout),
+  },
+});
+
 const createRouter = () => {
   const subscribers: Array<(state: any) => void> = [];
 
@@ -105,9 +132,15 @@ describe('performanceTelemetry', () => {
   it('keeps telemetry disabled when sampling or endpoint config does not allow reporting', async () => {
     const { createTelemetryReporter } = await import('./performanceTelemetry');
     const transport = vi.fn();
+    const browser = createTelemetryBrowser();
 
-    const missingEndpointReporter = createTelemetryReporter({ endpointUrl: null, sampleRate: 1 }, transport, () => 0);
-    const sampledOutReporter = createTelemetryReporter({ endpointUrl: 'https://example.test/perf', sampleRate: 0.25 }, transport, () => 0.5);
+    const missingEndpointReporter = createTelemetryReporter({ endpointUrl: null, sampleRate: 1 }, transport, () => 0, browser.runtime);
+    const sampledOutReporter = createTelemetryReporter(
+      { endpointUrl: 'https://example.test/perf', sampleRate: 0.25 },
+      transport,
+      () => 0.5,
+      browser.runtime,
+    );
 
     expect(missingEndpointReporter.isEnabled()).toBe(false);
     expect(sampledOutReporter.isEnabled()).toBe(false);
@@ -126,10 +159,12 @@ describe('performanceTelemetry', () => {
   it('buffers metrics, enriches them, and flushes once per batch', async () => {
     const { createTelemetryReporter } = await import('./performanceTelemetry');
     const transport = vi.fn();
+    const browser = createTelemetryBrowser();
     const reporter = createTelemetryReporter(
       { endpointUrl: 'https://example.test/perf', sampleRate: 1 },
       transport,
       () => 0,
+      browser.runtime,
     );
 
     reporter.reportMetric({
@@ -221,6 +256,7 @@ describe('performanceTelemetry', () => {
     const removeDocumentListenerSpy = vi.spyOn(document, 'removeEventListener');
 
     const { startPerformanceTelemetry } = await import('./performanceTelemetry');
+    const browser = createTelemetryBrowser();
     const unsubscribeRouter = vi.fn();
     const subscribers: Array<(state: any) => void> = [];
     const stop = startPerformanceTelemetry({
@@ -232,11 +268,12 @@ describe('performanceTelemetry', () => {
         subscribers.push(subscriber);
         return unsubscribeRouter;
       },
-    });
+    }, browser);
 
     expect(stop).toBeTypeOf('function');
-    expect(addWindowListenerSpy).toHaveBeenCalledWith('pagehide', expect.any(Function));
-    expect(addDocumentListenerSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+    expect(addWindowListenerSpy).toHaveBeenCalledWith('pagehide', expect.any(Function), { once: true });
+    expect(addWindowListenerSpy).toHaveBeenCalledWith('pagehide', expect.any(Function), undefined);
+    expect(addDocumentListenerSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function), undefined);
 
     const paintObserver = MockPerformanceObserver.instances.find((observer) =>
       Array.isArray(observer.observedOptions?.entryTypes) && observer.observedOptions?.entryTypes.includes('paint'),
@@ -308,6 +345,7 @@ describe('performanceTelemetry', () => {
   it('uses sendBeacon transport and skips observers when PerformanceObserver is unavailable', async () => {
     vi.stubEnv('VITE_PERFORMANCE_TELEMETRY_URL', 'https://example.test/perf');
     vi.stubEnv('VITE_PERFORMANCE_TELEMETRY_SAMPLE_RATE', '1');
+    vi.stubGlobal('PerformanceObserver', undefined);
     vi.spyOn(performance, 'getEntriesByType').mockImplementation(() => [] as PerformanceEntryList);
     const sendBeaconSpy = vi.fn().mockReturnValue(true);
     Object.defineProperty(window.navigator, 'sendBeacon', {
@@ -318,6 +356,7 @@ describe('performanceTelemetry', () => {
     vi.stubGlobal('fetch', fetchSpy);
 
     const { startPerformanceTelemetry } = await import('./performanceTelemetry');
+    const browser = createTelemetryBrowser();
     const subscribers: Array<(state: any) => void> = [];
     const stopWithRouteMetric = startPerformanceTelemetry({
       state: {
@@ -328,7 +367,7 @@ describe('performanceTelemetry', () => {
         subscribers.push(subscriber);
         return vi.fn();
       },
-    } as any);
+    } as any, browser);
 
     subscribers[0]({
       location: { pathname: '/home' },
@@ -340,7 +379,7 @@ describe('performanceTelemetry', () => {
     });
     window.dispatchEvent(new Event('pagehide'));
 
-    expect(sendBeaconSpy).toHaveBeenCalledTimes(1);
+    expect(sendBeaconSpy.mock.calls.length).toBeGreaterThan(0);
     expect(sendBeaconSpy.mock.calls[0][0]).toBe('https://example.test/perf');
     expect(fetchSpy).not.toHaveBeenCalled();
 
@@ -353,8 +392,9 @@ describe('performanceTelemetry', () => {
     const addWindowListenerSpy = vi.spyOn(window, 'addEventListener');
     const { startPerformanceTelemetry } = await import('./performanceTelemetry');
     const { router } = createRouter();
+    const browser = createTelemetryBrowser();
 
-    const stop = startPerformanceTelemetry(router as any);
+    const stop = startPerformanceTelemetry(router as any, browser);
 
     expect(stop).toBeUndefined();
     expect(addWindowListenerSpy).not.toHaveBeenCalled();

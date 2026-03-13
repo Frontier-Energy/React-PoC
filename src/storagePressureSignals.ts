@@ -1,3 +1,5 @@
+import { platform } from './platform';
+
 export interface StoragePressureEventDetail {
   tenantId: string;
   userId: string;
@@ -9,7 +11,7 @@ export interface StoragePressureEventDetail {
 const STORAGE_PRESSURE_EVENT = 'app-storage-pressure';
 
 export const emitStoragePressureEvent = (detail: StoragePressureEventDetail) => {
-  window.dispatchEvent(new CustomEvent<StoragePressureEventDetail>(STORAGE_PRESSURE_EVENT, { detail }));
+  platform.runtime.dispatchWindowEvent(new CustomEvent<StoragePressureEventDetail>(STORAGE_PRESSURE_EVENT, { detail }));
 };
 
 export const subscribeToStoragePressure = (listener: (detail: StoragePressureEventDetail) => void) => {
@@ -21,8 +23,8 @@ export const subscribeToStoragePressure = (listener: (detail: StoragePressureEve
     listener(detail);
   };
 
-  window.addEventListener(STORAGE_PRESSURE_EVENT, handleEvent as EventListener);
+  platform.runtime.addWindowEventListener(STORAGE_PRESSURE_EVENT, handleEvent as EventListener);
   return () => {
-    window.removeEventListener(STORAGE_PRESSURE_EVENT, handleEvent as EventListener);
+    platform.runtime.removeWindowEventListener(STORAGE_PRESSURE_EVENT, handleEvent as EventListener);
   };
 };

@@ -1,4 +1,5 @@
 import { getActiveEnvironment, getActiveTenant } from './config';
+import type { PlatformConnectivity, PlatformRuntime } from './platform/types';
 
 type TelemetryMetricName = 'CLS' | 'FCP' | 'INP' | 'LCP' | 'TTFB' | 'route-transition';
 type TelemetryMetricType = 'route-transition' | 'web-vital';
@@ -26,6 +27,21 @@ interface TelemetryReporter {
   flush: () => void;
   isEnabled: () => boolean;
   reportMetric: (metric: Omit<TelemetryEvent, 'app' | 'environmentId' | 'href' | 'path' | 'tenantId' | 'timestamp'>) => void;
+}
+
+interface TelemetryBrowserAdapters {
+  connectivity: Pick<PlatformConnectivity, 'fetch' | 'sendBeacon'>;
+  runtime: Pick<
+    PlatformRuntime,
+    | 'addDocumentEventListener'
+    | 'addWindowEventListener'
+    | 'clearTimeout'
+    | 'getDocumentVisibilityState'
+    | 'getLocation'
+    | 'removeDocumentEventListener'
+    | 'removeWindowEventListener'
+    | 'setTimeout'
+  >;
 }
 
 interface RouterLikeState {
@@ -100,6 +116,7 @@ export const createTelemetryReporter = (
   config: TelemetryConfig,
   transport: (events: TelemetryEvent[]) => void,
   random = Math.random,
+  runtime: Pick<PlatformRuntime, 'clearTimeout' | 'getLocation' | 'setTimeout'>,
 ): TelemetryReporter => {
   const enabled = Boolean(config.endpointUrl) && shouldSampleTelemetry(config.sampleRate, random);
   let queue: TelemetryEvent[] = [];
@@ -113,7 +130,7 @@ export const createTelemetryReporter = (
     const batch = queue;
     queue = [];
     if (timer !== undefined) {
-      window.clearTimeout(timer);
+      runtime.clearTimeout(timer);
       timer = undefined;
     }
 
@@ -125,7 +142,7 @@ export const createTelemetryReporter = (
       return;
     }
 
-    timer = window.setTimeout(() => {
+    timer = runtime.setTimeout(() => {
       timer = undefined;
       flush();
     }, TELEMETRY_FLUSH_DELAY_MS);
@@ -139,11 +156,12 @@ export const createTelemetryReporter = (
         return;
       }
 
+      const location = runtime.getLocation();
       queue.push({
         app: 'inspection-forms',
         environmentId: getActiveEnvironment()?.environmentId ?? null,
-        href: window.location.href,
-        path: window.location.pathname,
+        href: location?.href ?? '',
+        path: location?.pathname ?? '',
         tenantId: getActiveTenant()?.tenantId ?? null,
         timestamp: new Date().toISOString(),
         ...metric,
@@ -154,16 +172,18 @@ export const createTelemetryReporter = (
   };
 };
 
-const createTransport = (endpointUrl: string) => (events: TelemetryEvent[]) => {
+const createTransport = (
+  endpointUrl: string,
+  connectivity: Pick<PlatformConnectivity, 'fetch' | 'sendBeacon'>
+) => (events: TelemetryEvent[]) => {
   const payload = JSON.stringify({ events });
+  const body = new Blob([payload], { type: 'application/json' });
 
-  if (navigator.sendBeacon) {
-    const body = new Blob([payload], { type: 'application/json' });
-    navigator.sendBeacon(endpointUrl, body);
+  if (connectivity.sendBeacon(endpointUrl, body)) {
     return;
   }
 
-  void fetch(endpointUrl, {
+  void connectivity.fetch(endpointUrl, {
     body: payload,
     headers: {
       'Content-Type': 'application/json',
@@ -192,7 +212,10 @@ const observePaintMetrics = (reporter: TelemetryReporter) => {
   paintObserver.observe({ entryTypes: ['paint'] });
 };
 
-const observeLcp = (reporter: TelemetryReporter) => {
+const observeLcp = (
+  reporter: TelemetryReporter,
+  runtime: Pick<PlatformRuntime, 'addDocumentEventListener' | 'addWindowEventListener' | 'getDocumentVisibilityState'>
+) => {
   let lastLcp = 0;
   const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
@@ -208,15 +231,15 @@ const observeLcp = (reporter: TelemetryReporter) => {
     }
   };
 
-  window.addEventListener('pagehide', flushLcp, { once: true });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
+  runtime.addWindowEventListener('pagehide', flushLcp, { once: true });
+  runtime.addDocumentEventListener('visibilitychange', () => {
+    if (runtime.getDocumentVisibilityState() === 'hidden') {
       flushLcp();
     }
   });
 };
 
-const observeCls = (reporter: TelemetryReporter) => {
+const observeCls = (reporter: TelemetryReporter, runtime: Pick<PlatformRuntime, 'addWindowEventListener'>) => {
   let cls = 0;
   const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries() as Array<PerformanceEntry & { hadRecentInput?: boolean; value?: number }>) {
@@ -232,10 +255,10 @@ const observeCls = (reporter: TelemetryReporter) => {
     cls = 0;
   };
 
-  window.addEventListener('pagehide', flushCls, { once: true });
+  runtime.addWindowEventListener('pagehide', flushCls, { once: true });
 };
 
-const observeInp = (reporter: TelemetryReporter) => {
+const observeInp = (reporter: TelemetryReporter, runtime: Pick<PlatformRuntime, 'addWindowEventListener'>) => {
   let maxInp = 0;
   const observer = new PerformanceObserver((list) => {
     for (const entry of list.getEntries() as Array<PerformanceEntry & { duration?: number; interactionId?: number }>) {
@@ -253,7 +276,7 @@ const observeInp = (reporter: TelemetryReporter) => {
     }
   };
 
-  window.addEventListener('pagehide', flushInp, { once: true });
+  runtime.addWindowEventListener('pagehide', flushInp, { once: true });
 };
 
 const reportTtfb = (reporter: TelemetryReporter) => {
@@ -297,15 +320,15 @@ export const attachRouterPerformanceTelemetry = (
   });
 };
 
-const supportsPerformanceObserver = (): boolean => typeof window !== 'undefined' && 'PerformanceObserver' in window;
+const supportsPerformanceObserver = (): boolean => typeof PerformanceObserver !== 'undefined';
 
-export const startPerformanceTelemetry = (router: RouterLike) => {
+export const startPerformanceTelemetry = (router: RouterLike, browser: TelemetryBrowserAdapters) => {
   const config = resolveTelemetryConfig();
   if (!config.endpointUrl) {
     return;
   }
 
-  const reporter = createTelemetryReporter(config, createTransport(config.endpointUrl));
+  const reporter = createTelemetryReporter(config, createTransport(config.endpointUrl, browser.connectivity), Math.random, browser.runtime);
   if (!reporter.isEnabled()) {
     return;
   }
@@ -313,25 +336,25 @@ export const startPerformanceTelemetry = (router: RouterLike) => {
   const unsubscribeRouter = attachRouterPerformanceTelemetry(router, reporter);
   const flush = () => reporter.flush();
   const handleVisibilityChange = () => {
-    if (document.visibilityState === 'hidden') {
+    if (browser.runtime.getDocumentVisibilityState() === 'hidden') {
       flush();
     }
   };
 
   if (supportsPerformanceObserver()) {
     observePaintMetrics(reporter);
-    observeLcp(reporter);
-    observeCls(reporter);
-    observeInp(reporter);
+    observeLcp(reporter, browser.runtime);
+    observeCls(reporter, browser.runtime);
+    observeInp(reporter, browser.runtime);
   }
 
-  window.addEventListener('pagehide', flush);
-  document.addEventListener('visibilitychange', handleVisibilityChange);
+  browser.runtime.addWindowEventListener('pagehide', flush);
+  browser.runtime.addDocumentEventListener('visibilitychange', handleVisibilityChange);
   reportTtfb(reporter);
 
   return () => {
     unsubscribeRouter();
-    window.removeEventListener('pagehide', flush);
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    browser.runtime.removeWindowEventListener('pagehide', flush);
+    browser.runtime.removeDocumentEventListener('visibilitychange', handleVisibilityChange);
   };
 };

@@ -7,6 +7,7 @@ import {
   type StoragePressureLevel,
 } from './domain/offlineObservability';
 import type { SyncQueueDiagnostics } from './domain/syncQueue';
+import { platform } from './platform';
 import { appDataStore } from './utils/appDataStore';
 import { subscribeToStoragePressure } from './storagePressureSignals';
 
@@ -204,7 +205,8 @@ export const offlineObservability = {
   },
 
   async refreshStoragePressure(tenantId: string, at = Date.now()) {
-    if (typeof navigator === 'undefined' || !navigator.storage || typeof navigator.storage.estimate !== 'function') {
+    const estimate = await platform.connectivity.estimateStorage();
+    if (!estimate) {
       return persistSnapshot(tenantId, (current) =>
         withUpdatedAt(
           {
@@ -220,7 +222,6 @@ export const offlineObservability = {
       );
     }
 
-    const estimate = await navigator.storage.estimate();
     const usageBytes = typeof estimate.usage === 'number' ? estimate.usage : null;
     const quotaBytes = typeof estimate.quota === 'number' ? estimate.quota : null;
     const usageRatio = usageBytes !== null && quotaBytes && quotaBytes > 0 ? usageBytes / quotaBytes : null;

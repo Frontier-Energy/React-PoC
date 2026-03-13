@@ -28,6 +28,8 @@ describe('webPlatform', () => {
   const originalFetch = globalThis.fetch;
   const originalRandomUUID = globalThis.crypto.randomUUID;
   const originalOnline = navigator.onLine;
+  const originalSendBeacon = navigator.sendBeacon;
+  const originalStorage = navigator.storage;
 
   beforeEach(() => {
     vi.resetModules();
@@ -42,6 +44,8 @@ describe('webPlatform', () => {
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: originalFetch });
     Object.defineProperty(globalThis.crypto, 'randomUUID', { configurable: true, value: originalRandomUUID });
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: originalOnline });
+    Object.defineProperty(navigator, 'sendBeacon', { configurable: true, value: originalSendBeacon });
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: originalStorage });
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
@@ -56,7 +60,13 @@ describe('webPlatform', () => {
     expect(webPlatform.id).toBe('web');
     expect(webPlatform.routing.mode).toBe('browser');
     expect(createBrowserRouterMock).toHaveBeenCalledWith(routes);
-    expect(startPerformanceTelemetryMock).toHaveBeenCalledWith(router);
+    expect(startPerformanceTelemetryMock).toHaveBeenCalledWith(
+      router,
+      expect.objectContaining({
+        connectivity: expect.any(Object),
+        runtime: expect.any(Object),
+      }),
+    );
   });
 
   it('exposes browser storage integrations when available', async () => {
@@ -141,57 +151,97 @@ describe('webPlatform', () => {
   it('uses fetch, connectivity status, runtime listeners, and timers', async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    const sendBeaconMock = vi.fn().mockReturnValue(true);
+    const estimateMock = vi.fn().mockResolvedValue({ usage: 100, quota: 200 });
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: fetchMock });
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    Object.defineProperty(navigator, 'sendBeacon', { configurable: true, value: sendBeaconMock });
+    Object.defineProperty(navigator, 'storage', {
+      configurable: true,
+      value: {
+        estimate: estimateMock,
+      },
+    });
 
     const addWindowListenerSpy = vi.spyOn(window, 'addEventListener');
     const removeWindowListenerSpy = vi.spyOn(window, 'removeEventListener');
     const addDocumentListenerSpy = vi.spyOn(document, 'addEventListener');
     const removeDocumentListenerSpy = vi.spyOn(document, 'removeEventListener');
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
     const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
+    const clearIntervalSpy = vi.spyOn(window, 'clearInterval');
+    const getElementByIdSpy = vi.spyOn(document, 'getElementById').mockReturnValue(document.body);
 
     const { webPlatform } = await import('./webPlatform');
     const handler = vi.fn();
     const event = new Event('custom');
     const timer = webPlatform.runtime.setTimeout(handler, 10);
+    const interval = webPlatform.runtime.setInterval(handler, 10);
 
     await webPlatform.connectivity.fetch('/health');
+    await expect(webPlatform.connectivity.estimateStorage()).resolves.toEqual({ usage: 100, quota: 200 });
+    expect(webPlatform.connectivity.sendBeacon('/health', new Blob())).toBe(true);
     webPlatform.runtime.dispatchWindowEvent(event);
     webPlatform.runtime.addWindowEventListener('resize', handler);
     webPlatform.runtime.removeWindowEventListener('resize', handler);
     webPlatform.runtime.addDocumentEventListener('visibilitychange', handler);
     webPlatform.runtime.removeDocumentEventListener('visibilitychange', handler);
+    expect(webPlatform.runtime.getLocation()).toBe(window.location);
+    expect(webPlatform.runtime.getDocumentVisibilityState()).toBe(document.visibilityState);
+    expect(webPlatform.runtime.getElementById('root')).toBe(document.body);
+    webPlatform.runtime.scrollTo({ top: 10 });
     webPlatform.runtime.clearTimeout(timer);
+    webPlatform.runtime.clearInterval(interval);
 
     expect(webPlatform.connectivity.getOnlineStatus()).toBe(false);
     expect(fetchMock).toHaveBeenCalledWith('/health', undefined);
+    expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+    expect(estimateMock).toHaveBeenCalledTimes(1);
     expect(dispatchSpy).toHaveBeenCalledWith(event);
     expect(addWindowListenerSpy).toHaveBeenCalledWith('resize', handler);
     expect(removeWindowListenerSpy).toHaveBeenCalledWith('resize', handler);
     expect(addDocumentListenerSpy).toHaveBeenCalledWith('visibilitychange', handler);
     expect(removeDocumentListenerSpy).toHaveBeenCalledWith('visibilitychange', handler);
+    expect(scrollToSpy).toHaveBeenCalledWith({ top: 10 });
     expect(clearTimeoutSpy).toHaveBeenCalledWith(timer);
+    expect(clearIntervalSpy).toHaveBeenCalledWith(interval);
+    expect(getElementByIdSpy).toHaveBeenCalledWith('root');
   });
 
   it('handles missing fetch, navigator status, and window runtime safely', async () => {
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: undefined });
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'sendBeacon', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'storage', { configurable: true, value: undefined });
 
     const { webPlatform } = await import('./webPlatform');
 
     expect(() => webPlatform.connectivity.fetch('/health')).toThrow('Fetch is not available on this platform.');
     expect(webPlatform.connectivity.getOnlineStatus()).toBeNull();
+    await expect(webPlatform.connectivity.estimateStorage()).resolves.toBeNull();
+    expect(webPlatform.connectivity.sendBeacon('/health', new Blob())).toBe(false);
 
     vi.stubGlobal('window', undefined);
+    vi.stubGlobal('document', undefined);
 
     expect(() => webPlatform.runtime.dispatchWindowEvent(new Event('missing'))).not.toThrow();
     expect(() => webPlatform.runtime.addWindowEventListener('resize', vi.fn())).not.toThrow();
     expect(() => webPlatform.runtime.removeWindowEventListener('resize', vi.fn())).not.toThrow();
+    expect(() => webPlatform.runtime.addDocumentEventListener('visibilitychange', vi.fn())).not.toThrow();
+    expect(() => webPlatform.runtime.removeDocumentEventListener('visibilitychange', vi.fn())).not.toThrow();
+    expect(webPlatform.runtime.getLocation()).toBeNull();
+    expect(webPlatform.runtime.getDocumentVisibilityState()).toBeNull();
+    expect(webPlatform.runtime.getElementById('root')).toBeNull();
+    expect(() => webPlatform.runtime.scrollTo({ top: 0 })).not.toThrow();
     expect(() => webPlatform.runtime.setTimeout(() => undefined, 1)).toThrow(
       'Timers are not available on this platform.'
     );
     expect(() => webPlatform.runtime.clearTimeout(1)).not.toThrow();
+    expect(() => webPlatform.runtime.setInterval(() => undefined, 1)).toThrow(
+      'Timers are not available on this platform.'
+    );
+    expect(() => webPlatform.runtime.clearInterval(1)).not.toThrow();
   });
 
   it('registers updates through the PWA bridge', async () => {

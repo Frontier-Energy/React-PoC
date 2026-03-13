@@ -1,4 +1,5 @@
 import { subscribeToInspectionStatusChanged } from '../application/inspectionEvents';
+import { platform } from '../platform';
 import { inspectionRepository } from '../repositories/inspectionRepository';
 import { syncMonitor } from '../syncMonitor';
 import { syncQueue } from '../syncQueue';
@@ -89,7 +90,7 @@ export const createBackgroundUploadRuntime = (): BackgroundUploadRuntime => {
       }
 
       started = true;
-      intervalId = window.setInterval(() => scheduleSync('interval'), SYNC_CHECK_INTERVAL_MS);
+      intervalId = platform.runtime.setInterval(() => scheduleSync('interval'), SYNC_CHECK_INTERVAL_MS);
       unsubscribeQueue = syncQueue.subscribe(() => scheduleSync('queue event'));
       unsubscribeInspectionEvents = subscribeToInspectionStatusChanged(handleInspectionStatusChanged);
       scheduleSync('runtime start');
@@ -101,7 +102,7 @@ export const createBackgroundUploadRuntime = (): BackgroundUploadRuntime => {
 
       started = false;
       if (intervalId !== null) {
-        window.clearInterval(intervalId);
+        platform.runtime.clearInterval(intervalId);
         intervalId = null;
       }
       unsubscribeQueue?.();

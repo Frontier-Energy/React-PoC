@@ -10,6 +10,7 @@ import {
   type EnvironmentDefinition,
   type TenantDefinition,
 } from './governedConfig';
+import { platform } from './platform';
 import { createAppConfigService } from './services/appConfigService';
 
 export interface AppConfig {
@@ -29,7 +30,7 @@ export const DEFAULT_TENANT_NAME = DEFAULT_TENANT_ID;
 export const TENANTS: TenantDefinition[] = GOVERNED_TENANTS;
 
 const resolveApiBaseUrl = (): string => {
-  const hostname = typeof window === 'undefined' ? null : window.location.hostname;
+  const hostname = platform.runtime.getLocation()?.hostname ?? null;
   return resolveApiBaseUrlForHostname(hostname);
 };
 
@@ -38,7 +39,7 @@ const appConfigService = createAppConfigService({
   defaultTenantName: DEFAULT_TENANT_NAME,
   tenantHostnameSuffix: TENANT_HOSTNAME_SUFFIX,
   resolveStoredTenantName: () => getAppPreferenceState().tenantId,
-  resolveHostname: () => (typeof window === 'undefined' ? null : window.location.hostname),
+  resolveHostname: () => platform.runtime.getLocation()?.hostname ?? null,
   resolveApiBaseUrl,
   servicePaths: GOVERNED_SERVICE_PATHS,
 });
@@ -50,7 +51,7 @@ export { resolveEnvironmentIdFromHostname };
 export const getEnvironmentConfigById = (environmentId: string): EnvironmentDefinition | undefined =>
   getEnvironmentById(environmentId);
 export const getActiveEnvironment = (): EnvironmentDefinition | undefined => {
-  const hostname = typeof window === 'undefined' ? null : window.location.hostname;
+  const hostname = platform.runtime.getLocation()?.hostname ?? null;
   return getEnvironmentById(resolveEnvironmentIdFromHostname(hostname));
 };
 

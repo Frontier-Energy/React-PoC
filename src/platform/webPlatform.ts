@@ -79,6 +79,22 @@ const getOnlineStatus = () => {
   return navigator.onLine;
 };
 
+const sendBeaconThroughPlatform = (url: string, data?: BodyInit | null) => {
+  if (typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') {
+    return false;
+  }
+
+  return navigator.sendBeacon(url, data);
+};
+
+const estimateStorage = async () => {
+  if (typeof navigator === 'undefined' || !navigator.storage || typeof navigator.storage.estimate !== 'function') {
+    return null;
+  }
+
+  return navigator.storage.estimate();
+};
+
 const register = () => {
   void import('virtual:pwa-register').then(({ registerSW }) => {
     registerSW({ immediate: true });
@@ -93,12 +109,21 @@ const dispatchWindowEvent = (event: Event) => {
   window.dispatchEvent(event);
 };
 
-const addWindowEventListener = (type: string, listener: EventListenerOrEventListenerObject) => {
+const addWindowEventListener = (
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: AddEventListenerOptions | boolean
+) => {
   if (typeof window === 'undefined') {
     return;
   }
 
-  window.addEventListener(type, listener);
+  if (typeof options === 'undefined') {
+    window.addEventListener(type, listener);
+    return;
+  }
+
+  window.addEventListener(type, listener, options);
 };
 
 const removeWindowEventListener = (type: string, listener: EventListenerOrEventListenerObject) => {
@@ -109,12 +134,21 @@ const removeWindowEventListener = (type: string, listener: EventListenerOrEventL
   window.removeEventListener(type, listener);
 };
 
-const addDocumentEventListener = (type: string, listener: EventListenerOrEventListenerObject) => {
+const addDocumentEventListener = (
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: AddEventListenerOptions | boolean
+) => {
   if (typeof document === 'undefined') {
     return;
   }
 
-  document.addEventListener(type, listener);
+  if (typeof options === 'undefined') {
+    document.addEventListener(type, listener);
+    return;
+  }
+
+  document.addEventListener(type, listener, options);
 };
 
 const removeDocumentEventListener = (type: string, listener: EventListenerOrEventListenerObject) => {
@@ -123,6 +157,38 @@ const removeDocumentEventListener = (type: string, listener: EventListenerOrEven
   }
 
   document.removeEventListener(type, listener);
+};
+
+const getLocation = () => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return window.location;
+};
+
+const getDocumentVisibilityState = () => {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  return document.visibilityState;
+};
+
+const getElementById = (id: string) => {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  return document.getElementById(id);
+};
+
+const scrollTo = (options: ScrollToOptions) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.scrollTo(options);
 };
 
 const setTimeoutThroughPlatform = (handler: TimerHandler, timeout?: number) => {
@@ -139,6 +205,45 @@ const clearTimeoutThroughPlatform = (handle: number) => {
   }
 
   window.clearTimeout(handle);
+};
+
+const setIntervalThroughPlatform = (handler: TimerHandler, timeout?: number) => {
+  if (typeof window === 'undefined') {
+    throw new Error('Timers are not available on this platform.');
+  }
+
+  return window.setInterval(handler, timeout);
+};
+
+const clearIntervalThroughPlatform = (handle: number) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.clearInterval(handle);
+};
+
+const connectivity = {
+  fetch: fetchThroughPlatform,
+  getOnlineStatus,
+  sendBeacon: sendBeaconThroughPlatform,
+  estimateStorage,
+};
+
+const runtime = {
+  dispatchWindowEvent,
+  addWindowEventListener,
+  removeWindowEventListener,
+  addDocumentEventListener,
+  removeDocumentEventListener,
+  getLocation,
+  getDocumentVisibilityState,
+  getElementById,
+  scrollTo,
+  setTimeout: setTimeoutThroughPlatform,
+  clearTimeout: clearTimeoutThroughPlatform,
+  setInterval: setIntervalThroughPlatform,
+  clearInterval: clearIntervalThroughPlatform,
 };
 
 export const webPlatform: Platform = {
@@ -161,23 +266,12 @@ export const webPlatform: Platform = {
   authSession: {
     getStorage: getLocalStorage,
   },
-  connectivity: {
-    fetch: fetchThroughPlatform,
-    getOnlineStatus,
-  },
+  connectivity,
   telemetry: {
-    start: (router) => startPerformanceTelemetry(router),
+    start: (router) => startPerformanceTelemetry(router, { connectivity, runtime }),
   },
   updates: {
     register,
   },
-  runtime: {
-    dispatchWindowEvent,
-    addWindowEventListener,
-    removeWindowEventListener,
-    addDocumentEventListener,
-    removeDocumentEventListener,
-    setTimeout: setTimeoutThroughPlatform,
-    clearTimeout: clearTimeoutThroughPlatform,
-  },
+  runtime,
 };

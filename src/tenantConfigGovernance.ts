@@ -58,7 +58,7 @@ const normalizeTenantId = (tenantId: string) => tenantId.trim().toLowerCase();
 const normalizeEnvironmentId = (environmentId: string) => environmentId.trim().toLowerCase();
 
 const getActiveEnvironmentId = () => {
-  const hostname = typeof window === 'undefined' ? null : window.location.hostname;
+  const hostname = platform.runtime.getLocation()?.hostname ?? null;
   const normalizedHostname = hostname?.trim().toLowerCase() ?? '';
   if (!normalizedHostname) {
     return DEFAULT_ENVIRONMENT_ID;
