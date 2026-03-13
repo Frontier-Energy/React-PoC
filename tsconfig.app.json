@@ -4,6 +4,11 @@
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
+    "baseUrl": ".",
+    "paths": {
+      "@app-core/*": ["src/app-core/*"],
+      "@platform": ["src/shell-web/platform/index.ts"]
+    },
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "resolveJsonModule": true,

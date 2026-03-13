@@ -17,8 +17,16 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: '@platform',
+        replacement: fileURLToPath(new URL('./src/shell-web/platform/index.ts', import.meta.url)),
+      },
+      {
+        find: '@app-core',
+        replacement: fileURLToPath(new URL('./src/app-core', import.meta.url)),
+      },
+      {
         find: /^@cloudscape-design\/components$/,
-        replacement: fileURLToPath(new URL('./src/cloudscape-components.ts', import.meta.url)),
+        replacement: fileURLToPath(new URL('./src/shell-web/cloudscape-components.ts', import.meta.url)),
       },
     ],
   },
@@ -69,7 +77,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
+    setupFiles: './src/app-core/test/setup.ts',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
