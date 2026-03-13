@@ -1,5 +1,6 @@
 import type { OfflineObservabilitySnapshot } from '../domain/offlineObservability';
 import type { SyncQueueEntry } from '../domain/syncQueue';
+import { platform } from '../platform';
 import { emitStoragePressureEvent } from '../storagePressureSignals';
 import type { FormDataValue, InspectionSession } from '../types';
 
@@ -65,6 +66,8 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 let migrationPromise: Promise<void> | null = null;
 let broadcastChannel: BroadcastChannel | null = null;
 let recoveryPromise: Promise<void> | null = null;
+
+const getLocalStorage = () => platform.storage.getLocalStorage();
 
 type SchemaMigration = {
   version: number;
@@ -156,7 +159,13 @@ const resetConnectionState = () => {
 
 const deleteDatabase = () =>
   new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(DB_NAME);
+    const indexedDb = platform.storage.getIndexedDb();
+    if (!indexedDb) {
+      reject(new Error('IndexedDB is not available on this platform.'));
+      return;
+    }
+
+    const request = indexedDb.deleteDatabase(DB_NAME);
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
     request.onblocked = () => reject(new Error('Failed to clear IndexedDB because the database is blocked.'));
@@ -186,7 +195,13 @@ const recoverCorruptedDatabase = async (reason: Error) => {
 
 const openDatabaseOnce = (): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const indexedDb = platform.storage.getIndexedDb();
+    if (!indexedDb) {
+      reject(new Error('IndexedDB is not available on this platform.'));
+      return;
+    }
+
+    const request = indexedDb.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
       const db = request.result;
@@ -296,19 +311,15 @@ const getScopeKey = (scope: StorageScope) => `${scope.tenantId}:${scope.userId}`
 const getTenantObservabilityKey = (tenantId: string) => `${TENANT_OBSERVABILITY_PREFIX}${tenantId}`;
 
 const getBroadcastChannel = () => {
-  if (typeof BroadcastChannel === 'undefined') {
-    return null;
-  }
-
   if (!broadcastChannel) {
-    broadcastChannel = new BroadcastChannel(DATA_CHANGE_CHANNEL);
+    broadcastChannel = platform.storage.createBroadcastChannel(DATA_CHANGE_CHANNEL) as BroadcastChannel | null;
   }
 
   return broadcastChannel;
 };
 
 const emitDataChange = (detail: DataChangeDetail) => {
-  window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT, { detail }));
+  platform.runtime.dispatchWindowEvent(new CustomEvent(DATA_CHANGE_EVENT, { detail }));
   getBroadcastChannel()?.postMessage(detail);
 };
 
@@ -329,6 +340,11 @@ const migrateLocalStorageData = async () => {
   const parsedCurrentSessions: CurrentSessionRecord[] = [];
   const parsedWorkerLeases: (ScopeRecord & WorkerLease)[] = [];
   const migratedKeys: string[] = [];
+  const localStorage = getLocalStorage();
+
+  if (!localStorage) {
+    return;
+  }
 
   Object.keys(localStorage).forEach((key) => {
     const [tenantId, userId, suffix] = key.split(':', 3);
@@ -655,11 +671,11 @@ export const appDataStore = {
       listener();
     };
 
-    window.addEventListener(DATA_CHANGE_EVENT, handleWindowEvent as EventListener);
+    platform.runtime.addWindowEventListener(DATA_CHANGE_EVENT, handleWindowEvent as EventListener);
     channel?.addEventListener('message', handleChannelEvent as EventListener);
 
     return () => {
-      window.removeEventListener(DATA_CHANGE_EVENT, handleWindowEvent as EventListener);
+      platform.runtime.removeWindowEventListener(DATA_CHANGE_EVENT, handleWindowEvent as EventListener);
       channel?.removeEventListener('message', handleChannelEvent as EventListener);
     };
   },

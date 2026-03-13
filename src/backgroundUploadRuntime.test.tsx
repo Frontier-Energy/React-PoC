@@ -206,7 +206,19 @@ describe('backgroundUploadRuntime', () => {
       expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
-    const persistedEntry = await syncQueue.load(local.id);
+    let persistedEntry = await syncQueue.load(local.id);
+    await vi.waitFor(async () => {
+      persistedEntry = await syncQueue.load(local.id);
+      expect(persistedEntry).toEqual(
+        expect.objectContaining({
+          inspectionId: 'local-fail',
+          status: 'failed',
+          attemptCount: 1,
+          idempotencyKey: queueEntry.idempotencyKey,
+        })
+      );
+    });
+
     expect(persistedEntry).toEqual(
       expect.objectContaining({
         inspectionId: 'local-fail',

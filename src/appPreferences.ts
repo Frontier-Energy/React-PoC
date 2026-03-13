@@ -1,4 +1,5 @@
 import { isLanguageCode, type LanguageCode } from './resources/translations';
+import { platform } from './platform';
 
 export const LEGACY_CUSTOMIZATION_STORAGE_KEY = 'appCustomization';
 export const TENANT_PREFERENCE_STORAGE_KEY = 'appTenantPreference';
@@ -13,7 +14,8 @@ type LegacyCustomization = {
   language?: string;
 };
 
-const canUseStorage = () => typeof window !== 'undefined';
+const getPreferenceStorage = () => platform.storage.getLocalStorage();
+const canUseStorage = () => getPreferenceStorage() !== null;
 
 const normalizeStoredString = (value: string | null | undefined): string | null => {
   const normalized = value?.trim();
@@ -25,7 +27,7 @@ const readLegacyCustomization = (): LegacyCustomization | null => {
     return null;
   }
 
-  const stored = localStorage.getItem(LEGACY_CUSTOMIZATION_STORAGE_KEY);
+  const stored = getPreferenceStorage()?.getItem(LEGACY_CUSTOMIZATION_STORAGE_KEY);
   if (!stored) {
     return null;
   }
@@ -42,7 +44,7 @@ const readStringPreference = (storageKey: string, legacyField?: keyof LegacyCust
     return null;
   }
 
-  const currentValue = normalizeStoredString(localStorage.getItem(storageKey));
+  const currentValue = normalizeStoredString(getPreferenceStorage()?.getItem(storageKey));
   if (currentValue) {
     return currentValue;
   }
@@ -53,7 +55,7 @@ const readStringPreference = (storageKey: string, legacyField?: keyof LegacyCust
 
   const legacyValue = normalizeStoredString(readLegacyCustomization()?.[legacyField]);
   if (legacyValue) {
-    localStorage.setItem(storageKey, legacyValue);
+    getPreferenceStorage()?.setItem(storageKey, legacyValue);
   }
 
   return legacyValue;
@@ -66,11 +68,11 @@ const writeStringPreference = (storageKey: string, value: string | null | undefi
 
   const normalizedValue = normalizeStoredString(value);
   if (!normalizedValue) {
-    localStorage.removeItem(storageKey);
+    getPreferenceStorage()?.removeItem(storageKey);
     return;
   }
 
-  localStorage.setItem(storageKey, normalizedValue);
+  getPreferenceStorage()?.setItem(storageKey, normalizedValue);
 };
 
 export const getStoredTenantPreference = () => readStringPreference(TENANT_PREFERENCE_STORAGE_KEY, 'tenantId');
@@ -93,14 +95,14 @@ export const getStoredLanguagePreference = (): LanguageCode | null => {
     return null;
   }
 
-  const currentValue = normalizeStoredString(localStorage.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY));
+  const currentValue = normalizeStoredString(getPreferenceStorage()?.getItem(LANGUAGE_PREFERENCE_STORAGE_KEY));
   if (currentValue) {
     return isLanguageCode(currentValue) ? currentValue : null;
   }
 
   const legacyValue = normalizeStoredString(readLegacyCustomization()?.language);
   if (legacyValue && isLanguageCode(legacyValue)) {
-    localStorage.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, legacyValue);
+    getPreferenceStorage()?.setItem(LANGUAGE_PREFERENCE_STORAGE_KEY, legacyValue);
     return legacyValue;
   }
 

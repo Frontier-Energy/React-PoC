@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { getConnectivityCheckUrl } from './config';
+import { platform } from './platform';
 
 export type ConnectivityStatus = 'checking' | 'online' | 'offline';
 
@@ -34,7 +35,7 @@ export function ConnectivityProvider({
     const checkConnectivity = async () => {
       const controller = new AbortController();
       try {
-        const response = await fetch(checkUrl, {
+        const response = await platform.connectivity.fetch(checkUrl, {
           method: 'GET',
           cache: 'no-store',
           signal: controller.signal,

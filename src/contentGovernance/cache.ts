@@ -1,4 +1,7 @@
 import { getActiveTenant } from '../config';
+import { platform } from '../platform';
+
+const getCacheStorage = () => platform.storage.getLocalStorage();
 
 export const CONTENT_ARTIFACT_CACHE_STORAGE_KEY = 'tenantContentArtifactCache';
 
@@ -18,7 +21,7 @@ const normalizeTenantId = (tenantId?: string) => tenantId?.trim().toLowerCase() 
 const buildCacheKey = (tenantId: string, kind: ContentKind, subject: string) => `${tenantId}::${kind}::${subject}`;
 
 const readContentArtifactCache = (): Record<string, CachedContentArtifactRecord> => {
-  const stored = localStorage.getItem(CONTENT_ARTIFACT_CACHE_STORAGE_KEY);
+  const stored = getCacheStorage()?.getItem(CONTENT_ARTIFACT_CACHE_STORAGE_KEY);
   if (!stored) {
     return {};
   }
@@ -46,7 +49,7 @@ const readContentArtifactCache = (): Record<string, CachedContentArtifactRecord>
 };
 
 const writeContentArtifactCache = (cache: Record<string, CachedContentArtifactRecord>) => {
-  localStorage.setItem(CONTENT_ARTIFACT_CACHE_STORAGE_KEY, JSON.stringify(cache));
+  getCacheStorage()?.setItem(CONTENT_ARTIFACT_CACHE_STORAGE_KEY, JSON.stringify(cache));
 };
 
 export const readCachedArtifact = <T>(

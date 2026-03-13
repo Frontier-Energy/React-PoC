@@ -11,6 +11,7 @@ import {
   TENANT_CONFIG_SCHEMA_VERSION,
   type TenantConfigGovernanceSnapshot,
 } from './tenantConfigGovernance';
+import { platform } from './platform';
 import { FormType } from './types';
 
 export const TENANT_BOOTSTRAP_CACHE_STORAGE_KEY = 'tenantBootstrapCache';
@@ -93,7 +94,7 @@ const isTenantBootstrapConfig = (value: unknown): value is TenantBootstrapConfig
 const normalizeTenantBootstrapCacheKey = (tenantId: string) => tenantId.trim().toLowerCase();
 
 const readTenantBootstrapCacheStore = (): Record<string, CachedTenantBootstrapConfig> => {
-  const stored = localStorage.getItem(TENANT_BOOTSTRAP_CACHE_STORAGE_KEY);
+  const stored = getBootstrapStorage()?.getItem(TENANT_BOOTSTRAP_CACHE_STORAGE_KEY);
   if (!stored) {
     return {};
   }
@@ -117,7 +118,7 @@ const readTenantBootstrapCacheStore = (): Record<string, CachedTenantBootstrapCo
 };
 
 const writeTenantBootstrapCacheStore = (cache: Record<string, CachedTenantBootstrapConfig>) => {
-  localStorage.setItem(TENANT_BOOTSTRAP_CACHE_STORAGE_KEY, JSON.stringify(cache));
+  getBootstrapStorage()?.setItem(TENANT_BOOTSTRAP_CACHE_STORAGE_KEY, JSON.stringify(cache));
 };
 
 export const getDefaultTenantBootstrapConfig = (): TenantBootstrapConfig => {
@@ -219,10 +220,10 @@ export const fetchTenantBootstrapConfig = async (
   const defaults = getDefaultTenantBootstrapConfigForTenant(tenantId);
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TENANT_BOOTSTRAP_TIMEOUT_MS;
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId = platform.runtime.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(getTenantBootstrapUrl(defaults.tenantId), {
+    const response = await platform.connectivity.fetch(getTenantBootstrapUrl(defaults.tenantId), {
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -257,10 +258,11 @@ export const fetchTenantBootstrapConfig = async (
     }
     throw error;
   } finally {
-    window.clearTimeout(timeoutId);
+    platform.runtime.clearTimeout(timeoutId);
   }
 };
 
 export const persistSelectedTenant = (tenantId: string) => {
   setSelectedTenantId(tenantId);
 };
+const getBootstrapStorage = () => platform.storage.getLocalStorage();

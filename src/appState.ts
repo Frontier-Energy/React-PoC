@@ -14,6 +14,7 @@ import {
   THEME_PREFERENCE_STORAGE_KEY,
   FONT_PREFERENCE_STORAGE_KEY,
 } from './appPreferences';
+import { platform } from './platform';
 import { isLanguageCode, type LanguageCode } from './resources/translations';
 
 export interface AppPreferenceState {
@@ -65,7 +66,7 @@ const emitChange = (changedKeys: AppPreferenceKey[]) => {
     return;
   }
 
-  window.dispatchEvent(
+  platform.runtime.dispatchWindowEvent(
     new CustomEvent<AppPreferencesChangedDetail>(APP_PREFERENCES_CHANGED_EVENT, {
       detail: {
         changedKeys,
@@ -118,12 +119,12 @@ export const subscribeToAppPreferenceState = (
     );
   };
 
-  window.addEventListener(APP_PREFERENCES_CHANGED_EVENT, handleCustomChange as EventListener);
-  window.addEventListener('storage', handleStorage);
+  platform.runtime.addWindowEventListener(APP_PREFERENCES_CHANGED_EVENT, handleCustomChange as EventListener);
+  platform.runtime.addWindowEventListener('storage', handleStorage as EventListener);
 
   return () => {
-    window.removeEventListener(APP_PREFERENCES_CHANGED_EVENT, handleCustomChange as EventListener);
-    window.removeEventListener('storage', handleStorage);
+    platform.runtime.removeWindowEventListener(APP_PREFERENCES_CHANGED_EVENT, handleCustomChange as EventListener);
+    platform.runtime.removeWindowEventListener('storage', handleStorage as EventListener);
   };
 };
 

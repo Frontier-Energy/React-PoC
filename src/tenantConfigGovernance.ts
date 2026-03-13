@@ -1,4 +1,5 @@
 import { DEFAULT_ENVIRONMENT_ID, GOVERNED_ENVIRONMENTS, GOVERNED_TENANTS, type TenantDefinition } from './governedConfig';
+import { platform } from './platform';
 import type { TenantBootstrapConfig } from './tenantBootstrap';
 
 export const TENANT_CONFIG_GOVERNANCE_STORAGE_KEY = 'tenantConfigGovernanceState';
@@ -166,7 +167,7 @@ const createSeededGovernanceState = (): StoredTenantConfigGovernanceState => {
 
 const readGovernanceState = (): StoredTenantConfigGovernanceState => {
   const seededState = createSeededGovernanceState();
-  const stored = localStorage.getItem(TENANT_CONFIG_GOVERNANCE_STORAGE_KEY);
+  const stored = getGovernanceStorage()?.getItem(TENANT_CONFIG_GOVERNANCE_STORAGE_KEY);
   if (!stored) {
     return seededState;
   }
@@ -190,7 +191,7 @@ const readGovernanceState = (): StoredTenantConfigGovernanceState => {
 };
 
 const writeGovernanceState = (state: StoredTenantConfigGovernanceState) => {
-  localStorage.setItem(TENANT_CONFIG_GOVERNANCE_STORAGE_KEY, JSON.stringify(state));
+  getGovernanceStorage()?.setItem(TENANT_CONFIG_GOVERNANCE_STORAGE_KEY, JSON.stringify(state));
 };
 
 const getTenantState = (state: StoredTenantConfigGovernanceState, tenantId: string): TenantGovernanceStateRecord => {
@@ -379,5 +380,6 @@ export const rollbackTenantConfigArtifact = ({
 };
 
 export const clearTenantConfigGovernanceState = () => {
-  localStorage.removeItem(TENANT_CONFIG_GOVERNANCE_STORAGE_KEY);
+  getGovernanceStorage()?.removeItem(TENANT_CONFIG_GOVERNANCE_STORAGE_KEY);
 };
+const getGovernanceStorage = () => platform.storage.getLocalStorage();

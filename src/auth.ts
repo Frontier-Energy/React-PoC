@@ -1,5 +1,9 @@
+import { platform } from './platform';
+
 const USER_ID_STORAGE_KEY = 'userId';
 const USER_ROLES_STORAGE_KEY = 'userRoles';
+
+const getAuthStorage = () => platform.authSession.getStorage();
 
 export const DEFAULT_USER_ROLE = 'user';
 export const ADMIN_ROLE = 'admin';
@@ -26,10 +30,10 @@ const normalizeRoles = (roles: ReadonlyArray<string> | null | undefined): string
   return normalized.length > 0 ? Array.from(new Set(normalized)) : [DEFAULT_USER_ROLE];
 };
 
-export const getUserId = () => localStorage.getItem(USER_ID_STORAGE_KEY);
+export const getUserId = () => getAuthStorage()?.getItem(USER_ID_STORAGE_KEY) ?? null;
 
 export const getUserRoles = (): string[] => {
-  const stored = localStorage.getItem(USER_ROLES_STORAGE_KEY);
+  const stored = getAuthStorage()?.getItem(USER_ROLES_STORAGE_KEY);
   if (!stored) {
     return [DEFAULT_USER_ROLE];
   }
@@ -47,8 +51,9 @@ export const getUserRoles = (): string[] => {
 };
 
 export const setUserId = (userId: string, roles: ReadonlyArray<string> = [DEFAULT_USER_ROLE]) => {
-  localStorage.setItem(USER_ID_STORAGE_KEY, userId);
-  localStorage.setItem(USER_ROLES_STORAGE_KEY, JSON.stringify(normalizeRoles(roles)));
+  const storage = getAuthStorage();
+  storage?.setItem(USER_ID_STORAGE_KEY, userId);
+  storage?.setItem(USER_ROLES_STORAGE_KEY, JSON.stringify(normalizeRoles(roles)));
 };
 
 export const hasRole = (requiredRole: string): boolean => {
@@ -85,6 +90,7 @@ export const parseRolesFromAuthPayload = (payload: unknown): string[] => {
 };
 
 export const clearUserId = () => {
-  localStorage.removeItem(USER_ID_STORAGE_KEY);
-  localStorage.removeItem(USER_ROLES_STORAGE_KEY);
+  const storage = getAuthStorage();
+  storage?.removeItem(USER_ID_STORAGE_KEY);
+  storage?.removeItem(USER_ROLES_STORAGE_KEY);
 };

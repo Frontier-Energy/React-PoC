@@ -1,4 +1,5 @@
 import { FileReference } from '../types';
+import { platform } from '../platform';
 
 const DB_NAME = 'react-poc-form-files';
 const STORE_NAME = 'files';
@@ -12,7 +13,13 @@ interface StoredFile extends FileReference {
 
 const openDatabase = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const indexedDb = platform.storage.getIndexedDb();
+    if (!indexedDb) {
+      reject(new Error('IndexedDB is not available on this platform.'));
+      return;
+    }
+
+    const request = indexedDb.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -43,10 +50,7 @@ const runTransaction = async <T>(
 };
 
 const generateId = (): string => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return platform.fileAccess.generateId();
 };
 
 export const saveFile = async (

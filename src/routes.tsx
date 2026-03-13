@@ -1,7 +1,8 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { getUserId, hasPermission, isLoggedInAdmin } from './auth';
 import { RouteFallback } from './components/RouteFallback';
+import { platform } from './platform';
 import { useTenantBootstrap } from './TenantBootstrapContext';
 
 const Layout = lazy(async () => {
@@ -75,7 +76,7 @@ function RequireSupportAdmin({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export const router = createBrowserRouter([
+export const router = platform.routing.createRouter([
   { path: '/', element: <DefaultRouteRedirect /> },
   { path: '/login', element: withSuspense(<Login />) },
   { path: '/register', element: withSuspense(<Register />) },
