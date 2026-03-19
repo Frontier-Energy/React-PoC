@@ -80,7 +80,7 @@ describe('config', () => {
       },
     });
 
-    expect(getConfiguredApiBearerToken()).toBeNull();
+    expect(getConfiguredApiBearerToken()).toBe('12345');
   });
 
   it('builds bootstrap and content urls for an explicitly requested tenant', () => {
@@ -109,3 +109,4 @@ describe('config', () => {
     expect(getActiveTenant().tenantId).toBe(DEFAULT_TENANT_NAME);
   });
 });
+

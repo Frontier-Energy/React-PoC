@@ -54,8 +54,10 @@ vi.mock('./utils/fileStorage', () => ({
   deleteFiles: vi.fn(),
 }));
 
-vi.mock('./auth', () => ({
+vi.mock('./auth', async () => ({
+  ...(await vi.importActual<typeof import('./auth')>('./auth')),
   getUserId: vi.fn(),
+  getAccessToken: vi.fn(() => null),
 }));
 
 vi.mock('./syncMonitor', () => ({
@@ -125,7 +127,7 @@ describe('backgroundUploadRuntime', () => {
     ];
 
     expect(request.method).toBe('POST');
-    expect(request.headers['Idempotency-Key']).toBe(queueEntry.idempotencyKey);
+    expect(new Headers(request.headers).get('Idempotency-Key')).toBe(queueEntry.idempotencyKey);
     expect(JSON.parse(String(request.body.get('Payload')))).toEqual(
       expect.objectContaining({
         sessionId: 'local-1',
@@ -378,3 +380,4 @@ describe('backgroundUploadRuntime', () => {
     });
   });
 });
+
