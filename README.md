@@ -93,6 +93,7 @@ The dev server runs at `http://localhost:5173`.
 ### Environment
 
 The app uses `VITE_API_BASE_URL` when provided. If it is unset, the code falls back to the default API base URL defined in `src/config.ts`.
+Set the active environment's `apiBearerToken` in `src/app-core/resources/governedAppConfig.json` when APIM requires a JWT, or persist a token at runtime in `localStorage.apiAccessToken` for local debugging.
 Set `VITE_PERFORMANCE_TELEMETRY_URL` to a collector endpoint to enable real-user performance telemetry.
 Set `VITE_PERFORMANCE_TELEMETRY_SAMPLE_RATE` to a value between `0` and `1` to control sampling density.
 
@@ -315,3 +316,4 @@ npm run ci:verify
 ## License
 
 MIT
+

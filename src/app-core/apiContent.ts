@@ -1,3 +1,4 @@
+import { apiFetch } from './apiClient';
 import { getFormSchemaUrl, getTranslationsUrl } from './config';
 import type { FormSchemaPayloadDto, TranslationsPayloadDto } from './contracts/backend';
 import { type Labels, type LanguageCode } from './resources/translations';
@@ -6,7 +7,7 @@ import type { FormSchema, FormType } from './types';
 
 export const fetchFormSchema = async (formType: FormType): Promise<FormSchema> => {
   const result = await resolveGovernedFormSchema(formType, async () => {
-    const response = await fetch(getFormSchemaUrl(formType));
+    const response = await apiFetch(getFormSchemaUrl(formType));
     if (!response.ok) {
       throw new Error(`Form schema request failed with status ${response.status}`);
     }
@@ -19,7 +20,7 @@ export const fetchFormSchema = async (formType: FormType): Promise<FormSchema> =
 
 export const fetchTranslations = async (language: LanguageCode): Promise<Labels> => {
   const result = await resolveGovernedTranslations(language, async () => {
-    const response = await fetch(getTranslationsUrl(language));
+    const response = await apiFetch(getTranslationsUrl(language));
     if (!response.ok) {
       throw new Error(`Translations request failed with status ${response.status}`);
     }

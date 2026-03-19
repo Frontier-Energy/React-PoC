@@ -1,3 +1,4 @@
+import { apiFetch } from '../apiClient';
 import { parseRolesFromAuthPayload, setUserId } from '../auth';
 import { getLoginUrl, getRegisterUrl } from '../config';
 
@@ -89,7 +90,7 @@ export const createAuthApplicationService = ({
 });
 
 export const authApplicationService = createAuthApplicationService({
-  fetcher: fetch,
+  fetcher: apiFetch,
   getLoginUrl,
   getRegisterUrl,
   parseRolesFromAuthPayload,

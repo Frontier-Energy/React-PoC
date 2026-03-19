@@ -1,6 +1,7 @@
 import {
   DEFAULT_TENANT_NAME,
   getActiveEnvironment,
+  getConfiguredApiBearerToken,
   getEnvironmentConfigById,
   getActiveTenant,
   getConnectivityCheckUrl,
@@ -69,7 +70,17 @@ describe('config', () => {
     });
 
     expect(getActiveEnvironment()?.environmentId).toBe('beta');
-    expect(getUploadInspectionUrl()).toContain('azurecontainerapps.io');
+    expect(getUploadInspectionUrl()).toContain('apim-qcs-cus-dev-7dbwgp.azure-api.net');
+  });
+
+  it('reads the configured API bearer token from the active environment', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'localhost',
+      },
+    });
+
+    expect(getConfiguredApiBearerToken()).toBeNull();
   });
 
   it('builds bootstrap and content urls for an explicitly requested tenant', () => {

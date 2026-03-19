@@ -1,3 +1,4 @@
+import { apiFetch } from '../apiClient';
 import { getUserId } from '../auth';
 import { publishInspectionStatusChanged } from '../application/inspectionEvents';
 import { getUploadInspectionUrl } from '../config';
@@ -101,7 +102,7 @@ const uploadInspection = async (inspection: InspectionSession, queueEntry: SyncQ
   const formData = (await inspectionRepository.loadFormData(inspection.id, inspection)) ?? {};
   const refreshedQueueEntry = await syncQueue.refreshFingerprint(queueEntry, inspection, formData);
   const uploadForm = await createUploadRequest(inspection, formData, refreshedQueueEntry);
-  const response = await fetch(getUploadInspectionUrl(), {
+  const response = await apiFetch(getUploadInspectionUrl(), {
     method: 'POST',
     headers: {
       'Idempotency-Key': refreshedQueueEntry.idempotencyKey,

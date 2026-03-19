@@ -5,6 +5,7 @@ import {
   GOVERNED_TENANTS,
   getEnvironmentById,
   resolveApiBaseUrlForHostname,
+  resolveApiBearerTokenForHostname,
   resolveEnvironmentIdFromHostname,
   TENANT_HOSTNAME_SUFFIX,
   type EnvironmentDefinition,
@@ -54,6 +55,10 @@ export const getActiveEnvironment = (): EnvironmentDefinition | undefined => {
   const hostname = platform.runtime.getLocation()?.hostname ?? null;
   return getEnvironmentById(resolveEnvironmentIdFromHostname(hostname));
 };
+export const getConfiguredApiBearerToken = (): string | null => {
+  const hostname = platform.runtime.getLocation()?.hostname ?? null;
+  return resolveApiBearerTokenForHostname(hostname);
+};
 
 const getAppConfig = (tenantId?: string): AppConfig => appConfigService.getAppConfig(tenantId);
 
@@ -90,4 +95,3 @@ export const getTranslationsUrl = (language: string, tenantId?: string) => {
   const appConfig = getAppConfig(tenantId);
   return `${appConfig.apiBaseUrl}${appConfig.translationsPath}/${encodeURIComponent(language)}`;
 };
-

@@ -1,16 +1,20 @@
 import {
+  clearAccessToken,
   clearUserId,
+  getAccessToken,
   getUserId,
   getUserRoles,
   hasRole,
   hasPermission,
   isLoggedInAdmin,
   parseRolesFromAuthPayload,
+  setAccessToken,
   setUserId,
 } from './auth';
 
 describe('auth storage helpers', () => {
   beforeEach(() => {
+    vi.unstubAllGlobals();
     localStorage.clear();
   });
 
@@ -23,6 +27,20 @@ describe('auth storage helpers', () => {
   it('stores normalized roles with user id', () => {
     setUserId('user-123', ['Admin', 'admin', '']);
     expect(getUserRoles()).toEqual(['admin']);
+  });
+
+  it('prefers a stored API access token over configuration', () => {
+    vi.stubGlobal('window', {
+      location: {
+        hostname: 'localhost',
+      },
+    });
+
+    setAccessToken(' bearer-token ');
+    expect(getAccessToken()).toBe('bearer-token');
+
+    clearAccessToken();
+    expect(getAccessToken()).toBeNull();
   });
 
   it('matches admin permissions only when the user is logged in as admin', () => {

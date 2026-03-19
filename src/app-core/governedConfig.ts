@@ -25,6 +25,7 @@ export interface EnvironmentDefinition {
   environmentId: string;
   displayName: string;
   apiBaseUrl: string;
+  apiBearerToken: string | null;
   hostnames: string[];
   hostnameSuffixes: string[];
 }
@@ -47,6 +48,7 @@ interface RawGovernedAppConfig {
     environmentId: string;
     displayName: string;
     apiBaseUrl: string;
+    apiBearerToken?: string;
     hostnames: string[];
     hostnameSuffixes: string[];
   }>;
@@ -66,6 +68,10 @@ const ALL_FORM_TYPES = Object.values(FormType);
 
 const normalizeHostname = (hostname: string) => hostname.trim().toLowerCase();
 const normalizePathBaseUrl = (apiBaseUrl: string) => apiBaseUrl.trim().replace(/\/+$/, '');
+const normalizeOptionalToken = (token: string | undefined) => {
+  const normalizedToken = token?.trim() ?? '';
+  return normalizedToken.length > 0 ? normalizedToken : null;
+};
 const isFormType = (value: string): value is FormType => ALL_FORM_TYPES.includes(value as FormType);
 
 const mapEnabledForms = (tenantId: string, enabledForms: string[]): FormType[] => {
@@ -88,6 +94,7 @@ export const GOVERNED_ENVIRONMENTS: EnvironmentDefinition[] = rawConfig.environm
   environmentId: environment.environmentId,
   displayName: environment.displayName,
   apiBaseUrl: normalizePathBaseUrl(environment.apiBaseUrl),
+  apiBearerToken: normalizeOptionalToken(environment.apiBearerToken),
   hostnames: environment.hostnames.map(normalizeHostname),
   hostnameSuffixes: environment.hostnameSuffixes.map(normalizeHostname),
 }));
@@ -122,4 +129,9 @@ export const resolveEnvironmentIdFromHostname = (hostname: string | null | undef
 export const resolveApiBaseUrlForHostname = (hostname: string | null | undefined): string => {
   const environmentId = resolveEnvironmentIdFromHostname(hostname);
   return getEnvironmentById(environmentId)?.apiBaseUrl ?? getEnvironmentById(DEFAULT_ENVIRONMENT_ID)?.apiBaseUrl ?? '';
+};
+
+export const resolveApiBearerTokenForHostname = (hostname: string | null | undefined): string | null => {
+  const environmentId = resolveEnvironmentIdFromHostname(hostname);
+  return getEnvironmentById(environmentId)?.apiBearerToken ?? getEnvironmentById(DEFAULT_ENVIRONMENT_ID)?.apiBearerToken ?? null;
 };

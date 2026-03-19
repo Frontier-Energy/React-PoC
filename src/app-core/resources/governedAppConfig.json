@@ -15,6 +15,7 @@
       "environmentId": "beta",
       "displayName": "Beta",
       "apiBaseUrl": "https://apim-qcs-cus-dev-7dbwgp.azure-api.net/",
+      "apiBearerToken": "12345",
       "hostnames": ["localhost", "127.0.0.1"],
       "hostnameSuffixes": []
     },
@@ -22,6 +23,7 @@
       "environmentId": "uat",
       "displayName": "UAT",
       "apiBaseUrl": "https://apim-qcs-cus-uat-nthyvs.azure-api.net",
+      "apiBearerToken": "12345",
       "hostnames": [],
       "hostnameSuffixes": []
     },
@@ -29,6 +31,7 @@
       "environmentId": "production",
       "displayName": "Production",
       "apiBaseUrl": "https://apim-qcs-cus-prod-gg3hml.azure-api.net",
+      "apiBearerToken": "12345",
       "hostnames": [],
       "hostnameSuffixes": [".qcontrol.frontierenergy.com"]
     }

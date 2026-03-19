@@ -1,4 +1,5 @@
 import { setSelectedTenantId } from './appState';
+import { apiFetch } from './apiClient';
 import { getActiveTenant, getTenantById, getTenantBootstrapUrl } from './config';
 import type {
   GovernedTenantBootstrapEnvelopeDto,
@@ -223,7 +224,7 @@ export const fetchTenantBootstrapConfig = async (
   const timeoutId = platform.runtime.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await platform.connectivity.fetch(getTenantBootstrapUrl(defaults.tenantId), {
+    const response = await apiFetch(getTenantBootstrapUrl(defaults.tenantId), {
       signal: controller.signal,
     });
     if (!response.ok) {

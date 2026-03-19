@@ -1,7 +1,9 @@
+import { getConfiguredApiBearerToken } from './config';
 import { platform } from '@platform';
 
 const USER_ID_STORAGE_KEY = 'userId';
 const USER_ROLES_STORAGE_KEY = 'userRoles';
+const API_ACCESS_TOKEN_STORAGE_KEY = 'apiAccessToken';
 
 const getAuthStorage = () => platform.authSession.getStorage();
 
@@ -32,6 +34,12 @@ const normalizeRoles = (roles: ReadonlyArray<string> | null | undefined): string
 
 export const getUserId = () => getAuthStorage()?.getItem(USER_ID_STORAGE_KEY) ?? null;
 
+export const getAccessToken = () =>
+  getAuthStorage()?.getItem(API_ACCESS_TOKEN_STORAGE_KEY)
+  ?? getConfiguredApiBearerToken()
+  ?? import.meta.env.VITE_API_BEARER_TOKEN?.trim()
+  ?? null;
+
 export const getUserRoles = (): string[] => {
   const stored = getAuthStorage()?.getItem(USER_ROLES_STORAGE_KEY);
   if (!stored) {
@@ -54,6 +62,16 @@ export const setUserId = (userId: string, roles: ReadonlyArray<string> = [DEFAUL
   const storage = getAuthStorage();
   storage?.setItem(USER_ID_STORAGE_KEY, userId);
   storage?.setItem(USER_ROLES_STORAGE_KEY, JSON.stringify(normalizeRoles(roles)));
+};
+
+export const setAccessToken = (accessToken: string) => {
+  const normalizedToken = accessToken.trim();
+  if (normalizedToken.length === 0) {
+    clearAccessToken();
+    return;
+  }
+
+  getAuthStorage()?.setItem(API_ACCESS_TOKEN_STORAGE_KEY, normalizedToken);
 };
 
 export const hasRole = (requiredRole: string): boolean => {
@@ -95,3 +113,6 @@ export const clearUserId = () => {
   storage?.removeItem(USER_ROLES_STORAGE_KEY);
 };
 
+export const clearAccessToken = () => {
+  getAuthStorage()?.removeItem(API_ACCESS_TOKEN_STORAGE_KEY);
+};
