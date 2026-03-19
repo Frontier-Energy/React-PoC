@@ -14,21 +14,21 @@
     {
       "environmentId": "beta",
       "displayName": "Beta",
-      "apiBaseUrl": "https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io",
+      "apiBaseUrl": "https://apim-qcs-cus-dev-7dbwgp.azure-api.net/",
       "hostnames": ["localhost", "127.0.0.1"],
       "hostnameSuffixes": []
     },
     {
       "environmentId": "uat",
       "displayName": "UAT",
-      "apiBaseUrl": "https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io",
+      "apiBaseUrl": "https://apim-qcs-cus-uat-nthyvs.azure-api.net",
       "hostnames": [],
       "hostnameSuffixes": []
     },
     {
       "environmentId": "production",
       "displayName": "Production",
-      "apiBaseUrl": "https://react-receiver.icysmoke-6c3b2e19.centralus.azurecontainerapps.io",
+      "apiBaseUrl": "https://apim-qcs-cus-prod-gg3hml.azure-api.net",
       "hostnames": [],
       "hostnameSuffixes": [".qcontrol.frontierenergy.com"]
     }
