@@ -1,4 +1,4 @@
-import type { FormType, UploadStatus } from '../../types';
+import type { UploadStatus } from '../../types';
 
 export const SUPPORTED_LANGUAGES = ['en', 'es'] as const;
 
@@ -123,7 +123,7 @@ export interface CustomizationLabels {
 }
 
 export type UploadStatusLabels = Record<UploadStatus, string>;
-export type FormTypeLabels = Record<FormType, string>;
+export type FormTypeLabels = Record<string, string>;
 
 export interface HomeLabels {
   title: string;
@@ -484,6 +484,8 @@ export const isLabels = (value: unknown): value is Labels => {
   );
 };
 
+export const getFormTypeLabel = (labels: { formTypes: Record<string, string> }, formType: string) => labels.formTypes[formType] ?? formType;
+
 export const formatTemplate = (template: string, values: Record<string, string | number>) =>
   Object.entries(values).reduce(
     (result, [key, value]) => result.split(`{${key}}`).join(String(value)),
@@ -494,3 +496,4 @@ export const formatPluralTemplate = (
   templates: { one: string; other: string },
   count: number
 ) => formatTemplate(count === 1 ? templates.one : templates.other, { count });
+

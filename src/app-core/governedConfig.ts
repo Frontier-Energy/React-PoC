@@ -1,5 +1,5 @@
 import governedAppConfig from './resources/governedAppConfig.json';
-import { FormType } from './types';
+import type { FormType } from './types';
 
 export interface TenantUiDefaults {
   theme: string;
@@ -64,15 +64,13 @@ interface RawGovernedAppConfig {
 }
 
 const rawConfig = governedAppConfig as RawGovernedAppConfig;
-const ALL_FORM_TYPES = Object.values(FormType);
-
 const normalizeHostname = (hostname: string) => hostname.trim().toLowerCase();
 const normalizePathBaseUrl = (apiBaseUrl: string) => apiBaseUrl.trim().replace(/\/+$/, '');
 const normalizeOptionalToken = (token: string | undefined) => {
   const normalizedToken = token?.trim() ?? '';
   return normalizedToken.length > 0 ? normalizedToken : null;
 };
-const isFormType = (value: string): value is FormType => ALL_FORM_TYPES.includes(value as FormType);
+const isFormType = (value: unknown): value is FormType => typeof value === 'string' && value.trim().length > 0;
 
 const mapEnabledForms = (tenantId: string, enabledForms: string[]): FormType[] => {
   const invalidFormTypes = enabledForms.filter((formType) => !isFormType(formType));
@@ -82,7 +80,7 @@ const mapEnabledForms = (tenantId: string, enabledForms: string[]): FormType[] =
     );
   }
 
-  return enabledForms as FormType[];
+  return enabledForms;
 };
 
 export const GOVERNED_SERVICE_PATHS: ServicePaths = rawConfig.servicePaths;
@@ -135,3 +133,4 @@ export const resolveApiBearerTokenForHostname = (hostname: string | null | undef
   const environmentId = resolveEnvironmentIdFromHostname(hostname);
   return getEnvironmentById(environmentId)?.apiBearerToken ?? getEnvironmentById(DEFAULT_ENVIRONMENT_ID)?.apiBearerToken ?? null;
 };
+

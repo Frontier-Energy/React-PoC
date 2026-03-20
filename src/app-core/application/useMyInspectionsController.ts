@@ -5,9 +5,10 @@ import { getUserId, hasPermission, isLoggedInAdmin } from '../auth';
 import { filterInspections, getInspectionsByUploadStatus } from '../domain/inspectionList';
 import { useLocalization } from '../LocalizationContext';
 import { platform } from '@platform';
+import { getFormTypeLabel } from '../resources/translations';
 import { inspectionRepository } from '../repositories/inspectionRepository';
 import { useTenantBootstrap } from '../TenantBootstrapContext';
-import { FormType, type InspectionSession, UploadStatus } from '../types';
+import { type InspectionSession, UploadStatus } from '../types';
 import { inspectionApplicationService } from './inspectionApplicationService';
 import { subscribeToInspectionStatusChanged } from './inspectionEvents';
 
@@ -120,16 +121,20 @@ export const useMyInspectionsController = () => {
     [loadInspections]
   );
 
-  const formTypeOptions: SelectProps.Option[] = useMemo(
-    () => [
+  const formTypeOptions: SelectProps.Option[] = useMemo(() => {
+    const availableFormTypes = Array.from(new Set([
+      ...config.enabledForms,
+      ...inspections.map((inspection) => inspection.formType),
+    ]));
+
+    return [
       { label: labels.myInspections.filters.allFormTypes, value: '' },
-      ...Object.values(FormType).map((type) => ({
-        label: labels.formTypes[type],
+      ...availableFormTypes.map((type) => ({
+        label: getFormTypeLabel(labels, type),
         value: type,
       })),
-    ],
-    [labels.formTypes, labels.myInspections.filters.allFormTypes]
-  );
+    ];
+  }, [config.enabledForms, inspections, labels]);
 
   const statusOptions: SelectProps.Option[] = useMemo(
     () => [

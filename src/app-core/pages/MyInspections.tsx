@@ -2,7 +2,7 @@ import { Header, Container, SpaceBetween, Button, Table, Box, Badge, Select, Lin
 import { InspectionSession, UploadStatus } from '../types';
 import { TableProps } from '@cloudscape-design/components';
 import { useMyInspectionsController } from '../application/useMyInspectionsController';
-import { formatPluralTemplate } from '../resources/translations';
+import { formatPluralTemplate, getFormTypeLabel } from '../resources/translations';
 
 export function MyInspections() {
   const {
@@ -154,7 +154,7 @@ export function MyInspections() {
               {
                 id: 'formType',
                 header: labels.myInspections.table.formType,
-                cell: (item: InspectionSession) => labels.formTypes[item.formType],
+                cell: (item: InspectionSession) => getFormTypeLabel(labels, item.formType),
                 sortingField: 'formType',
               },
               {
@@ -202,3 +202,4 @@ export function MyInspections() {
     </SpaceBetween>
   );
 }
+

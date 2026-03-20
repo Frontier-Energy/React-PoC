@@ -1,9 +1,11 @@
-export enum FormType {
-  Electrical = 'electrical',
-  ElectricalSF = 'electrical-sf',
-  HVAC = 'hvac',
-  SafetyChecklist = 'safety-checklist',
-}
+export const FormType = {
+  Electrical: 'electrical',
+  ElectricalSF: 'electrical-sf',
+  HVAC: 'hvac',
+  SafetyChecklist: 'safety-checklist',
+} as const;
+
+export type FormType = (typeof FormType)[keyof typeof FormType] | string;
 
 export enum UploadStatus {
   Local = 'local',
@@ -100,3 +102,4 @@ export interface InspectionSession {
   version?: InspectionVersionStamp;
   conflict?: InspectionConflictDetails | null;
 }
+

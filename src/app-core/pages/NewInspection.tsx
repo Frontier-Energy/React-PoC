@@ -5,6 +5,7 @@ import { InspectionSession, UploadStatus } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { getUserId } from '../auth';
 import { useLocalization } from '../LocalizationContext';
+import { getFormTypeLabel } from '../resources/translations';
 import { useTenantBootstrap } from '../TenantBootstrapContext';
 import { inspectionRepository } from '../repositories/inspectionRepository';
 
@@ -15,7 +16,7 @@ export function NewInspection() {
   const { config } = useTenantBootstrap();
 
   const formTypeOptions: SelectProps.Option[] = config.enabledForms.map((type) => ({
-    label: labels.formTypes[type],
+    label: getFormTypeLabel(labels, type),
     value: type,
   }));
 
@@ -55,3 +56,4 @@ export function NewInspection() {
     </SpaceBetween>
   );
 }
+

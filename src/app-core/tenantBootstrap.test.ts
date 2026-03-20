@@ -58,7 +58,7 @@ describe('tenantBootstrap', () => {
     );
   });
 
-  it('maps upstream payload fields into normalized tenant config', () => {
+  it('maps upstream payload fields into normalized tenant config and preserves tenant-defined form ids', () => {
     const defaults = getDefaultTenantBootstrapConfig();
     const config = mapTenantBootstrapResponse(
       {
@@ -74,7 +74,7 @@ describe('tenantBootstrap', () => {
     );
 
     expect(config.tenantId).toBe('qhvac');
-    expect(config.enabledForms).toEqual([FormType.HVAC]);
+    expect(config.enabledForms).toEqual([FormType.HVAC, 'unknown']);
     expect(config.theme).toBe('harbor');
     expect(config.font).toBe('Tahoma');
     expect(config.loginRequired).toBe(false);
@@ -373,3 +373,4 @@ describe('tenantBootstrap', () => {
     expect(config.font).toBe('default-font');
   });
 });
+

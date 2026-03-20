@@ -3,6 +3,7 @@ import type { SelectProps } from '@cloudscape-design/components';
 import type { CSSProperties } from 'react';
 import type { SyncQueueEntry } from '../../domain/syncQueue';
 import { type InspectionSession, UploadStatus } from '../../types';
+import { getFormTypeLabel } from '../../resources/translations';
 
 export type FlashMessage = {
   type: 'success' | 'error';
@@ -15,6 +16,7 @@ type SummaryItem = {
 };
 
 type SupportLabels = {
+  formTypes: Record<string, string>;
   [key: string]: any;
 };
 
@@ -128,7 +130,7 @@ export const TenantSection = ({
           { label: labels.support.tenantSection.bootstrapSource, value: labels.bootstrap.source[diagnostics.source] },
           {
             label: labels.support.tenantSection.enabledForms,
-            value: config.enabledForms.map((formType: string) => labels.formTypes[formType]).join(', ') || labels.common.notProvided,
+            value: config.enabledForms.map((formType: string) => getFormTypeLabel(labels, formType)).join(', ') || labels.common.notProvided,
           },
           { label: labels.support.tenantSection.loginRequired, value: config.loginRequired ? labels.common.yes : labels.common.no },
           { label: labels.support.tenantSection.leftFlyout, value: config.showLeftFlyout ? labels.common.yes : labels.common.no },
@@ -321,3 +323,4 @@ export const SessionSection = ({
     </SpaceBetween>
   </Container>
 );
+

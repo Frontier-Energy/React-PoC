@@ -1,7 +1,7 @@
 import { Header, Container, SpaceBetween, Alert, Box, Link, Input, FormField, Wizard, Checkbox } from '@cloudscape-design/components';
 import { FormRenderer } from '../components/FormRenderer';
 import { useLocalization } from '../LocalizationContext';
-import { formatTemplate } from '../resources/translations';
+import { formatTemplate, getFormTypeLabel } from '../resources/translations';
 import { useFillFormWorkflow } from './fillForm/useFillFormWorkflow';
 
 export function FillForm() {
@@ -51,7 +51,7 @@ export function FillForm() {
             <strong>{labels.fillForm.sessionIdLabel}:</strong> {session.id}
           </Box>
           <Box>
-            <strong>{labels.fillForm.formTypeLabel}:</strong> {labels.formTypes[session.formType]}
+            <strong>{labels.fillForm.formTypeLabel}:</strong> {getFormTypeLabel(labels, session.formType)}
           </Box>
         </SpaceBetween>
       </Container>
@@ -96,7 +96,7 @@ export function FillForm() {
                 <strong>{labels.fillForm.sessionIdLabel}:</strong> {session.id}
               </div>
               <div>
-                <strong>{labels.fillForm.formTypeLabel}:</strong> {labels.formTypes[session.formType]}
+                <strong>{labels.fillForm.formTypeLabel}:</strong> {getFormTypeLabel(labels, session.formType)}
               </div>
             </div>
           </SpaceBetween>
@@ -171,3 +171,4 @@ export function FillForm() {
     </div>
   );
 }
+

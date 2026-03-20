@@ -13,7 +13,7 @@ import {
   type TenantConfigGovernanceSnapshot,
 } from './tenantConfigGovernance';
 import { platform } from '@platform';
-import { FormType } from './types';
+import type { FormType } from './types';
 
 export const TENANT_BOOTSTRAP_CACHE_STORAGE_KEY = 'tenantBootstrapCache';
 export const DEFAULT_TENANT_BOOTSTRAP_TIMEOUT_MS = 4000;
@@ -67,9 +67,7 @@ interface GovernedTenantBootstrapEnvelope extends Omit<GovernedTenantBootstrapEn
   config?: TenantBootstrapResponse;
 }
 
-const DEFAULT_ENABLED_FORMS = Object.values(FormType);
-
-const isFormType = (value: string): value is FormType => DEFAULT_ENABLED_FORMS.includes(value as FormType);
+const isFormType = (value: unknown): value is FormType => typeof value === 'string' && value.trim().length > 0;
 const resolveOptionalBoolean = (...values: Array<boolean | undefined>): boolean | undefined =>
   values.find((value) => typeof value === 'boolean');
 const isTenantBootstrapConfig = (value: unknown): value is TenantBootstrapConfig => {
@@ -87,7 +85,7 @@ const isTenantBootstrapConfig = (value: unknown): value is TenantBootstrapConfig
     typeof candidate.showRightFlyout === 'boolean' &&
     typeof candidate.showInspectionStatsButton === 'boolean' &&
     Array.isArray(candidate.enabledForms) &&
-    candidate.enabledForms.every((formType) => typeof formType === 'string' && isFormType(formType)) &&
+    candidate.enabledForms.every((formType) => isFormType(formType)) &&
     typeof candidate.loginRequired === 'boolean' &&
     (candidate.language === undefined || isLanguageCode(candidate.language))
   );
