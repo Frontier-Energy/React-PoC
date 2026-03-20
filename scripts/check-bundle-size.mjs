@@ -18,15 +18,15 @@ const bundleBudget = {
 };
 
 const routeBudgets = [
-  { label: 'app-shell', manifestKey: 'src/Layout.tsx', maxJsBytes: 360_000, maxCssBytes: 250_000 },
-  { label: 'home', manifestKey: 'src/pages/Home.tsx', maxJsBytes: 5_000, maxCssBytes: 1_000 },
-  { label: 'new-inspection', manifestKey: 'src/pages/NewInspection.tsx', maxJsBytes: 210_000, maxCssBytes: 160_000 },
-  { label: 'fill-form', manifestKey: 'src/pages/FillForm.tsx', maxJsBytes: 300_000, maxCssBytes: 220_000 },
-  { label: 'debug-inspection', manifestKey: 'src/pages/DebugInspection.tsx', maxJsBytes: 170_000, maxCssBytes: 100_000 },
-  { label: 'support-console', manifestKey: 'src/pages/SupportConsole.tsx', maxJsBytes: 250_000, maxCssBytes: 180_000 },
-  { label: 'my-inspections', manifestKey: 'src/pages/MyInspections.tsx', maxJsBytes: 340_000, maxCssBytes: 430_000 },
-  { label: 'login', manifestKey: 'src/pages/Login.tsx', maxJsBytes: 150_000, maxCssBytes: 110_000 },
-  { label: 'register', manifestKey: 'src/pages/Register.tsx', maxJsBytes: 150_000, maxCssBytes: 110_000 },
+  { label: 'app-shell', manifestKey: 'src/app-core/Layout.tsx', maxJsBytes: 360_000, maxCssBytes: 250_000 },
+  { label: 'home', manifestKey: 'src/app-core/pages/Home.tsx', maxJsBytes: 5_000, maxCssBytes: 1_000 },
+  { label: 'new-inspection', manifestKey: 'src/app-core/pages/NewInspection.tsx', maxJsBytes: 210_000, maxCssBytes: 160_000 },
+  { label: 'fill-form', manifestKey: 'src/app-core/pages/FillForm.tsx', maxJsBytes: 300_000, maxCssBytes: 220_000 },
+  { label: 'debug-inspection', manifestKey: 'src/app-core/pages/DebugInspection.tsx', maxJsBytes: 170_000, maxCssBytes: 100_000 },
+  { label: 'support-console', manifestKey: 'src/app-core/pages/SupportConsole.tsx', maxJsBytes: 250_000, maxCssBytes: 180_000 },
+  { label: 'my-inspections', manifestKey: 'src/app-core/pages/MyInspections.tsx', maxJsBytes: 340_000, maxCssBytes: 430_000 },
+  { label: 'login', manifestKey: 'src/app-core/pages/Login.tsx', maxJsBytes: 150_000, maxCssBytes: 110_000 },
+  { label: 'register', manifestKey: 'src/app-core/pages/Register.tsx', maxJsBytes: 150_000, maxCssBytes: 110_000 },
 ];
 
 const formatBytes = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
