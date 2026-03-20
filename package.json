@@ -50,7 +50,7 @@
     "workbox-window": "^7.4.0"
   },
   "overrides": {
-    "flatted": "3.4.1",
+    "flatted": "3.4.2",
     "lodash": "4.17.23",
     "undici": "7.24.1",
     "workbox-build": {
