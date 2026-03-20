@@ -24,6 +24,7 @@ interface FillFormWorkflowResult {
   loading: boolean;
   session: InspectionSession | null;
   formSchema: FormSchema | null;
+  schemaError: string | null;
   formData: FormData;
   validationErrors: ValidationError[];
   activeStepIndex: number;
@@ -75,12 +76,30 @@ const buildValidationContext = (schema: FormSchema) => {
   return { validationRulesMap, requiredFields, visibilityRulesMap };
 };
 
+const getErrorMessage = (error: unknown): string => {
+  if (!(error instanceof Error)) {
+    return 'Unknown error';
+  }
+
+  const messages: string[] = [];
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if (current.message && !messages.includes(current.message)) {
+      messages.push(current.message);
+    }
+    current = (current as Error & { cause?: unknown }).cause;
+  }
+
+  return messages.join(' Caused by: ');
+};
+
 export function useFillFormWorkflow(): FillFormWorkflowResult {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const { labels } = useLocalization();
   const [session, setSession] = useState<InspectionSession | null>(null);
   const [formSchema, setFormSchema] = useState<FormSchema | null>(null);
+  const [schemaError, setSchemaError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({});
   const [loading, setLoading] = useState(true);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -90,7 +109,6 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
   const loadRequestIdRef = useRef(0);
   const formDataRef = useRef<FormData>({});
   const fileChangeChainRef = useRef<Promise<void>>(Promise.resolve());
-
   const getSectionIndexForField = useCallback((fieldId: string) => {
     if (!formSchema) {
       return 0;
@@ -128,18 +146,21 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
     targetSessionId: string
   ) => {
     try {
-      const schema = await fetchFormSchema(formType);
+      const schema = await fetchFormSchema(formType, inspection.tenantId);
       if (requestId !== loadRequestIdRef.current) {
         return;
       }
 
       setFormSchema(schema);
+      setSchemaError(null);
       await loadFormData(targetSessionId, buildExternalIdMap(schema), inspection, requestId);
     } catch (error) {
       if (requestId !== loadRequestIdRef.current) {
         return;
       }
 
+      const nextSchemaError = getErrorMessage(error);
+      setSchemaError(nextSchemaError);
       console.error(`Failed to load form schema for ${formType}:`, error);
     }
   }, [loadFormData]);
@@ -151,6 +172,7 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
       setLoading(true);
       setSession(null);
       setFormSchema(null);
+      setSchemaError(null);
       formDataRef.current = {};
       setFormData({});
       setValidationErrors([]);
@@ -397,6 +419,7 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
     loading,
     session,
     formSchema,
+    schemaError,
     formData,
     validationErrors,
     activeStepIndex,
@@ -414,4 +437,12 @@ export function useFillFormWorkflow(): FillFormWorkflowResult {
     formatReviewValue,
   };
 }
+
+
+
+
+
+
+
+
 

@@ -598,13 +598,14 @@ describe('FillForm', () => {
     });
   });
 
-  it('shows schema load error when form type module cannot be loaded', async () => {
+  it('shows schema load error details when form schema cannot be loaded', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await setSessionStorage('durability-session', { formType: 'missing-form' });
 
     renderPage();
 
     expect(await screen.findByText('Error loading form schema')).toBeInTheDocument();
+    expect(await screen.findByText('missing schema')).toBeInTheDocument();
     expect(errorSpy).toHaveBeenCalled();
   });
 
@@ -1005,3 +1006,4 @@ describe('FillForm', () => {
     });
   });
 });
+

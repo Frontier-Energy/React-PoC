@@ -56,6 +56,23 @@ const assertBoolean = (value: unknown, path: string) => {
   }
 };
 
+
+const normalizeOptionalText = (value: unknown, path: string): string | undefined => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+
+  throw new Error(`${path} must be a string`);
+};
+
 const validateOption = (option: unknown, path: string): FormFieldOption => {
   if (!isPlainObject(option)) {
     throw new Error(`${path} must be an object`);
@@ -143,38 +160,41 @@ const validateField = (
     }
     externalIds.add(externalId);
   }
-  if (field.placeholder !== undefined) {
-    assertString(field.placeholder, `${path}.placeholder`, { allowEmpty: true });
-  }
-  if (field.description !== undefined) {
-    assertString(field.description, `${path}.description`, { allowEmpty: true });
-  }
-  if (field.options !== undefined) {
-    if (!OPTION_FIELD_TYPES.has(field.type as FormField['type'])) {
-      throw new Error(`${path}.options are only supported for choice fields`);
-    }
-    if (!Array.isArray(field.options) || field.options.length === 0) {
-      throw new Error(`${path}.options must be a non-empty array`);
-    }
-  }
-  if (field.options === undefined && OPTION_FIELD_TYPES.has(field.type as FormField['type'])) {
-    throw new Error(`${path}.options are required for choice fields`);
-  }
-  if (field.accept !== undefined) {
-    if (!FILE_FIELD_TYPES.has(field.type as FormField['type'])) {
-      throw new Error(`${path}.accept is only supported for file fields`);
-    }
-    assertString(field.accept, `${path}.accept`, { allowEmpty: true });
-  }
-  if (field.multiple !== undefined) {
-    if (!FILE_FIELD_TYPES.has(field.type as FormField['type'])) {
-      throw new Error(`${path}.multiple is only supported for file fields`);
-    }
-    assertBoolean(field.multiple, `${path}.multiple`);
-  }
-  if (field.capture !== undefined && field.capture !== 'user' && field.capture !== 'environment') {
-    throw new Error(`${path}.capture is not supported`);
-  }
+
+  const placeholder = normalizeOptionalText(field.placeholder, `${path}.placeholder`);
+  const description = normalizeOptionalText(field.description, `${path}.description`);
+  const options = OPTION_FIELD_TYPES.has(field.type as FormField['type'])
+    ? (() => {
+        if (field.options === undefined) {
+          throw new Error(`${path}.options are required for choice fields`);
+        }
+        if (!Array.isArray(field.options) || field.options.length === 0) {
+          throw new Error(`${path}.options must be a non-empty array`);
+        }
+        return field.options.map((option, index) => validateOption(option, `${path}.options[${index}]`));
+      })()
+    : undefined;
+  const accept = FILE_FIELD_TYPES.has(field.type as FormField['type'])
+    ? (() => {
+        if (field.accept === undefined) {
+          return undefined;
+        }
+        assertString(field.accept, `${path}.accept`, { allowEmpty: true });
+        return field.accept as string;
+      })()
+    : undefined;
+  const multiple = FILE_FIELD_TYPES.has(field.type as FormField['type'])
+    ? (() => {
+        if (field.multiple === undefined) {
+          return undefined;
+        }
+        assertBoolean(field.multiple, `${path}.multiple`);
+        return field.multiple as boolean;
+      })()
+    : undefined;
+  const capture = field.capture === 'user' || field.capture === 'environment'
+    ? field.capture
+    : undefined;
 
   return {
     id: fieldId,
@@ -182,20 +202,18 @@ const validateField = (
     type: field.type as FormField['type'],
     required: field.required as boolean,
     externalID: field.externalID as string | undefined,
-    options: Array.isArray(field.options)
-      ? field.options.map((option, index) => validateOption(option, `${path}.options[${index}]`))
-      : undefined,
-    placeholder: field.placeholder as string | undefined,
-    description: field.description as string | undefined,
+    options,
+    placeholder,
+    description,
     validationRules: Array.isArray(field.validationRules)
       ? field.validationRules.map((rule, index) => validateRule(rule, `${path}.validationRules[${index}]`))
       : undefined,
     visibleWhen: Array.isArray(field.visibleWhen)
       ? field.visibleWhen.map((rule, index) => validateVisibilityRule(rule, `${path}.visibleWhen[${index}]`))
       : undefined,
-    accept: field.accept as string | undefined,
-    multiple: field.multiple as boolean | undefined,
-    capture: field.capture as FormField['capture'],
+    accept,
+    multiple,
+    capture,
   };
 };
 
@@ -258,3 +276,9 @@ export const normalizeFormSchema = (payload: unknown, subject: string): FormSche
     uploadStatus: uploadStatus as UploadStatus,
   };
 };
+
+
+
+
+
+

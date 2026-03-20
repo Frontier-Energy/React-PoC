@@ -5,15 +5,15 @@ import { type Labels, type LanguageCode } from './resources/translations';
 import { resolveGovernedFormSchema, resolveGovernedTranslations } from './contentGovernance';
 import type { FormSchema, FormType } from './types';
 
-export const fetchFormSchema = async (formType: FormType): Promise<FormSchema> => {
+export const fetchFormSchema = async (formType: FormType, tenantId?: string): Promise<FormSchema> => {
   const result = await resolveGovernedFormSchema(formType, async () => {
-    const response = await apiFetch(getFormSchemaUrl(formType));
+    const response = await apiFetch(getFormSchemaUrl(formType, tenantId));
     if (!response.ok) {
       throw new Error(`Form schema request failed with status ${response.status}`);
     }
 
     return (await response.json()) as FormSchemaPayloadDto;
-  });
+  }, tenantId);
 
   return result.payload;
 };
@@ -30,3 +30,8 @@ export const fetchTranslations = async (language: LanguageCode): Promise<Labels>
 
   return result.payload;
 };
+
+
+
+
+

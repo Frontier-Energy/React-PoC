@@ -100,7 +100,7 @@ export const useDebugInspectionController = () => {
       }
 
       try {
-        const schema = await fetchFormSchema(inspectionData.inspection.formType);
+        const schema = await fetchFormSchema(inspectionData.inspection.formType, inspectionData.inspection.tenantId);
         setFormSchema(schema as FormSchema);
         setSchemaError(null);
       } catch {
@@ -224,3 +224,4 @@ export const useDebugInspectionController = () => {
     handleMoveToDeadLetter,
   };
 };
+

@@ -10,6 +10,7 @@ export function FillForm() {
     loading,
     session,
     formSchema,
+    schemaError,
     formData,
     validationErrors,
     activeStepIndex,
@@ -32,7 +33,12 @@ export function FillForm() {
   }
 
   if (!formSchema) {
-    return <Header variant="h1">{labels.fillForm.errorLoadingSchema}</Header>;
+    return (
+      <SpaceBetween size="m">
+        <Header variant="h1">{labels.fillForm.errorLoadingSchema}</Header>
+        {schemaError ? <Alert type="error">{schemaError}</Alert> : null}
+      </SpaceBetween>
+    );
   }
 
   const reviewStepContent = (
@@ -171,4 +177,9 @@ export function FillForm() {
     </div>
   );
 }
+
+
+
+
+
 

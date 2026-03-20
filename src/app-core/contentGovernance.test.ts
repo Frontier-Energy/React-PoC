@@ -82,6 +82,35 @@ describe('contentGovernance', () => {
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
+  it('coerces nullable and scalar placeholder metadata instead of rejecting the schema', async () => {
+    const schema = await resolveGovernedFormSchema(
+      'oncor-cnme-site-visit',
+      async () => ({
+        schema: {
+          formName: 'Oncor Site Visit',
+          sections: [
+            {
+              title: 'Visit',
+              fields: [
+                {
+                  id: 'field-1',
+                  label: 'Field 1',
+                  type: 'text',
+                  required: false,
+                  placeholder: null,
+                  description: true,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      'tenant-oncor'
+    );
+
+    expect(schema.payload.sections[0]?.fields[0]?.placeholder).toBeUndefined();
+    expect(schema.payload.sections[0]?.fields[0]?.description).toBe('true');
+  });
   it('accepts rich governed schemas with choice, file, and visibility metadata', async () => {
     const richSchema = await resolveGovernedFormSchema(
       FormType.SafetyChecklist,
@@ -133,39 +162,65 @@ describe('contentGovernance', () => {
     expect(richSchema.payload.sections[0]?.fields[2]?.visibleWhen?.[0]?.fieldId).toBe('choice');
   });
 
-  it('fails when schema validation rejects unsupported field combinations and no cache exists', async () => {
+  it('ignores options on non-choice fields', async () => {
+    const schema = await resolveGovernedFormSchema(
+      'oncor-cnme-site-visit',
+      async () => ({
+        schema: {
+          formName: 'Oncor Site Visit',
+          sections: [
+            {
+              title: 'Visit',
+              fields: [
+                {
+                  id: 'notes',
+                  label: 'Notes',
+                  type: 'text',
+                  required: false,
+                  options: [{ label: 'Unused', value: 'unused' }],
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      'tenant-oncor-options'
+    );
+
+    expect(schema.payload.sections[0]?.fields[0]?.options).toBeUndefined();
+  });
+  it('ignores unsupported field combinations that are only extra metadata', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    await expect(
-      resolveGovernedFormSchema(
-        FormType.HVAC,
-        async () => ({
-          schema: {
-            formName: 'Broken schema',
-            sections: [
-              {
-                title: 'Broken',
-                fields: [
-                  {
-                    id: 'bad',
-                    label: 'Bad',
-                    type: 'text',
-                    required: false,
-                    options: [{ label: 'Nope', value: 'nope' }],
-                  },
-                ],
-              },
-            ],
-          },
-        }),
-        'tenant-invalid'
-      )
-    ).rejects.toThrow('No valid form schema is available for "hvac" from the network or cache.');
+    const schema = await resolveGovernedFormSchema(
+      FormType.HVAC,
+      async () => ({
+        schema: {
+          formName: 'Broken schema',
+          sections: [
+            {
+              title: 'Broken',
+              fields: [
+                {
+                  id: 'bad',
+                  label: 'Bad',
+                  type: 'text',
+                  required: false,
+                  options: [{ label: 'Nope', value: 'nope' }],
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      'tenant-invalid'
+    );
 
+    expect(schema.payload.sections[0]?.fields[0]?.options).toBeUndefined();
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
-  it('fails when choice fields omit options or file-only settings are misused without cache', async () => {
+  it('fails when choice fields omit options and ignores file-only settings on non-file fields', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await expect(
@@ -193,36 +248,35 @@ describe('contentGovernance', () => {
       )
     ).rejects.toThrow('No valid form schema is available for "hvac" from the network or cache.');
 
-    await expect(
-      resolveGovernedFormSchema(
-        FormType.HVAC,
-        async () => ({
-          schema: {
-            formName: 'Broken file settings',
-            sections: [
-              {
-                title: 'Broken',
-                fields: [
-                  {
-                    id: 'text',
-                    label: 'Text',
-                    type: 'text',
-                    required: false,
-                    accept: 'image/*',
-                    multiple: true,
-                  },
-                ],
-              },
-            ],
-          },
-        }),
-        'tenant-invalid-file'
-      )
-    ).rejects.toThrow('No valid form schema is available for "hvac" from the network or cache.');
+    const schema = await resolveGovernedFormSchema(
+      FormType.HVAC,
+      async () => ({
+        schema: {
+          formName: 'Broken file settings',
+          sections: [
+            {
+              title: 'Broken',
+              fields: [
+                {
+                  id: 'text',
+                  label: 'Text',
+                  type: 'text',
+                  required: false,
+                  accept: 'image/*',
+                  multiple: true,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      'tenant-invalid-file'
+    );
 
+    expect(schema.payload.sections[0]?.fields[0]?.accept).toBeUndefined();
+    expect(schema.payload.sections[0]?.fields[0]?.multiple).toBeUndefined();
     expect(warnSpy).not.toHaveBeenCalled();
   });
-
   it('loads governed translations, validates overrides, and falls back through cache and bundled labels', async () => {
     const bundled = getBundledTranslations('en');
     const network = await resolveGovernedTranslations(
@@ -356,3 +410,6 @@ describe('contentGovernance', () => {
     expect(warnSpy).toHaveBeenCalled();
   });
 });
+
+
+
